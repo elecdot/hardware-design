@@ -31,7 +31,7 @@ Important board constraints:
 - PYNQ-Z1 external I/O should be treated as **3.3 V only**. Do not assume APduino-style 5 V compatibility.
 - Check every sensor/module voltage before wiring.
 - Do not hot-plug wires while the board is powered.
-- The PL clock may use the PYNQ-Z1 Ethernet PHY 125 MHz clock on **H16**, or a PS-generated FCLK depending on the Vivado block design. Keep clock assumptions explicit in HDL parameters and constraints.
+- The PL clock may use the PYNQ-Z1 Ethernet PHY 125 MHz clock on **H16**, or a PS-generated FCLK depending on the Vivado block design. Keep clock assumptions explicit in HDL parameters and constraints. NOTE: the system clock are all setup as 100 MHz.
 
 ## Main External Modules
 
