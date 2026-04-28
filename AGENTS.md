@@ -40,7 +40,7 @@ Input sensing modules:
 - Heart-rate / SpO2 sensor
   - Data: BPM, SPO2
   - Planned interface: **UART IP**
-- MPU9250 9-axis accelerometer / gyroscope
+- MPU9250 (JY-901 specific) 9-axis accelerometer / gyroscope
   - Data: accel_x, accel_y, accel_z, possible gyro data
   - Planned interface: **I2C IP**
   - Used for body motion and turning detection
