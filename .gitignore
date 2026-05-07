@@ -20,3 +20,46 @@
 *.exe
 *.vvp
 *.vcd
+
+# Vivado generated files
+vivado/project/**/*.Xil/
+vivado/project/**/*.cache/
+vivado/project/**/*.hw/
+vivado/project/**/*.runs/
+vivado/project/**/*.sim/
+vivado/project/**/*.gen/
+vivado/project/**/*.ip_user_files/
+vivado/project/**/*.jou
+vivado/project/**/*.log
+vivado/project/**/*.str
+vivado/project/**/*.backup.jou
+vivado/project/**/*.backup.log
+
+# Optional: generated bitstreams can be large
+# Keep final demo overlays manually if needed
+vivado/project/**/*.bit
+vivado/project/**/*.hwh
+
+# Python cache
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info/
+
+# Virtual environments
+.venv/
+.env/
+
+# Codex Local files
+.codex/
+
+# Runtime files
+*.log
+*.tmp
+*.bak
+*.out
+*.err
+outputs/*
+!outputs/README.md
