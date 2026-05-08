@@ -13,10 +13,6 @@ Use 3.3 V wiring only with PYNQ-Z1 PL I/O.
 | SCL | Arduino SCL / `P16` | Add or confirm 4.7 k pullup to 3.3 V. |
 | SDA | Arduino SDA / `P15` | Add or confirm 4.7 k pullup to 3.3 V. |
 
-Constraint file:
-
-```text
-vivado/constraints/i2c_jy901_pynq_z1.xdc
-```
+Constraint file: [../vivado/constraints/i2c_jy901_pynq_z1.xdc](../vivado/constraints/i2c_jy901_pynq_z1.xdc).
 
 Do not hot-plug the module while PYNQ-Z1 is powered.

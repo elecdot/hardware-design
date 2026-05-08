@@ -6,6 +6,6 @@ Editable project diagrams for the course report and design explanation live here
 
 | File | Purpose |
 |---|---|
-| `macro-design.drawio` | High-level system architecture diagram. |
+| [macro-design.drawio](macro-design.drawio) | High-level system architecture diagram. |
 
-When a diagram reflects an implementation decision, keep the matching text documentation in `../../docs/` up to date.
+When a diagram reflects an implementation decision, keep the matching text documentation in [../../docs/](../../docs/) up to date.

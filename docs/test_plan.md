@@ -6,19 +6,13 @@ Module and system-level test checklist.
 
 ### Behavioral simulation
 
-Location:
-
-```text
-sim/tb_i2c_mpu9250/
-```
+Location: [../sim/tb_i2c_mpu9250/](../sim/tb_i2c_mpu9250/).
 
 Files:
 
-```text
-rtl/i2c_mpu9250/i2c_master_core.v
-rtl/i2c_mpu9250/jy901_sampler.v
-sim/tb_i2c_mpu9250/tb_jy901_sampler.v
-```
+- [../rtl/i2c_mpu9250/i2c_master_core.v](../rtl/i2c_mpu9250/i2c_master_core.v)
+- [../rtl/i2c_mpu9250/jy901_sampler.v](../rtl/i2c_mpu9250/jy901_sampler.v)
+- [../sim/tb_i2c_mpu9250/tb_jy901_sampler.v](../sim/tb_i2c_mpu9250/tb_jy901_sampler.v)
 
 Command when Icarus Verilog is installed:
 

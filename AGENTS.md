@@ -1,8 +1,8 @@
 # AGENTS.md
 
-Read `README.md` first for the project overview, hardware platform, external
+Read README.md first for the project overview, hardware platform, external
 modules, system architecture, repository layout, open loops, and documentation
-index. Read relevant directory-level `README.md` for the local conventions.
+index. Read relevant directory-level README files for the local conventions.
 
 ## Testing Requirements
 

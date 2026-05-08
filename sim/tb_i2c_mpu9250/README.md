@@ -1,6 +1,6 @@
 # JY901 I2C Sampler Simulation
 
-This testbench verifies the first hardware milestone from `docs/i2c_axi_mpu9250.md`:
+This testbench verifies the first hardware milestone from [../../docs/i2c_axi_mpu9250.md](../../docs/i2c_axi_mpu9250.md):
 
 - open-drain style I2C master behavior through tri-state SCL/SDA wires;
 - `START -> 0xA0 -> 0x34 -> RESTART -> 0xA1` burst read sequence;
@@ -24,4 +24,4 @@ PASS: JY901 address NACK simulation completed
 
 Vivado xsim users can add the same files listed in `files.f` to a behavioral simulation set.
 
-Related RTL lives in `../../rtl/i2c_mpu9250/`. The canonical register-level behavior is documented in `../../docs/register_map.md`.
+Related RTL lives in [../../rtl/i2c_mpu9250/](../../rtl/i2c_mpu9250/). The canonical register-level behavior is documented in [../../docs/register_map.md](../../docs/register_map.md).

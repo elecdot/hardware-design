@@ -762,11 +762,11 @@ cooldown = 5.0
 1. 新建 Vivado 工程，器件选择 `xc7z020clg400-1`。
 2. 创建 RTL 文件：
 
-   * `axi_i2c_jy901_v1_0.v`
-   * `axi_lite_regs.v`
-   * `jy901_sampler.v`
-   * `i2c_master_core.v`
-   * `i2c_open_drain_io.v`
+   * [axi_i2c_jy901_v1_0.v](../rtl/i2c_mpu9250/axi_i2c_jy901_v1_0.v)
+   * [axi_lite_regs.v](../rtl/i2c_mpu9250/axi_lite_regs.v)
+   * [jy901_sampler.v](../rtl/i2c_mpu9250/jy901_sampler.v)
+   * [i2c_master_core.v](../rtl/i2c_mpu9250/i2c_master_core.v)
+   * [i2c_open_drain_io.v](../rtl/i2c_mpu9250/i2c_open_drain_io.v)
 3. 完成行为仿真。
 4. 使用 `Create and Package New IP` 封装 IP。
 

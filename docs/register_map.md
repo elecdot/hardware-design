@@ -5,7 +5,7 @@ All AXI IP register offsets.
 ## axi_i2c_jy901_v1_0
 
 AXI4-Lite data width is 32 bits. Register offsets follow
-`docs/i2c_axi_mpu9250.md`.
+[docs/i2c_axi_mpu9250.md](i2c_axi_mpu9250.md).
 
 | Offset | Name | Access | Reset | Description |
 |---:|---|---|---:|---|

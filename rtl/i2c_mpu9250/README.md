@@ -6,11 +6,11 @@ AXI-Lite custom IP that reads JY901/MPU9250 motion data over an open-drain I2C b
 
 | File | Purpose |
 |---|---|
-| `axi_i2c_jy901_v1_0.v` | Top-level AXI IP wrapper with external `i2c_scl` and `i2c_sda` ports. |
-| `axi_lite_regs.v` | AXI4-Lite register bank and software-visible register defaults. |
-| `jy901_sampler.v` | Sampling scheduler for oneshot, auto sampling, and config-write transactions. |
-| `i2c_master_core.v` | Bit-level I2C master state machine for burst reads and 16-bit config writes. |
-| `i2c_open_drain_io.v` | Open-drain style SCL/SDA tri-state adapter. |
+| [axi_i2c_jy901_v1_0.v](axi_i2c_jy901_v1_0.v) | Top-level AXI IP wrapper with external `i2c_scl` and `i2c_sda` ports. |
+| [axi_lite_regs.v](axi_lite_regs.v) | AXI4-Lite register bank and software-visible register defaults. |
+| [jy901_sampler.v](jy901_sampler.v) | Sampling scheduler for oneshot, auto sampling, and config-write transactions. |
+| [i2c_master_core.v](i2c_master_core.v) | Bit-level I2C master state machine for burst reads and 16-bit config writes. |
+| [i2c_open_drain_io.v](i2c_open_drain_io.v) | Open-drain style SCL/SDA tri-state adapter. |
 
 ## Quick Facts
 
@@ -24,10 +24,10 @@ AXI-Lite custom IP that reads JY901/MPU9250 motion data over an open-drain I2C b
 
 | Path | Purpose |
 |---|---|
-| `../../docs/i2c_axi_mpu9250.md` | Full design note and rationale. |
-| `../../docs/register_map.md` | Software-visible register map. |
-| `../../docs/wiring.md` | PYNQ-Z1 wiring and voltage constraints. |
-| `../../sim/tb_i2c_mpu9250/` | Behavioral simulation for the sampler/core path. |
-| `../../vivado/constraints/i2c_jy901_pynq_z1.xdc` | Current PYNQ-Z1 external pin constraints. |
+| [../../docs/i2c_axi_mpu9250.md](../../docs/i2c_axi_mpu9250.md) | Full design note and rationale. |
+| [../../docs/register_map.md](../../docs/register_map.md) | Software-visible register map. |
+| [../../docs/wiring.md](../../docs/wiring.md) | PYNQ-Z1 wiring and voltage constraints. |
+| [../../sim/tb_i2c_mpu9250/](../../sim/tb_i2c_mpu9250/) | Behavioral simulation for the sampler/core path. |
+| [../../vivado/constraints/i2c_jy901_pynq_z1.xdc](../../vivado/constraints/i2c_jy901_pynq_z1.xdc) | Current PYNQ-Z1 external pin constraints. |
 
-Before changing register offsets or status bits, update `../../docs/register_map.md` in the same change.
+Before changing register offsets or status bits, update [../../docs/register_map.md](../../docs/register_map.md) in the same change.

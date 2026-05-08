@@ -1,4 +1,4 @@
-t # project
+# project
 
 Vivado project directories for integration and local hardware build experiments live here.
 
@@ -6,6 +6,6 @@ Vivado project directories for integration and local hardware build experiments 
 
 | Path | Purpose |
 |---|---|
-| `i2c_ip_test/` | Vivado project for testing the JY901/MPU9250 I2C IP. |
+| [i2c_ip_test/](i2c_ip_test/) | Vivado project for testing the JY901/MPU9250 I2C IP. |
 
-Source RTL should remain under `../../rtl/`; project-generated cache and simulation products are not authoritative design files.
+Source RTL should remain under [../../rtl/](../../rtl/); project-generated cache and simulation products are not authoritative design files.

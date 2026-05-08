@@ -94,37 +94,36 @@ The system is organized into three layers.
 
 Current and planned repository structure:
 
-```text
-.
-|-- .agent/skills/            # Repo-local Codex skills
-|-- AGENTS.md                 # Agent execution rules and Definition of Done
-|-- README.md                 # Stable project overview and navigation
-|-- docs/                     # Engineering docs and work notes
-|-- reports/                  # Course report inputs and diagrams
-|-- rtl/                      # Synthesizable RTL custom IP
-|-- sim/                      # Behavioral simulations and testbenches
-`-- vivado/                   # Vivado projects, constraints, and future scripts
-```
+| Path | Purpose |
+|---|---|
+| [.agents/skills/](.agents/skills/) | Repo-local Codex skills. |
+| [AGENTS.md](AGENTS.md) | Agent execution rules and Definition of Done. |
+| [README.md](README.md) | Stable project overview and navigation. |
+| [docs/](docs/) | Engineering docs and work notes. |
+| [reports/](reports/) | Course report inputs and diagrams. |
+| [rtl/](rtl/) | Synthesizable RTL custom IP. |
+| [sim/](sim/) | Behavioral simulations and testbenches. |
+| [vivado/](vivado/) | Vivado projects, constraints, and future scripts. |
 
 Implemented or active subtrees:
 
 | Path | Purpose |
 |---|---|
-| `rtl/i2c_mpu9250/` | AXI-Lite I2C/JY901 RTL implementation. |
-| `sim/tb_i2c_mpu9250/` | Behavioral simulation for the JY901 burst-read path. |
-| `vivado/constraints/` | Board-level XDC constraints. |
-| `vivado/project/i2c_ip_test/` | Local Vivado project for I2C IP testing. |
-| `docs/JY901/` | Vendor reference material for the JY901 module. |
+| [rtl/i2c_mpu9250/](rtl/i2c_mpu9250/) | AXI-Lite I2C/JY901 RTL implementation. |
+| [sim/tb_i2c_mpu9250/](sim/tb_i2c_mpu9250/) | Behavioral simulation for the JY901 burst-read path. |
+| [vivado/constraints/](vivado/constraints/) | Board-level XDC constraints. |
+| [vivado/project/i2c_ip_test/](vivado/project/i2c_ip_test/) | Local Vivado project for I2C IP testing. |
+| [docs/JY901/](docs/JY901/) | Vendor reference material for the JY901 module. |
 
 Planned subtrees may be added later:
 
 | Path | Purpose |
 |---|---|
-| `pynq/` | Overlay files, Python drivers, notebooks, and board-side client code. |
-| `pc_server/` | TCP receive service, protocol parsing, and storage code. |
-| `analysis/` | Feature extraction, smoothing, plots, and model experiments. |
-| `tests/` | Python-side tests and reusable fixtures. |
-| `data/` | Raw and processed data; normally ignored unless demo samples are needed. |
+| [pynq/](pynq/) | Overlay files, Python drivers, notebooks, and board-side client code. |
+| [pc_server/](pc_server/) | TCP receive service, protocol parsing, and storage code. |
+| [analysis/](analysis/) | Feature extraction, smoothing, plots, and model experiments. |
+| [tests/](tests/) | Python-side tests and reusable fixtures. |
+| [data/](data/) | Raw and processed data; normally ignored unless demo samples are needed. |
 
 ## Documentations
 
@@ -132,37 +131,37 @@ Read these first:
 
 | Path | Purpose |
 |---|---|
-| `AGENTS.md` | Agent rules, testing expectations, and Definition of Done. |
-| `docs/README.md` | Documentation directory index. |
-| `rtl/README.md` | RTL directory index. |
-| `sim/README.md` | Simulation directory index. |
-| `vivado/README.md` | Vivado directory index. |
-| `reports/README.md` | Report material index. |
+| [AGENTS.md](AGENTS.md) | Agent rules, testing expectations, and Definition of Done. |
+| [docs/README.md](docs/README.md) | Documentation directory index. |
+| [rtl/README.md](rtl/README.md) | RTL directory index. |
+| [sim/README.md](sim/README.md) | Simulation directory index. |
+| [vivado/README.md](vivado/README.md) | Vivado directory index. |
+| [reports/README.md](reports/README.md) | Report material index. |
 
 Engineering references:
 
 | Path | Purpose |
 |---|---|
-| `docs/i2c_axi_mpu9250.md` | Detailed design note for the JY901/MPU9250 I2C AXI IP. |
-| `docs/register_map.md` | Canonical AXI-Lite register map. |
-| `docs/wiring.md` | Wiring and voltage notes. |
-| `docs/test_plan.md` | Simulation and board-level test checklist. |
-| `docs/protocol.md` | PYNQ-to-PC protocol definition placeholder. |
-| `docs/work_notes.md` | Human work notes, safety reminders, and common failure modes. |
+| [docs/i2c_axi_mpu9250.md](docs/i2c_axi_mpu9250.md) | Detailed design note for the JY901/MPU9250 I2C AXI IP. |
+| [docs/register_map.md](docs/register_map.md) | Canonical AXI-Lite register map. |
+| [docs/wiring.md](docs/wiring.md) | Wiring and voltage notes. |
+| [docs/test_plan.md](docs/test_plan.md) | Simulation and board-level test checklist. |
+| [docs/protocol.md](docs/protocol.md) | PYNQ-to-PC protocol definition placeholder. |
+| [docs/work_notes.md](docs/work_notes.md) | Human work notes, safety reminders, and common failure modes. |
 
 ## Open Loops
 
 Current open work:
 
-- Finish or formalize the PYNQ Python driver for `i2c_mpu9250`.
-- Decide whether `vivado/project/i2c_ip_test/` should be committed as source or
+- Finish or formalize the PYNQ Python driver for [rtl/i2c_mpu9250/](rtl/i2c_mpu9250/).
+- Decide whether [vivado/project/i2c_ip_test/](vivado/project/i2c_ip_test/) should be committed as source or
   regenerated from scripts.
 - Complete the board-level I2C/JY901 test evidence.
-- Define the PYNQ-to-PC JSON protocol in `docs/protocol.md`.
+- Define the PYNQ-to-PC JSON protocol in [docs/protocol.md](docs/protocol.md).
 - Add the PC receive/storage path.
 - Add or scope the remaining planned IPs: UART heart-rate/SpO2, DHT11,
   SPI TFT, IR AC, and GPIO/PWM actuator control.
-- Refine repo-local skills under `.agent/skills/` as the workflow stabilizes.
+- Refine repo-local skills under [.agents/skills/](.agents/skills/) as the workflow stabilizes.
 
 Keep README files and engineering docs synchronized whenever protocols,
 register maps, external ports, wiring, or workflow assumptions change.
