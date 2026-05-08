@@ -1,127 +1,168 @@
-# 智能睡眠监测辅助系统
+# Smart Sleep Monitoring Assistance System
 
-基于 **PYNQ-Z1 / Zynq-7000 XC7Z020** 的低成本、非侵入式家庭睡眠监测与辅助系统。
+This repository is for a Computer Hardware Comprehensive Course Design project:
+a low-cost, non-invasive, home-oriented sleep monitoring and assistance system
+built around the PYNQ-Z1 / Zynq-7000 XC7Z020 platform.
 
-本项目面向课程设计场景，目标是在夜间连续采集人体生理、体动与环境数据，并完成本地显示、上位机记录分析，以及基础环境辅助控制。系统输出仅作为辅助性、可解释的估计结果，不用于临床诊断。
+The system collects physiological, motion, and environmental data, displays key
+runtime values locally, sends structured records to a PC-side service, and may
+trigger simple assistance actions such as IR air-conditioner control,
+humidifier control, or sleep-aid prompts.
 
-## 项目目标
+System outputs are auxiliary estimates only. They are not clinical diagnosis
+results.
 
-- 连续采集睡眠相关数据
-- 基于多模态信号估计睡眠状态与稳定性
-- 在板端实时显示关键指标
-- 将运行数据发送到 PC 端进行记录、分析与可视化
-- 根据简单规则触发空调红外、加湿器等辅助动作
+## Project Overview
 
-## 硬件平台
+Core goals:
 
-- 开发板：PYNQ-Z1
-- 芯片：Xilinx Zynq-7000 XC7Z020 (`xc7z020clg400-1`)
-- 架构：PS + PL 协同
-- 通信方式：AXI
+- Collect sleep-related signals during overnight operation.
+- Estimate sleep state and sleep stability from multiple signals.
+- Display key values on the board-side display.
+- Send runtime data to a PC service for logging, analysis, and visualization.
+- Keep the implementation explainable for course assessment and debugging.
 
-注意事项：
+Current workspace status:
 
-- PYNQ-Z1 外设接口按 **3.3V 逻辑** 处理
-- 接线前必须确认模块供电与 IO 电平
-- 禁止在开发板上电时热插拔传感器与导线
-- 计时敏感模块的时钟来源需在设计与约束中明确记录
+- The implemented hardware path is centered on `i2c_mpu9250`, an AXI-Lite I2C
+  IP for JY901/MPU9250 motion data sampling.
+- Behavioral simulation exists for the JY901 burst-read path.
+- PYNQ-side runtime code, PC server code, analysis tools, and most other
+  planned IPs are still future work unless added later.
 
-## 系统架构
+## Hardware Platform
 
-项目按三层结构设计：
+Target board:
 
-1. **PL 侧自定义 IP**
-   负责 UART、I2C、One-Wire、SPI、IR 等时序敏感接口，并通过 AXI-Lite 提供寄存器访问。
-2. **PYNQ 板端客户端**
-   负责加载 overlay、轮询各 IP、刷新显示、执行轻量规则、发送数据到 PC。
-3. **PC 端服务与分析层**
-   负责接收数据、协议解析、存储、睡眠状态分析、平滑处理与可视化。
+- Board: PYNQ-Z1
+- Chip: Xilinx Zynq-7000 XC7Z020, `xc7z020clg400-1`
+- PS: ARM Cortex-A9 processing system
+- PL: FPGA programmable logic
+- PS-PL communication: AXI / AXI-Lite
 
-## 计划接入的模块
+Important constraints:
 
-输入采集：
+- Treat PYNQ-Z1 external I/O as 3.3 V logic only.
+- Do not hot-plug sensors or wires while the board is powered.
+- Keep clock assumptions explicit in RTL parameters, register docs, and XDC.
+- The current design assumes a 100 MHz system/AXI clock unless documented
+  otherwise.
 
-- 心率 / 血氧传感器：UART
-- MPU9250 九轴模块：I2C
-- DHT11 温湿度传感器：One-Wire
+## Main External Modules
 
-显示与辅助控制：
+Input sensing modules:
 
-- 1.3 寸 TFT 彩屏：SPI
-- 空调红外控制模块：IR
-- 加湿器或简单执行器：GPIO / PWM
-- 可选助眠提示模块：PDM / PWM / Audio
+| Module | Data | Planned interface | Status |
+|---|---|---|---|
+| Heart-rate / SpO2 sensor | BPM, SPO2 | UART custom IP | Planned |
+| JY901 / MPU9250 IMU | Acceleration, gyro, attitude, temperature | I2C custom IP | RTL and simulation in progress |
+| DHT11 | Temperature, humidity | One-Wire custom IP | Planned |
 
-## 计划中的自定义 IP
+Display and assistance modules:
 
-- `spi_tft`
-- `uart_hr_spo2`
-- `i2c_mpu9250`
-- `onewire_dht11`
-- `ir_ac`
-- `gpio_or_pwm_ctrl`
-- `ila_debug`
+| Module | Purpose | Planned interface | Status |
+|---|---|---|---|
+| 1.3-inch TFT display | Board-side real-time display | SPI custom IP | Planned |
+| IR air-conditioner transmitter | Environment assistance | IR custom IP | Planned |
+| Humidifier or indicator | Simple actuator control | GPIO / PWM / relay-style output | Planned |
+| Sleep-aid prompt module | Optional audio or prompt output | PDM / PWM / audio | Planned |
 
-这些 IP 预期采用“一类协议/模块一个 AXI 从设备”的方式组织，除非后续集成阶段有明确整合需求。
+## System Architecture
 
-## 仓库导航
+The system is organized into three layers.
 
-当前仓库以设计文档为主，后续将逐步补充 RTL、Vivado 工程、PYNQ 驱动与 PC 端程序。
+1. PL-side custom IP layer
+   - Implements timing-sensitive peripheral protocols.
+   - Exposes clean AXI-Lite register interfaces to the PS.
+   - Keeps board pin assignments in XDC, not RTL.
 
-- [AGENTS.md](/p:/labs/hardware_design/hardware_design/AGENTS.md)
-  仓库内工程约束、开发流程、测试要求与协作规则
-- [docs/wiring.md](/p:/labs/hardware_design/hardware_design/docs/wiring.md)
-  模块接线与电平/供电说明
-- [docs/register_map.md](/p:/labs/hardware_design/hardware_design/docs/register_map.md)
-  AXI IP 寄存器映射
-- [docs/protocol.md](/p:/labs/hardware_design/hardware_design/docs/protocol.md)
-  PYNQ 到 PC 的通信协议定义
-- [docs/test_plan.md](/p:/labs/hardware_design/hardware_design/docs/test_plan.md)
-  模块级与系统级测试计划
-- [docs/demo_plan.md](/p:/labs/hardware_design/hardware_design/docs/demo_plan.md)
-  课程答辩或演示流程
+2. PYNQ board-side client
+   - Loads bitstream and overlay metadata.
+   - Binds custom IP by overlay name.
+   - Reads sensors through MMIO drivers.
+   - Runs lightweight local rules such as turning detection and threshold flags.
+   - Updates the local display and sends structured samples to the PC.
 
-建议后续按以下结构扩展仓库：
+3. PC-side service and analysis tools
+   - Receives samples from PYNQ.
+   - Decodes one canonical protocol.
+   - Validates values and timestamp order.
+   - Saves raw records before any prediction or smoothing.
+   - Produces statistics and visualization for the course demo/report.
+
+## Repo Layout
+
+Current and planned repository structure:
 
 ```text
-vivado/      # Vivado 工程、IP Repo、约束、BD Tcl
-rtl/         # 各协议核心与 AXI 包装
-sim/         # 仿真测试平台
-pynq/        # Overlay、驱动、notebook、板端客户端
-pc_server/   # 上位机接收、存储、协议解析
-analysis/    # 数据分析与可视化
-tests/       # Python 侧测试与样例
+.
+|-- .agent/skills/            # Repo-local Codex skills
+|-- AGENTS.md                 # Agent execution rules and Definition of Done
+|-- README.md                 # Stable project overview and navigation
+|-- docs/                     # Engineering docs and work notes
+|-- reports/                  # Course report inputs and diagrams
+|-- rtl/                      # Synthesizable RTL custom IP
+|-- sim/                      # Behavioral simulations and testbenches
+`-- vivado/                   # Vivado projects, constraints, and future scripts
 ```
 
-## 当前状态
+Implemented or active subtrees:
 
-目前仓库处于**工程初始化与文档搭建阶段**：
+| Path | Purpose |
+|---|---|
+| `rtl/i2c_mpu9250/` | AXI-Lite I2C/JY901 RTL implementation. |
+| `sim/tb_i2c_mpu9250/` | Behavioral simulation for the JY901 burst-read path. |
+| `vivado/constraints/` | Board-level XDC constraints. |
+| `vivado/project/i2c_ip_test/` | Local Vivado project for I2C IP testing. |
+| `docs/JY901/` | Vendor reference material for the JY901 module. |
 
-- 已有项目目标、架构与开发约束说明
-- 已建立接线、寄存器、协议、测试、演示等文档占位
-- 还未完整提交 RTL、Vivado 工程、PYNQ 驱动和 PC 端实现
+Planned subtrees may be added later:
 
-因此，现阶段更适合作为课程设计的总体方案仓库，而不是可直接运行的完整成品。
+| Path | Purpose |
+|---|---|
+| `pynq/` | Overlay files, Python drivers, notebooks, and board-side client code. |
+| `pc_server/` | TCP receive service, protocol parsing, and storage code. |
+| `analysis/` | Feature extraction, smoothing, plots, and model experiments. |
+| `tests/` | Python-side tests and reusable fixtures. |
+| `data/` | Raw and processed data; normally ignored unless demo samples are needed. |
 
-## Current Repository Snapshot
+## Documentations
 
-The current workspace implementation is centered on the JY901/MPU9250 I2C path:
+Read these first:
 
-- `rtl/i2c_mpu9250/` contains the AXI-Lite I2C/JY901 RTL.
-- `sim/tb_i2c_mpu9250/` contains the behavioral simulation and expected pass output.
-- `vivado/constraints/i2c_jy901_pynq_z1.xdc` contains the current PYNQ-Z1 I2C pin constraints.
-- `vivado/project/i2c_ip_test/` contains a local Vivado test project and is currently untracked in git.
+| Path | Purpose |
+|---|---|
+| `AGENTS.md` | Agent rules, testing expectations, and Definition of Done. |
+| `docs/README.md` | Documentation directory index. |
+| `rtl/README.md` | RTL directory index. |
+| `sim/README.md` | Simulation directory index. |
+| `vivado/README.md` | Vivado directory index. |
+| `reports/README.md` | Report material index. |
 
-Other planned IPs and the PYNQ/PC-side software are still future work unless added in later commits. Directory-level README files provide the quick navigation index for developers and agents.
+Engineering references:
+
+| Path | Purpose |
+|---|---|
+| `docs/i2c_axi_mpu9250.md` | Detailed design note for the JY901/MPU9250 I2C AXI IP. |
+| `docs/register_map.md` | Canonical AXI-Lite register map. |
+| `docs/wiring.md` | Wiring and voltage notes. |
+| `docs/test_plan.md` | Simulation and board-level test checklist. |
+| `docs/protocol.md` | PYNQ-to-PC protocol definition placeholder. |
+| `docs/work_notes.md` | Human work notes, safety reminders, and common failure modes. |
 
 ## Open Loops
 
-1. 明确具体传感器与显示模块型号
-2. 补全 `docs/wiring.md`、`docs/register_map.md` 与 `docs/protocol.md`
-3. 优先完成 `onewire_dht11`、`i2c_mpu9250`、`uart_hr_spo2` 的协议核与仿真
-4. 建立基础 PYNQ 驱动与板端采集脚本
-5. 建立 PC 端接收、存储和可视化最小可运行链路
+Current open work:
 
-## 说明
+- Finish or formalize the PYNQ Python driver for `i2c_mpu9250`.
+- Decide whether `vivado/project/i2c_ip_test/` should be committed as source or
+  regenerated from scripts.
+- Complete the board-level I2C/JY901 test evidence.
+- Define the PYNQ-to-PC JSON protocol in `docs/protocol.md`.
+- Add the PC receive/storage path.
+- Add or scope the remaining planned IPs: UART heart-rate/SpO2, DHT11,
+  SPI TFT, IR AC, and GPIO/PWM actuator control.
+- Refine repo-local skills under `.agent/skills/` as the workflow stabilizes.
 
-仓库中的工程规范、协作边界与完成定义以 [AGENTS.md](/p:/labs/hardware_design/hardware_design/AGENTS.md) 为准。README 主要用于项目简介与使用导航，不替代详细设计文档。
+Keep README files and engineering docs synchronized whenever protocols,
+register maps, external ports, wiring, or workflow assumptions change.
