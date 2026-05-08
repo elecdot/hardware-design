@@ -103,6 +103,17 @@ tests/       # Python 侧测试与样例
 
 因此，现阶段更适合作为课程设计的总体方案仓库，而不是可直接运行的完整成品。
 
+## Current Repository Snapshot
+
+The current workspace implementation is centered on the JY901/MPU9250 I2C path:
+
+- `rtl/i2c_mpu9250/` contains the AXI-Lite I2C/JY901 RTL.
+- `sim/tb_i2c_mpu9250/` contains the behavioral simulation and expected pass output.
+- `vivado/constraints/i2c_jy901_pynq_z1.xdc` contains the current PYNQ-Z1 I2C pin constraints.
+- `vivado/project/i2c_ip_test/` contains a local Vivado test project and is currently untracked in git.
+
+Other planned IPs and the PYNQ/PC-side software are still future work unless added in later commits. Directory-level README files provide the quick navigation index for developers and agents.
+
 ## Open Loops
 
 1. 明确具体传感器与显示模块型号

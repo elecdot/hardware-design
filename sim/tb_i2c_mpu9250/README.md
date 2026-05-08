@@ -23,3 +23,5 @@ PASS: JY901 address NACK simulation completed
 ```
 
 Vivado xsim users can add the same files listed in `files.f` to a behavioral simulation set.
+
+Related RTL lives in `../../rtl/i2c_mpu9250/`. The canonical register-level behavior is documented in `../../docs/register_map.md`.

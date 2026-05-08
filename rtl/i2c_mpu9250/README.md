@@ -1,0 +1,33 @@
+# i2c_mpu9250
+
+AXI-Lite custom IP that reads JY901/MPU9250 motion data over an open-drain I2C bus and exposes raw samples to the PS.
+
+## Files
+
+| File | Purpose |
+|---|---|
+| `axi_i2c_jy901_v1_0.v` | Top-level AXI IP wrapper with external `i2c_scl` and `i2c_sda` ports. |
+| `axi_lite_regs.v` | AXI4-Lite register bank and software-visible register defaults. |
+| `jy901_sampler.v` | Sampling scheduler for oneshot, auto sampling, and config-write transactions. |
+| `i2c_master_core.v` | Bit-level I2C master state machine for burst reads and 16-bit config writes. |
+| `i2c_open_drain_io.v` | Open-drain style SCL/SDA tri-state adapter. |
+
+## Quick Facts
+
+- Target clock assumption: 100 MHz AXI clock unless configured otherwise.
+- Default JY901 7-bit I2C address: `0x50`; do not use read byte `0xA1` as the register value.
+- Default sample window: 13 little-endian 16-bit words from JY901 register `0x34`.
+- Default `I2C_CLKDIV`: `250`, giving about 100 kHz SCL from a 100 MHz clock.
+- SCL/SDA must be pulled up to 3.3 V, not 5 V.
+
+## Related Files
+
+| Path | Purpose |
+|---|---|
+| `../../docs/i2c_axi_mpu9250.md` | Full design note and rationale. |
+| `../../docs/register_map.md` | Software-visible register map. |
+| `../../docs/wiring.md` | PYNQ-Z1 wiring and voltage constraints. |
+| `../../sim/tb_i2c_mpu9250/` | Behavioral simulation for the sampler/core path. |
+| `../../vivado/constraints/i2c_jy901_pynq_z1.xdc` | Current PYNQ-Z1 external pin constraints. |
+
+Before changing register offsets or status bits, update `../../docs/register_map.md` in the same change.
