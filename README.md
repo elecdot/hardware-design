@@ -153,15 +153,14 @@ Engineering references:
 
 Current open work:
 
-- Finish or formalize the PYNQ Python driver for [rtl/i2c_mpu9250/](rtl/i2c_mpu9250/).
-- Decide whether [vivado/project/i2c_ip_test/](vivado/project/i2c_ip_test/) should be committed as source or
-  regenerated from scripts.
-- Complete the board-level I2C/JY901 test evidence.
+- [ ] Finish or formalize the PYNQ Python driver for [rtl/i2c_mpu9250/](rtl/i2c_mpu9250/).
+- [ ] Complete the board-level I2C/JY901 test evidence.
+
+Further work:
 - Define the PYNQ-to-PC JSON protocol in [docs/protocol.md](docs/protocol.md).
 - Add the PC receive/storage path.
 - Add or scope the remaining planned IPs: UART heart-rate/SpO2, DHT11,
   SPI TFT, IR AC, and GPIO/PWM actuator control.
-- Refine repo-local skills under [.agents/skills/](.agents/skills/) as the workflow stabilizes.
 
 Keep README files and engineering docs synchronized whenever protocols,
 register maps, external ports, wiring, or workflow assumptions change.
