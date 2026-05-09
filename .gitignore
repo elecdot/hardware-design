@@ -63,3 +63,6 @@ wheels/
 *.err
 outputs/*
 !outputs/README.md
+
+# Aider Local files
+.aider*
