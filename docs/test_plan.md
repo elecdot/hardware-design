@@ -126,3 +126,34 @@ Passing criteria:
 - `STATUS.ack_error == 0`;
 - `SAMPLE_CNT` increments;
 - logic analyzer or ILA shows `0xA0 0x34 0xA1`.
+
+## Waveform signals to observe
+
+### Behavioral simulation (`tb_jy901_sampler`)
+
+- **I2C bus signals:** `i2c_scl`, `i2c_sda`. Verify start condition (SDA low while SCL high), device address (`0xA0`), register address (`0x34`), repeat start, read address (`0xA1`), 26 data bytes, NACK, stop condition.
+- **I2C master signals:** `scl_drive_low`, `sda_drive_low` to see when the master pulls lines low.
+- **Master state machine:** `dut.i2c_master_core_i.state` (states 0-16 as defined) shows sequence of operations.
+- **Tx/Rx data:** `tx_byte`, `rx_data`, `rx_valid`, `rx_index`, `byte_cnt`, `bit_cnt`. Confirm that each byte is sent/received correctly.
+- **Control outputs:** `busy`, `done`, `data_valid`, `ack_error`, `timeout`, `error_code`. Check that `done` rises briefly at end, `ack_error` and `timeout` stay low.
+- **Data outputs:** `data0`..`data12`, `sample_cnt`. Verify expected values for normal pass.
+
+### Address NACK path
+
+Same signals as above. Watch `ack_error` go high and `error_code` become `0x01`, and that the sequence stops after sending device address without ack.
+
+### AXI top-level simulation (`tb_axi_i2c_jy901_top`)
+
+- **I2C bus and internal master signals** as listed above.
+- **AXI control:** (optional) look at `S_AXI_AWVALID`, `S_AXI_ARVALID`, etc. for completeness.
+- **Register interface outputs:** `data0`..`data12`, `sample_cnt`, `data_valid`, `ack_error`, `timeout`, `error_code`, `done`, `cfg_done`.
+- **Auto-mode signals:** observe `sample_cnt` incrementing over multiple transactions; `busy` pulses.
+- **Error codes per step:** confirm `error_code` values `0x01`..`0x05` for corresponding NACK scenarios.
+- **Soft reset:** after `soft_reset`, all data outputs and status flags return to zero.
+
+### Timeout simulation (`tb_i2c_master_timeout`)
+
+- **Master state machine:** verify state never leaves `ST_IDLE` or hangs in middle.
+- **Timeout counter:** `timeout_cnt` (internal) increments; `timeout` asserts before any I2C phase completes.
+- **Flags:** `timeout` = `1`, `ack_error` = `0`, `error_code` = `0x10`.
+- **Tick divider:** `div_cnt` and `tick` may help check speed.
