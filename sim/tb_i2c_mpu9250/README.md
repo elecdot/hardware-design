@@ -60,3 +60,7 @@ PASS: I2C master timeout path completed
 Vivado xsim users can add the same files listed in `files.f` to a behavioral simulation set.
 
 Related RTL lives in [../../rtl/i2c_mpu9250/](../../rtl/i2c_mpu9250/). The canonical register-level behavior is documented in [../../docs/register_map.md](../../docs/register_map.md).
+
+Waveform observation guide:
+
+- [waveform_observation_guide.md](waveform_observation_guide.md) explains how to run the VCD-producing simulations and how to inspect I2C, sampler, AXI, NACK, and timeout waveforms from first principles.
