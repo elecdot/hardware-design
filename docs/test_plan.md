@@ -126,3 +126,33 @@ Passing criteria:
 - `STATUS.ack_error == 0`;
 - `SAMPLE_CNT` increments;
 - logic analyzer or ILA shows `0xA0 0x34 0xA1`.
+
+### PL-only hardware debug top
+
+Optional direct Vivado bring-up top: [../rtl/i2c_mpu9250/jy901_hw_debug_top.v](../rtl/i2c_mpu9250/jy901_hw_debug_top.v).
+
+Use this when the goal is to test the sampler/I2C path before relying on AXI/PYNQ software. The top fixes:
+
+- `enable = 1`;
+- `auto_mode = 1`;
+- `DEV_ADDR = 0x50`;
+- `START_REG = 0x34`;
+- `WORD_COUNT = 13`;
+- sample period to roughly 0.5 s using its `CLK_HZ` parameter.
+
+Vivado integration requirements:
+
+- include `jy901_hw_debug_top.v`, `i2c_open_drain_io.v`, `jy901_sampler.v`, and `i2c_master_core.v`;
+- apply [../vivado/constraints/jy901_debug.xdc](../vivado/constraints/jy901_debug.xdc) for the debug top clock, reset, LEDs, and PMODA I2C pins;
+- do not also apply another XDC that maps `i2c_scl` or `i2c_sda` to different pins in the same build;
+- confirm `CLK_HZ` matches the actual fabric clock used by the project.
+
+Passing criteria:
+
+- ILA shows `ack_error == 0` and `timeout == 0`;
+- `sample_cnt` increments over repeated auto samples;
+- `data_valid == 1` after the first successful sample;
+- ILA or logic analyzer shows `START, 0xA0, 0x34, RESTART, 0xA1`;
+- at least one raw data word changes when the physical JY901 orientation changes.
+
+Do not mark this as a hardware pass until ILA, logic analyzer, or user-confirmed board evidence is available.

@@ -28,6 +28,7 @@ vivado/project/**/*.hw/
 vivado/project/**/*.runs/
 vivado/project/**/*.sim/
 vivado/project/**/*.gen/
+vivado/project/**/*.srcs/
 vivado/project/**/*.ip_user_files/
 vivado/project/**/*.jou
 vivado/project/**/*.log

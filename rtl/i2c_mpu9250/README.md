@@ -8,6 +8,7 @@ AXI-Lite custom IP that reads JY901/MPU9250 motion data over an open-drain I2C b
 |---|---|
 | [axi_i2c_jy901_v1_0.v](axi_i2c_jy901_v1_0.v) | Top-level AXI IP wrapper with external `i2c_scl` and `i2c_sda` ports. |
 | [axi_lite_regs.v](axi_lite_regs.v) | AXI4-Lite register bank and software-visible register defaults. |
+| [jy901_hw_debug_top.v](jy901_hw_debug_top.v) | Non-AXI Vivado hardware-debug top for direct auto-sampling and ILA bring-up. |
 | [jy901_sampler.v](jy901_sampler.v) | Sampling scheduler for oneshot, auto sampling, and config-write transactions. |
 | [i2c_master_core.v](i2c_master_core.v) | Bit-level I2C master state machine for burst reads and 16-bit config writes. |
 | [i2c_open_drain_io.v](i2c_open_drain_io.v) | Open-drain style SCL/SDA tri-state adapter. |
@@ -29,5 +30,10 @@ AXI-Lite custom IP that reads JY901/MPU9250 motion data over an open-drain I2C b
 | [../../docs/wiring.md](../../docs/wiring.md) | PYNQ-Z1 wiring and voltage constraints. |
 | [../../sim/tb_i2c_mpu9250/](../../sim/tb_i2c_mpu9250/) | Behavioral simulation for the sampler/core path. |
 | [../../vivado/constraints/i2c_jy901_pynq_z1.xdc](../../vivado/constraints/i2c_jy901_pynq_z1.xdc) | Current PYNQ-Z1 external pin constraints. |
+| [../../vivado/constraints/jy901_debug.xdc](../../vivado/constraints/jy901_debug.xdc) | Full constraints for the PL-only hardware debug top. |
 
 Before changing register offsets or status bits, update [../../docs/register_map.md](../../docs/register_map.md) in the same change.
+
+## Hardware Debug Top
+
+[jy901_hw_debug_top.v](jy901_hw_debug_top.v) is an optional non-AXI Vivado bring-up top. It directly instantiates `jy901_sampler` in continuous auto-sampling mode with fixed `DEV_ADDR=0x50`, `START_REG=0x34`, and `WORD_COUNT=13`, marks first-level I2C/status/data signals for ILA, and maps `i2c_busy`, `done`, `data_valid`, and `ack_error | timeout` to `led[3:0]`. It is for PL-only hardware debug, not a replacement for the AXI/PYNQ wrapper. Use [../../vivado/constraints/jy901_debug.xdc](../../vivado/constraints/jy901_debug.xdc) for its 125 MHz clock, SW0 reset, LEDs, and PMODA I2C pinout, and keep `CLK_HZ` matched to the actual fabric clock.
