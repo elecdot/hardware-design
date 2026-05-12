@@ -9,3 +9,8 @@ Vivado project directories for integration and local hardware build experiments 
 | [i2c_ip_test/](i2c_ip_test/) | Vivado project for testing the JY901/MPU9250 I2C IP. |
 
 Source RTL should remain under [../../rtl/](../../rtl/); project-generated cache and simulation products are not authoritative design files.
+
+When a project uses packaged custom IP, set its IP repository path to the shared
+[../ip_repo/](../ip_repo/) directory. Do not keep separate packaged IP copies
+inside each project unless the copy is explicitly documented as a throwaway
+experiment.
