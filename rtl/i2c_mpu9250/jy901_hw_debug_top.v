@@ -17,16 +17,12 @@ module jy901_hw_debug_top #(
 
     (* mark_debug = "true" *) wire scl_drive_low;
     (* mark_debug = "true" *) wire sda_drive_low;
-    (* mark_debug = "true" *) wire scl_in;
-    (* mark_debug = "true" *) wire sda_in;
 
     (* mark_debug = "true" *) wire i2c_busy;
     (* mark_debug = "true" *) wire done;
     (* mark_debug = "true" *) wire data_valid;
     (* mark_debug = "true" *) wire ack_error;
     (* mark_debug = "true" *) wire timeout;
-    (* mark_debug = "true" *) wire cfg_done;
-    (* mark_debug = "true" *) wire [7:0] error_code;
 
     (* mark_debug = "true" *) wire [15:0] data0;
     (* mark_debug = "true" *) wire [15:0] data1;
@@ -43,6 +39,29 @@ module jy901_hw_debug_top #(
     (* mark_debug = "true" *) wire [15:0] data12;
 
     (* mark_debug = "true" *) wire [31:0] sample_cnt;
+    wire scl_in;
+    wire sda_in;
+    wire [7:0] error_code;
+    wire cfg_done;
+
+    (* mark_debug = "true" *) reg scl_in_dbg;
+    (* mark_debug = "true" *) reg sda_in_dbg;
+    (* mark_debug = "true" *) reg [7:0] error_code_dbg;
+    (* mark_debug = "true" *) reg cfg_done_dbg;
+
+    always @(posedge clk or negedge resetn) begin
+        if (!resetn) begin
+            scl_in_dbg     <= 1'b1;
+            sda_in_dbg     <= 1'b1;
+            error_code_dbg <= 8'd0;
+            cfg_done_dbg   <= 1'b0;
+        end else begin
+            scl_in_dbg     <= scl_in;
+            sda_in_dbg     <= sda_in;
+            error_code_dbg <= error_code;
+            cfg_done_dbg   <= cfg_done;
+        end
+    end
 
     i2c_open_drain_io u_i2c_open_drain_io (
         .scl_drive_low(scl_drive_low),
