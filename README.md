@@ -112,7 +112,7 @@ Implemented or active subtrees:
 | [rtl/i2c_mpu9250/](rtl/i2c_mpu9250/) | AXI-Lite I2C/JY901 RTL implementation. |
 | [sim/tb_i2c_mpu9250/](sim/tb_i2c_mpu9250/) | Behavioral simulation for the JY901 burst-read path. |
 | [vivado/constraints/](vivado/constraints/) | Board-level XDC constraints. |
-| [vivado/project/i2c_ip_test/](vivado/project/i2c_ip_test/) | Local Vivado project for I2C IP testing. |
+| [vivado/project/i2c_ip_test/](vivado/project/i2c_ip_test/) | Legacy Vivado project for historical I2C IP testing; future IP packaging and overlay builds should use separate project flows. |
 | [docs/JY901/](docs/JY901/) | Vendor reference material for the JY901 module. |
 
 Planned subtrees may be added later:

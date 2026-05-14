@@ -8,7 +8,7 @@ Vivado project material, constraints, block-design exports, packaged IP output, 
 |---|---|
 | [constraints/](constraints/) | Board-level XDC constraints for external IP ports. |
 | [ip_repo/](ip_repo/) | Shared repository for packaged reusable custom AXI IP. |
-| [project/](project/) | Local Vivado project directories. |
+| [project/](project/) | Local Vivado project directories; legacy projects are documented in their local README files. |
 | [scripts/](scripts/) | Tcl automation, board presets, and reproducible project/build entry points. |
 
 Planned directories from the project convention may be added as needed:
