@@ -49,6 +49,8 @@ just sim
 just wave-config sampler quick
 just wave-configs
 just wave axi i2c
+just observe-list
+just observe-i2c-bus
 ```
 
 To override the Python runner from just:

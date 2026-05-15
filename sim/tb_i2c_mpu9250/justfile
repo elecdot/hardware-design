@@ -9,34 +9,69 @@ default:
     @just --list
 
 _build:
-    New-Item -ItemType Directory -Force -Path build/bin,build/vcd,build/waves | Out-Null
+    @New-Item -ItemType Directory -Force -Path build/bin,build/vcd,build/waves | Out-Null
 
 sim: sampler axi timeout
 
 sampler: _build
-    {{iverilog}} -g2012 -o build/bin/tb_jy901_sampler.vvp -f files.f
-    {{vvp}} build/bin/tb_jy901_sampler.vvp +VCD=build/vcd/tb_jy901_sampler.vcd
+    @{{iverilog}} -g2012 -o build/bin/tb_jy901_sampler.vvp -f files.f
+    @{{vvp}} build/bin/tb_jy901_sampler.vvp +VCD=build/vcd/tb_jy901_sampler.vcd
 
 axi: _build
-    {{iverilog}} -g2012 -o build/bin/tb_axi_i2c_jy901_top.vvp -f files_axi_top.f
-    {{vvp}} build/bin/tb_axi_i2c_jy901_top.vvp +VCD=build/vcd/tb_axi_i2c_jy901_top.vcd
+    @{{iverilog}} -g2012 -o build/bin/tb_axi_i2c_jy901_top.vvp -f files_axi_top.f
+    @{{vvp}} build/bin/tb_axi_i2c_jy901_top.vvp +VCD=build/vcd/tb_axi_i2c_jy901_top.vcd
 
 timeout: _build
-    {{iverilog}} -g2012 -o build/bin/tb_i2c_master_timeout.vvp -f files_timeout.f
-    {{vvp}} build/bin/tb_i2c_master_timeout.vvp +VCD=build/vcd/tb_i2c_master_timeout.vcd
+    @{{iverilog}} -g2012 -o build/bin/tb_i2c_master_timeout.vvp -f files_timeout.f
+    @{{vvp}} build/bin/tb_i2c_master_timeout.vvp +VCD=build/vcd/tb_i2c_master_timeout.vcd
 
 wave-list: _build
-    $env:UV_CACHE_DIR = "build/uv-cache"; {{py_run}} scripts/wave_config.py --list
+    @$env:UV_CACHE_DIR = "build/uv-cache"; {{py_run}} scripts/wave_config.py --list
 
 wave-config bench="sampler" view="quick": _build
-    $env:UV_CACHE_DIR = "build/uv-cache"; {{py_run}} scripts/wave_config.py --bench {{bench}} --view {{view}} --out-dir build/waves --strict
+    @$env:UV_CACHE_DIR = "build/uv-cache"; {{py_run}} scripts/wave_config.py --bench {{bench}} --view {{view}} --out-dir build/waves --strict
 
 wave-configs: _build
-    $env:UV_CACHE_DIR = "build/uv-cache"; {{py_run}} scripts/wave_config.py --all --out-dir build/waves --strict
+    @$env:UV_CACHE_DIR = "build/uv-cache"; {{py_run}} scripts/wave_config.py --all --out-dir build/waves --strict
 
 wave bench="sampler" view="quick": _build
-    $env:UV_CACHE_DIR = "build/uv-cache"; {{py_run}} scripts/wave_config.py --bench {{bench}} --view {{view}} --out-dir build/waves --strict
-    {{gtkwave}} build/waves/{{bench}}_{{view}}.gtkw
+    @just _wave-open {{bench}} {{view}}
+
+# Core waveform observation recipes from GUIDE.md.
+observe-list:
+    @Write-Host "Core observation recipes:"
+    @Write-Host "  just observe-sampler-core   GUIDE 9.1 minimal sampler/core/status signals"
+    @Write-Host "  just observe-i2c-bus        GUIDE 6.1-6.6 open-drain, START/RESTART/STOP, ACK/NACK"
+    @Write-Host "  just observe-sampler-data   GUIDE 6.7-6.8 byte capture, little-endian words, sample count"
+    @Write-Host "  just observe-axi-path       GUIDE 8.1-8.4 AXI writes, reads, STATUS, clear pulses"
+    @Write-Host "  just observe-axi-data       GUIDE 8.3, 8.5-8.7 AXI data, WORD_COUNT, auto_mode, soft_reset"
+    @Write-Host "  just observe-nack-errors    GUIDE 7.1-7.4 address/register/read/config NACK paths"
+    @Write-Host "  just observe-timeout        GUIDE 7.5 timeout path"
+
+observe-sampler-core: sampler
+    @just _wave-open sampler quick
+
+observe-i2c-bus: sampler
+    @just _wave-open sampler i2c
+
+observe-sampler-data: sampler
+    @just _wave-open sampler data
+
+observe-axi-path: axi
+    @just _wave-open axi axi
+
+observe-axi-data: axi
+    @just _wave-open axi data
+
+observe-nack-errors: axi
+    @just _wave-open axi errors
+
+observe-timeout: timeout
+    @just _wave-open timeout errors
+
+_wave-open bench view: _build
+    @$env:UV_CACHE_DIR = "build/uv-cache"; {{py_run}} scripts/wave_config.py --bench {{bench}} --view {{view}} --out-dir build/waves --strict
+    @{{gtkwave}} build/waves/{{bench}}_{{view}}.gtkw
 
 clean:
-    if (Test-Path -LiteralPath build) { Remove-Item -LiteralPath build -Recurse -Force }
+    @if (Test-Path -LiteralPath build) { Remove-Item -LiteralPath build -Recurse -Force }

@@ -86,3 +86,13 @@ just wave-list
 just wave-config sampler i2c
 just wave axi i2c
 ```
+
+Core observation recipes mirror [GUIDE.md](GUIDE.md):
+
+```powershell
+just observe-list
+just observe-i2c-bus
+just observe-axi-path
+just observe-nack-errors
+just observe-timeout
+```
