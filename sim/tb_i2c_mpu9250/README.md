@@ -7,12 +7,26 @@ This testbench verifies the first hardware milestone from [../../docs/i2c_axi_mp
 - 26 data bytes latched as 13 little-endian 16-bit words;
 - `done`, `data_valid`, and `sample_cnt` update after a successful oneshot read.
 
-Run with Icarus Verilog when available:
+Run all simulations with `just` when Icarus Verilog is available:
 
 ```powershell
 cd sim/tb_i2c_mpu9250
-iverilog -g2012 -o tb_jy901_sampler.vvp -f files.f
-vvp tb_jy901_sampler.vvp
+just sim
+```
+
+This writes generated artifacts under `build/`:
+
+```text
+build/bin/*.vvp
+build/vcd/*.vcd
+build/waves/*.gtkw
+```
+
+Direct sampler simulation:
+
+```powershell
+cd sim/tb_i2c_mpu9250
+just sampler
 ```
 
 Expected result:
@@ -26,8 +40,7 @@ Top-level AXI4-Lite simulation:
 
 ```powershell
 cd sim/tb_i2c_mpu9250
-iverilog -g2012 -o tb_axi_i2c_jy901_top.vvp -f files_axi_top.f
-vvp tb_axi_i2c_jy901_top.vvp
+just axi
 ```
 
 Expected result:
@@ -47,8 +60,7 @@ Timeout path simulation:
 
 ```powershell
 cd sim/tb_i2c_mpu9250
-iverilog -g2012 -o tb_i2c_master_timeout.vvp -f files_timeout.f
-vvp tb_i2c_master_timeout.vvp
+just timeout
 ```
 
 Expected result:
@@ -61,6 +73,16 @@ Vivado xsim users can add the same files listed in `files.f` to a behavioral sim
 
 Related RTL lives in [../../rtl/i2c_mpu9250/](../../rtl/i2c_mpu9250/). The canonical register-level behavior is documented in [../../docs/register_map.md](../../docs/register_map.md).
 
-Waveform observation guide:
+Waveform observation:
 
-- [waveform_observation_guide.md](waveform_observation_guide.md) explains how to run the VCD-producing simulations and how to inspect I2C, sampler, AXI, NACK, and timeout waveforms from first principles.
+- [GUIDE.md](GUIDE.md) explains how to run the VCD-producing simulations and how to inspect I2C, sampler, AXI, NACK, and timeout waveforms from first principles.
+- [scripts/](scripts/) contains the parameterized GTKWave save-file generator.
+- [waves/](waves/) documents the generated `.gtkw` waveform observation presets.
+
+Generate or open waveform presets:
+
+```powershell
+just wave-list
+just wave-config sampler i2c
+just wave axi i2c
+```

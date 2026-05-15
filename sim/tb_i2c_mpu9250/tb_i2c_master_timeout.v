@@ -17,6 +17,7 @@ module tb_i2c_master_timeout;
 
     tri1 i2c_scl;
     tri1 i2c_sda;
+    reg [1023:0] vcd_file;
 
     always #5 clk = ~clk;
 
@@ -52,7 +53,10 @@ module tb_i2c_master_timeout;
     );
 
     initial begin
-        $dumpfile("tb_i2c_master_timeout.vcd");
+        if (!$value$plusargs("VCD=%s", vcd_file)) begin
+            vcd_file = "tb_i2c_master_timeout.vcd";
+        end
+        $dumpfile(vcd_file);
         $dumpvars(0, tb_i2c_master_timeout);
         repeat (5) @(negedge clk);
         resetn = 1'b1;

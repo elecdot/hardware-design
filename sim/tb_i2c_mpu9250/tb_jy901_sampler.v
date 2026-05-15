@@ -48,6 +48,7 @@ module tb_jy901_sampler;
     wire [15:0] data11;
     wire [15:0] data12;
     wire [31:0] sample_cnt;
+    reg [1023:0] vcd_file;
 
     assign scl_in = i2c_scl;
     assign sda_in = i2c_sda;
@@ -104,7 +105,10 @@ module tb_jy901_sampler;
     );
 
     initial begin
-        $dumpfile("tb_jy901_sampler.vcd");
+        if (!$value$plusargs("VCD=%s", vcd_file)) begin
+            vcd_file = "tb_jy901_sampler.vcd";
+        end
+        $dumpfile(vcd_file);
         $dumpvars(0, tb_jy901_sampler);
         repeat (10) @(negedge clk);
         resetn = 1'b1;

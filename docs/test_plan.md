@@ -15,13 +15,14 @@ Files:
 - [../sim/tb_i2c_mpu9250/jy901_i2c_slave_model.v](../sim/tb_i2c_mpu9250/jy901_i2c_slave_model.v)
 - [../sim/tb_i2c_mpu9250/tb_jy901_sampler.v](../sim/tb_i2c_mpu9250/tb_jy901_sampler.v)
 
-Command when Icarus Verilog is installed:
+Command when `just` and Icarus Verilog are installed:
 
 ```powershell
 cd sim/tb_i2c_mpu9250
-iverilog -g2012 -o tb_jy901_sampler.vvp -f files.f
-vvp tb_jy901_sampler.vvp
+just sampler
 ```
+
+Generated artifacts are written under `sim/tb_i2c_mpu9250/build/`.
 
 Expected checks:
 
@@ -58,8 +59,7 @@ Command:
 
 ```powershell
 cd sim/tb_i2c_mpu9250
-iverilog -g2012 -o tb_axi_i2c_jy901_top.vvp -f files_axi_top.f
-vvp tb_axi_i2c_jy901_top.vvp
+just axi
 ```
 
 Expected checks:
@@ -94,8 +94,7 @@ Command:
 
 ```powershell
 cd sim/tb_i2c_mpu9250
-iverilog -g2012 -o tb_i2c_master_timeout.vvp -f files_timeout.f
-vvp tb_i2c_master_timeout.vvp
+just timeout
 ```
 
 Expected checks:

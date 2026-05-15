@@ -229,9 +229,13 @@ module tb_axi_i2c_jy901_top;
     reg [31:0] sample_cnt;
     reg [31:0] sample_cnt_before;
     reg [31:0] sample_cnt_after;
+    reg [1023:0] vcd_file;
 
     initial begin
-        $dumpfile("tb_axi_i2c_jy901_top.vcd");
+        if (!$value$plusargs("VCD=%s", vcd_file)) begin
+            vcd_file = "tb_axi_i2c_jy901_top.vcd";
+        end
+        $dumpfile(vcd_file);
         $dumpvars(0, tb_axi_i2c_jy901_top);
 
         repeat (10) @(negedge clk);

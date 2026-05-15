@@ -1,0 +1,42 @@
+set shell := ["powershell.exe", "-NoLogo", "-NoProfile", "-Command"]
+
+py_run := "uv run --script"
+iverilog := "iverilog"
+vvp := "vvp"
+gtkwave := "gtkwave"
+
+default:
+    @just --list
+
+_build:
+    New-Item -ItemType Directory -Force -Path build/bin,build/vcd,build/waves | Out-Null
+
+sim: sampler axi timeout
+
+sampler: _build
+    {{iverilog}} -g2012 -o build/bin/tb_jy901_sampler.vvp -f files.f
+    {{vvp}} build/bin/tb_jy901_sampler.vvp +VCD=build/vcd/tb_jy901_sampler.vcd
+
+axi: _build
+    {{iverilog}} -g2012 -o build/bin/tb_axi_i2c_jy901_top.vvp -f files_axi_top.f
+    {{vvp}} build/bin/tb_axi_i2c_jy901_top.vvp +VCD=build/vcd/tb_axi_i2c_jy901_top.vcd
+
+timeout: _build
+    {{iverilog}} -g2012 -o build/bin/tb_i2c_master_timeout.vvp -f files_timeout.f
+    {{vvp}} build/bin/tb_i2c_master_timeout.vvp +VCD=build/vcd/tb_i2c_master_timeout.vcd
+
+wave-list: _build
+    $env:UV_CACHE_DIR = "build/uv-cache"; {{py_run}} scripts/wave_config.py --list
+
+wave-config bench="sampler" view="quick": _build
+    $env:UV_CACHE_DIR = "build/uv-cache"; {{py_run}} scripts/wave_config.py --bench {{bench}} --view {{view}} --out-dir build/waves --strict
+
+wave-configs: _build
+    $env:UV_CACHE_DIR = "build/uv-cache"; {{py_run}} scripts/wave_config.py --all --out-dir build/waves --strict
+
+wave bench="sampler" view="quick": _build
+    $env:UV_CACHE_DIR = "build/uv-cache"; {{py_run}} scripts/wave_config.py --bench {{bench}} --view {{view}} --out-dir build/waves --strict
+    {{gtkwave}} build/waves/{{bench}}_{{view}}.gtkw
+
+clean:
+    if (Test-Path -LiteralPath build) { Remove-Item -LiteralPath build -Recurse -Force }
