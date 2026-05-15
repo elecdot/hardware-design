@@ -137,6 +137,7 @@ Use this when the goal is to test the sampler/I2C path before relying on AXI/PYN
 - `DEV_ADDR = 0x50`;
 - `START_REG = 0x34`;
 - `WORD_COUNT = 13`;
+- one debug oneshot after reset release;
 - sample period to roughly 0.5 s using its `CLK_HZ` parameter.
 
 Vivado integration requirements:
@@ -145,6 +146,7 @@ Vivado integration requirements:
 - apply [../vivado/constraints/jy901_debug.xdc](../vivado/constraints/jy901_debug.xdc) for the debug top clock, reset, LEDs, and PMODA I2C pins;
 - do not also apply another XDC that maps `i2c_scl` or `i2c_sda` to different pins in the same build;
 - confirm `CLK_HZ` matches the actual fabric clock used by the project.
+- arm ILA first, then toggle SW0 from reset asserted to released if triggering on the reset-release debug oneshot.
 
 Passing criteria:
 
@@ -153,5 +155,11 @@ Passing criteria:
 - `data_valid == 1` after the first successful sample;
 - ILA or logic analyzer shows `START, 0xA0, 0x34, RESTART, 0xA1`;
 - at least one raw data word changes when the physical JY901 orientation changes.
+
+If `ERROR_CODE == 0x01`, the master reached the write-address ACK bit and saw
+SDA high. In ILA, check `core_tx_byte_dbg == 0xA0`, `core_step_dbg == 0`, and
+`core_sda_in_dbg == 1` near the ACK state. If these are true, debug wiring,
+pullups, module power, PMODA pin selection, or the actual JY901 I2C address
+before changing RTL timing.
 
 Do not mark this as a hardware pass until ILA, logic analyzer, or user-confirmed board evidence is available.

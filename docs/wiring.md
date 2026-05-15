@@ -15,4 +15,9 @@ Use 3.3 V wiring only with PYNQ-Z1 PL I/O.
 
 Constraint file: [../vivado/constraints/i2c_jy901_pynq_z1.xdc](../vivado/constraints/i2c_jy901_pynq_z1.xdc).
 
+The PL-only `jy901_hw_debug_top` flow instead uses PMODA pins from
+[../vivado/constraints/jy901_debug.xdc](../vivado/constraints/jy901_debug.xdc):
+`i2c_scl` on `Y17` and `i2c_sda` on `Y16`. Do not apply both I2C pin-mapping
+constraints in the same build.
+
 Do not hot-plug the module while PYNQ-Z1 is powered.
