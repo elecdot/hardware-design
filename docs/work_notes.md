@@ -29,3 +29,12 @@ Check these first when debugging:
 - SPI mode or display reset sequence mismatch.
 - PYNQ-Z1 I/O voltage violation.
 - Socket server not started before board-side client connects.
+
+## Bring-up Notes
+
+### 2026-05-19 JY901 I2C intermittent address NACK
+
+During PL-only ILA bring-up, intermittent `ERROR_CODE=0x01` captures were traced
+to a worn Dupont jumper with poor contact. After replacing/reseating the wire,
+the same RTL, constraints, and `0x50` JY901 address produced valid ACK waveforms.
+>Another phenomenon observed during PS-side testing is that the idle state continuously captures `scl` and `sda` as `0`.
