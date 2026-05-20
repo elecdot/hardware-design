@@ -1,0 +1,4 @@
+interface:
+  display_name: "Jupytext Notebooks"
+  short_description: "Edit notebooks through Jupytext percent files"
+  default_prompt: "Use $jupytext-notebooks to edit my research notebook through its percent-format Python pair."
