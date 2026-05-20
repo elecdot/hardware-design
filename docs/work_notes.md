@@ -34,6 +34,20 @@ Check these first when debugging:
   Do not assign random PL pins or downgrade DRC severity. This is likely caused
   by using Vivado's "Run Block Automation".
 
+## PYNQ Runtime Constraints
+
+Current board runtime recorded for the first JY901 demo:
+
+```bash
+xilinx@pynq:~$ python --version
+Python 2.7.10
+xilinx@pynq:~$ uname -a
+Linux pynq 4.6.0-xilinx #1 SMP PREEMPT Tue Aug 15 15:44:37 PDT 2017 armv7l armv7l armv7l GNU/Linux
+```
+
+Keep PYNQ board-side demo code compatible with Python 2.7 unless the board
+image is upgraded.
+
 ## Bring-up Notes
 
 ### 2026-05-19 JY901 I2C intermittent address NACK

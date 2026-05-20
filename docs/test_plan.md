@@ -126,6 +126,45 @@ Passing criteria:
 - `SAMPLE_CNT` increments;
 - logic analyzer or ILA shows `0xA0 0x34 0xA1`.
 
+### PYNQ AXI driver demo
+
+Location: [../pynq/jy901_demo/](../pynq/jy901_demo/).
+
+Use this when demonstrating the minimal PS-side path to an assessor. The v1
+demo intentionally uses bitstream download and direct MMIO instead of `.hwh`
+overlay discovery because this matches the current smoke-tested board flow.
+
+Board runtime:
+
+- Python 2.7.10;
+- Linux 4.6.0-xilinx on PYNQ-Z1.
+
+Command on the board:
+
+```bash
+cd /home/xilinx/jupyter_notebooks/jy901_test/jy901_demo
+python demo_cli.py --duration 10
+```
+
+Default demo parameters:
+
+- bitstream `/home/xilinx/jupyter_notebooks/jy901_test/jy901_axi_package.bit`;
+- base address `0x43C00000`;
+- address range `0x10000`;
+- `I2C_CLKDIV = 500`;
+- `DEV_ADDR = 0x50`, `START_REG = 0x34`, `WORD_COUNT = 13`.
+
+Passing criteria:
+
+- `VERSION == 0x4A593101`;
+- initial oneshot increments `SAMPLE_CNT`;
+- no `ack_error` or `timeout`;
+- repeated table rows show increasing `SAMPLE_CNT`;
+- raw/scaled values change when the physical JY901 is moved.
+
+Do not mark this as a PC-integrated or end-to-end pass; v1 does not send data
+to a PC server or run a sleep-stage model.
+
 ### PL-only hardware debug top
 
 Optional direct Vivado bring-up top: [../rtl/i2c_mpu9250/jy901_hw_debug_top.v](../rtl/i2c_mpu9250/jy901_hw_debug_top.v).

@@ -1,0 +1,2 @@
+# Temporary ignore .ipynb files. Will be decide how to handle them later.
+*.ipynb

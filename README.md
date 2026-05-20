@@ -30,8 +30,10 @@ Current workspace status:
 - Vivado packaging, PL-only debug, and PYNQ overlay projects now exist for the
   JY901 I2C path, but exported PYNQ artifacts still need matching `.bit` and
   `.hwh` evidence before being treated as an end-to-end overlay release.
-- PYNQ-side runtime code, PC server code, analysis tools, and most other
-  planned IPs are still future work unless added later.
+- A minimal PYNQ-side JY901 demo now exists under `pynq/jy901_demo/`. It uses
+  `Bitstream.download()` plus direct MMIO for the first classroom demo.
+- PC server code, analysis tools, and most other planned IPs are still future
+  work unless added later.
 
 ## Hardware Platform
 
@@ -114,6 +116,7 @@ Implemented or active subtrees:
 |---|---|
 | [rtl/i2c_mpu9250/](rtl/i2c_mpu9250/) | AXI-Lite I2C/JY901 RTL implementation. |
 | [sim/tb_i2c_mpu9250/](sim/tb_i2c_mpu9250/) | Behavioral simulation for the JY901 burst-read path. |
+| [pynq/jy901_demo/](pynq/jy901_demo/) | Minimal PYNQ-Z1 JY901 bitstream/MMIO demo for classroom presentation. |
 | [vivado/constraints/](vivado/constraints/) | Board-level XDC constraints. |
 | [vivado/ip_repo/](vivado/ip_repo/) | Shared packaged custom IP repository for Vivado projects. |
 | [vivado/project/axi_i2c_jy901_package/](vivado/project/axi_i2c_jy901_package/) | JY901 AXI I2C IP packaging project. |
@@ -127,7 +130,6 @@ Planned subtrees may be added later:
 
 | Path | Purpose |
 |---|---|
-| `pynq/` | Overlay files, Python drivers, notebooks, and board-side client code. |
 | `pc_server/` | TCP receive service, protocol parsing, and storage code. |
 | `analysis/` | Feature extraction, smoothing, plots, and model experiments. |
 | `tests/` | Python-side tests and reusable fixtures. |
@@ -163,6 +165,7 @@ Current open work:
 
 - [ ] Finish or formalize the PYNQ Python driver for [rtl/i2c_mpu9250/](rtl/i2c_mpu9250/).
 - [ ] Complete the board-level I2C/JY901 test evidence.
+- [ ] Re-run and record the `pynq/jy901_demo/demo_cli.py` board smoke output.
 
 Further work:
 - Define the PYNQ-to-PC JSON protocol in [docs/protocol.md](docs/protocol.md).
