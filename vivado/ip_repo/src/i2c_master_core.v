@@ -29,7 +29,19 @@ module i2c_master_core #(
 
     output reg         rx_valid,
     output reg  [4:0]  rx_index,
-    output reg  [7:0]  rx_data
+    output reg  [7:0]  rx_data,
+
+    output wire [4:0]  dbg_state,
+    output wire [2:0]  dbg_step,
+    output wire [7:0]  dbg_tx_byte,
+    output wire [3:0]  dbg_bit_cnt,
+    output wire [4:0]  dbg_byte_cnt,
+    output wire [7:0]  dbg_latched_read_len,
+    output wire [15:0] dbg_div_cnt,
+    output wire        dbg_tick,
+    output wire        dbg_last_read_byte,
+    output wire        dbg_scl_in,
+    output wire        dbg_sda_in
 );
     localparam ERR_NONE       = 8'h00;
     localparam ERR_ACK_ADDR_W = 8'h01;
@@ -81,6 +93,18 @@ module i2c_master_core #(
 
     wire [15:0] div_limit = (clkdiv == 16'd0) ? 16'd1 : clkdiv;
     wire        last_read_byte = (byte_cnt == (latched_read_len[4:0] - 5'd1));
+
+    assign dbg_state            = state;
+    assign dbg_step             = step;
+    assign dbg_tx_byte          = tx_byte;
+    assign dbg_bit_cnt          = bit_cnt;
+    assign dbg_byte_cnt         = byte_cnt;
+    assign dbg_latched_read_len = latched_read_len;
+    assign dbg_div_cnt          = div_cnt;
+    assign dbg_tick             = tick;
+    assign dbg_last_read_byte   = last_read_byte;
+    assign dbg_scl_in           = scl_in;
+    assign dbg_sda_in           = sda_in;
 
     reg tick;
     always @(posedge clk) begin

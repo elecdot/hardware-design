@@ -46,7 +46,23 @@ module jy901_sampler #(
     output reg  [15:0] data10,
     output reg  [15:0] data11,
     output reg  [15:0] data12,
-    output reg  [31:0] sample_cnt
+    output reg  [31:0] sample_cnt,
+
+    output wire [1:0]  dbg_state,
+    output wire [31:0] dbg_period_cnt,
+    output wire        dbg_core_start,
+    output wire        dbg_core_done,
+    output wire [4:0]  dbg_core_state,
+    output wire [2:0]  dbg_core_step,
+    output wire [7:0]  dbg_core_tx_byte,
+    output wire [3:0]  dbg_core_bit_cnt,
+    output wire [4:0]  dbg_core_byte_cnt,
+    output wire [7:0]  dbg_core_latched_read_len,
+    output wire [15:0] dbg_core_div_cnt,
+    output wire        dbg_core_tick,
+    output wire        dbg_core_last_read_byte,
+    output wire        dbg_core_scl_in,
+    output wire        dbg_core_sda_in
 );
     localparam ST_IDLE      = 2'd0;
     localparam ST_START     = 2'd1;
@@ -72,6 +88,11 @@ module jy901_sampler #(
                                       ((word_count > WORD_SLOTS_U8) ? WORD_SLOTS_U8 : word_count);
     wire [7:0] read_len = effective_word_count << 1;
 
+    assign dbg_state      = state;
+    assign dbg_period_cnt = period_cnt;
+    assign dbg_core_start = core_start;
+    assign dbg_core_done  = core_done;
+
     i2c_master_core #(
         .MAX_READ_BYTES(WORD_SLOTS * 2)
     ) u_i2c_master_core (
@@ -96,7 +117,18 @@ module jy901_sampler #(
         .error_code(core_error_code),
         .rx_valid(rx_valid),
         .rx_index(rx_index),
-        .rx_data(rx_data)
+        .rx_data(rx_data),
+        .dbg_state(dbg_core_state),
+        .dbg_step(dbg_core_step),
+        .dbg_tx_byte(dbg_core_tx_byte),
+        .dbg_bit_cnt(dbg_core_bit_cnt),
+        .dbg_byte_cnt(dbg_core_byte_cnt),
+        .dbg_latched_read_len(dbg_core_latched_read_len),
+        .dbg_div_cnt(dbg_core_div_cnt),
+        .dbg_tick(dbg_core_tick),
+        .dbg_last_read_byte(dbg_core_last_read_byte),
+        .dbg_scl_in(dbg_core_scl_in),
+        .dbg_sda_in(dbg_core_sda_in)
     );
 
     task latch_word;
