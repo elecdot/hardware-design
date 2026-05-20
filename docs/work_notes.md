@@ -31,7 +31,8 @@ Check these first when debugging:
 - Socket server not started before board-side client connects.
 - Vivado DRC `NSTD-1`/`UCIO-1` on `USBIND_0_0_*` in the `axi_i2c_jy901`
   overlay means the PS7 USB0 control interface was accidentally made external.
-  Do not assign random PL pins or downgrade DRC severity.(this is very likely caused by using Vivado's "Run Block Automation")
+  Do not assign random PL pins or downgrade DRC severity. This is likely caused
+  by using Vivado's "Run Block Automation".
 
 ## Bring-up Notes
 
@@ -40,4 +41,7 @@ Check these first when debugging:
 During PL-only ILA bring-up, intermittent `ERROR_CODE=0x01` captures were traced
 to a worn Dupont jumper with poor contact. After replacing/reseating the wire,
 the same RTL, constraints, and `0x50` JY901 address produced valid ACK waveforms.
->Another phenomenon observed during PS-side testing is that the idle state continuously captures `scl` and `sda` as `0`.
+
+During later PS-side testing, the idle state was also observed continuously
+capturing `scl` and `sda` as `0`; keep pullups, pin mapping, and IOBUF
+tri-state behavior on the debug checklist.

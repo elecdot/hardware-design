@@ -82,6 +82,20 @@ JY-901 手册明确说明：模块的 IIC 总线是 **开漏输出**，连接 MC
 
 为了保护 PYNQ-Z1 的 PL IO，推荐全部按 3.3V 体系连接：
 
+当前 AXI/PYNQ overlay 工程使用 PMODA：
+
+| JY-901 | PYNQ-Z1 |
+| ------ | ------- |
+| VCC    | 3V3     |
+| GND    | GND     |
+| SCL    | PMODA `Y17` |
+| SDA    | PMODA `Y16` |
+
+对应约束文件是
+[../vivado/constraints/axi_i2c_jy901_package.xdc](../vivado/constraints/axi_i2c_jy901_package.xdc)。
+
+旧的 Arduino header 映射仍保留为可选接线：
+
 | JY-901 | PYNQ-Z1     |
 | ------ | ----------- |
 | VCC    | 3V3         |
@@ -92,6 +106,15 @@ JY-901 手册明确说明：模块的 IIC 总线是 **开漏输出**，连接 MC
 PYNQ-Z1 的 Arduino 接口中，`SCL` 对应 Zynq 管脚 `P16`，`SDA` 对应 Zynq 管脚 `P15`。 PYNQ-Z1 的 shield IOREF 接到 3.3V 电源轨，数字 IO 推荐最高工作电压为 3.4V，因此不要把 IIC 上拉到 5V。
 
 ### 3.4 XDC 约束
+
+当前 AXI/PYNQ overlay：
+
+```tcl
+set_property -dict { PACKAGE_PIN Y17 IOSTANDARD LVCMOS33 } [get_ports i2c_scl]
+set_property -dict { PACKAGE_PIN Y16 IOSTANDARD LVCMOS33 } [get_ports i2c_sda]
+```
+
+旧 Arduino header 映射：
 
 ```tcl
 set_property PACKAGE_PIN P16 [get_ports i2c_scl]

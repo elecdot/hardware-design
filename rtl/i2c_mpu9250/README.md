@@ -29,7 +29,8 @@ AXI-Lite custom IP that reads JY901/MPU9250 motion data over an open-drain I2C b
 | [../../docs/register_map.md](../../docs/register_map.md) | Software-visible register map. |
 | [../../docs/wiring.md](../../docs/wiring.md) | PYNQ-Z1 wiring and voltage constraints. |
 | [../../sim/tb_i2c_mpu9250/](../../sim/tb_i2c_mpu9250/) | Behavioral simulation for the sampler/core path. |
-| [../../vivado/constraints/i2c_jy901_pynq_z1.xdc](../../vivado/constraints/i2c_jy901_pynq_z1.xdc) | Current PYNQ-Z1 external pin constraints. |
+| [../../vivado/constraints/axi_i2c_jy901_package.xdc](../../vivado/constraints/axi_i2c_jy901_package.xdc) | Current AXI/PYNQ overlay pin constraints for PMODA `Y17/Y16`. |
+| [../../vivado/constraints/i2c_jy901_pynq_z1.xdc](../../vivado/constraints/i2c_jy901_pynq_z1.xdc) | Alternate Arduino-header pin constraints for `P16/P15`. |
 | [../../vivado/constraints/jy901_debug.xdc](../../vivado/constraints/jy901_debug.xdc) | Full constraints for the PL-only hardware debug top. |
 
 Before changing register offsets or status bits, update [../../docs/register_map.md](../../docs/register_map.md) in the same change.

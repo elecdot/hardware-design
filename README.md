@@ -27,6 +27,9 @@ Current workspace status:
 - The implemented hardware path is centered on `i2c_mpu9250`, an AXI-Lite I2C
   IP for JY901/MPU9250 motion data sampling.
 - Behavioral simulation exists for the JY901 burst-read path.
+- Vivado packaging, PL-only debug, and PYNQ overlay projects now exist for the
+  JY901 I2C path, but exported PYNQ artifacts still need matching `.bit` and
+  `.hwh` evidence before being treated as an end-to-end overlay release.
 - PYNQ-side runtime code, PC server code, analysis tools, and most other
   planned IPs are still future work unless added later.
 
@@ -55,7 +58,7 @@ Input sensing modules:
 | Module | Data | Planned interface | Status |
 |---|---|---|---|
 | Heart-rate / SpO2 sensor | BPM, SPO2 | UART custom IP | Planned |
-| JY901 / MPU9250 IMU | Acceleration, gyro, attitude, temperature | I2C custom IP | RTL and simulation in progress |
+| JY901 / MPU9250 IMU | Acceleration, gyro, attitude, temperature | I2C custom IP | RTL, simulation, Vivado packaging, and overlay bring-up in progress |
 | DHT11 | Temperature, humidity | One-Wire custom IP | Planned |
 
 Display and assistance modules:
@@ -112,18 +115,23 @@ Implemented or active subtrees:
 | [rtl/i2c_mpu9250/](rtl/i2c_mpu9250/) | AXI-Lite I2C/JY901 RTL implementation. |
 | [sim/tb_i2c_mpu9250/](sim/tb_i2c_mpu9250/) | Behavioral simulation for the JY901 burst-read path. |
 | [vivado/constraints/](vivado/constraints/) | Board-level XDC constraints. |
-| [vivado/project/i2c_ip_test/](vivado/project/i2c_ip_test/) | Legacy Vivado project for historical I2C IP testing; future IP packaging and overlay builds should use separate project flows. |
+| [vivado/ip_repo/](vivado/ip_repo/) | Shared packaged custom IP repository for Vivado projects. |
+| [vivado/project/axi_i2c_jy901_package/](vivado/project/axi_i2c_jy901_package/) | JY901 AXI I2C IP packaging project. |
+| [vivado/project/axi_i2c_jy901/](vivado/project/axi_i2c_jy901/) | JY901 AXI/PYNQ overlay project. |
+| [vivado/project/jy901_hw_debug/](vivado/project/jy901_hw_debug/) | PL-only JY901 hardware debug and ILA bring-up project. |
+| [vivado/project/i2c_ip_test/](vivado/project/i2c_ip_test/) | Legacy Vivado project for historical I2C IP testing. |
+| [vivado/gen/](vivado/gen/) | Ignored local export folder for temporary `.bit`/`.hwh` files. |
 | [docs/JY901/](docs/JY901/) | Vendor reference material for the JY901 module. |
 
 Planned subtrees may be added later:
 
 | Path | Purpose |
 |---|---|
-| [pynq/](pynq/) | Overlay files, Python drivers, notebooks, and board-side client code. |
-| [pc_server/](pc_server/) | TCP receive service, protocol parsing, and storage code. |
-| [analysis/](analysis/) | Feature extraction, smoothing, plots, and model experiments. |
-| [tests/](tests/) | Python-side tests and reusable fixtures. |
-| [data/](data/) | Raw and processed data; normally ignored unless demo samples are needed. |
+| `pynq/` | Overlay files, Python drivers, notebooks, and board-side client code. |
+| `pc_server/` | TCP receive service, protocol parsing, and storage code. |
+| `analysis/` | Feature extraction, smoothing, plots, and model experiments. |
+| `tests/` | Python-side tests and reusable fixtures. |
+| `data/` | Raw and processed data; normally ignored unless demo samples are needed. |
 
 ## Documentations
 

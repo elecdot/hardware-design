@@ -7,15 +7,10 @@ Vivado project material, constraints, block-design exports, packaged IP output, 
 | Path | Purpose |
 |---|---|
 | [constraints/](constraints/) | Board-level XDC constraints for external IP ports. |
+| [gen/](gen/) | Local temporary `.bit`/`.hwh` export location; ignored by Git. |
 | [ip_repo/](ip_repo/) | Shared repository for packaged reusable custom AXI IP. |
-| [project/](project/) | Local Vivado project directories; legacy projects are documented in their local README files. |
+| [project/](project/) | Vivado project directories for IP packaging, PYNQ overlay builds, PL-only debug, and legacy references. |
 | [scripts/](scripts/) | Tcl automation, board presets, and reproducible project/build entry points. |
-
-Planned directories from the project convention may be added as needed:
-
-| Path | Purpose |
-|---|---|
-| [bd/](bd/) | Block Design exports or Tcl regeneration scripts. |
 
 ## IP Repository Convention
 
@@ -39,3 +34,10 @@ overlay export helpers.
 Tcl scripts committed here should avoid machine-specific absolute paths. Keep
 Vivado-generated journals, logs, run scripts, and project cache output out of
 Git unless they are intentionally preserved as build evidence.
+
+## Export Convention
+
+Use [gen/](gen/) for local overlay artifacts copied out of Vivado, such as
+`.bit` and `.hwh` files. PYNQ overlays need matching `.bit` and `.hwh` files
+from the same build; a bitstream alone is not enough for reliable MMIO driver
+binding.
