@@ -29,6 +29,9 @@ Check these first when debugging:
 - SPI mode or display reset sequence mismatch.
 - PYNQ-Z1 I/O voltage violation.
 - Socket server not started before board-side client connects.
+- Vivado DRC `NSTD-1`/`UCIO-1` on `USBIND_0_0_*` in the `axi_i2c_jy901`
+  overlay means the PS7 USB0 control interface was accidentally made external.
+  Do not assign random PL pins or downgrade DRC severity.(this is very likely caused by using Vivado's "Run Block Automation")
 
 ## Bring-up Notes
 
