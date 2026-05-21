@@ -24,6 +24,10 @@ Check these first when debugging:
 - I2C `ERROR_CODE=0x01` means address-write NACK. Confirm the debug top uses
   PMODA `Y17/Y16`, SCL/SDA idle high at 3.3 V, `core_tx_byte_dbg=0xA0`, and
   the JY901 actually responds to 7-bit address `0x50`.
+- In the PYNQ demo, an all-zero JY901 payload immediately before
+  `ERROR_CODE=0x01` should be treated as invalid data, not as a real turn or
+  posture change. Check sensor power, pullups, jumper contact, and whether the
+  module is resetting or losing I2C ACK during repeated oneshot reads.
 - I2C SDA/SCL pull-up or tri-state mistake.
 - DHT11 bidirectional line not released to high-Z at the correct time.
 - SPI mode or display reset sequence mismatch.
@@ -36,17 +40,25 @@ Check these first when debugging:
 
 ## PYNQ Runtime Constraints
 
-Current board runtime recorded for the first JY901 demo:
+Current board software model for the first JY901 demo:
+
+- Jupyter kernel runs as root with `/opt/python3.6/bin/python3.6`.
+- Jupyter kernel package path includes
+  `/opt/python3.6/lib/python3.6/site-packages`, where `pynq` is installed.
+- SSH CLI default `python3` is `/usr/bin/python3` version 3.4.3+ and does not
+  match the Jupyter/PYNQ dependency environment.
+- SSH CLI default `python` may report Python 2.7.10, but this is only the old
+  Linux default interpreter and should not be used for the PYNQ demo.
+- Kernel: `Linux pynq 4.6.0-xilinx ... armv7l`.
+
+Correct SSH CLI invocation for the demo:
 
 ```bash
-xilinx@pynq:~$ python --version
-Python 2.7.10
-xilinx@pynq:~$ uname -a
-Linux pynq 4.6.0-xilinx #1 SMP PREEMPT Tue Aug 15 15:44:37 PDT 2017 armv7l armv7l armv7l GNU/Linux
+sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6 demo_cli.py --duration 10
 ```
 
-Keep PYNQ board-side demo code compatible with Python 2.7 unless the board
-image is upgraded.
+Keep PYNQ board-side demo code compatible with Python 3.6. Avoid Python 3.7+
+syntax or APIs unless the board image is upgraded.
 
 ## Bring-up Notes
 

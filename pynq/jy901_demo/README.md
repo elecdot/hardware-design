@@ -16,14 +16,15 @@ It does not depend on `.hwh` overlay metadata.
 
 Board environment recorded during bring-up:
 
-```bash
-xilinx@pynq:~$ python --version
-Python 2.7.10
-xilinx@pynq:~$ uname -a
-Linux pynq 4.6.0-xilinx #1 SMP PREEMPT Tue Aug 15 15:44:37 PDT 2017 armv7l armv7l armv7l GNU/Linux
-```
+- Jupyter kernel: root with `/opt/python3.6/bin/python3.6`.
+- Jupyter PYNQ package path:
+  `/opt/python3.6/lib/python3.6/site-packages/pynq`.
+- SSH CLI default `python3`: `/usr/bin/python3`, version 3.4.3+, without the
+  complete Jupyter/PYNQ package environment.
+- SSH CLI default `python`: legacy Python 2.7.10, not the demo target.
+- Kernel: `Linux pynq 4.6.0-xilinx ... armv7l`.
 
-Keep demo code Python 2.7 compatible.
+Keep demo code Python 3.6 compatible. Avoid Python 3.7+ syntax or APIs.
 
 ## Files
 
@@ -31,7 +32,7 @@ Keep demo code Python 2.7 compatible.
 |---|---|
 | [smoke.ipynb](smoke.ipynb) | Original manual smoke test notebook. |
 | [smoke_demo.py](smoke_demo.py) | Jupytext-style py:percent notebook source for a short oneshot demo. |
-| [jy901_driver.py](jy901_driver.py) | Python 2-compatible bitstream/MMIO driver helpers. |
+| [jy901_driver.py](jy901_driver.py) | Python 3.6-compatible bitstream/MMIO driver helpers. |
 | [demo_cli.py](demo_cli.py) | Main automatic polling demo for classroom presentation. |
 
 ## Run CLI Demo
@@ -40,7 +41,7 @@ Copy this directory to the PYNQ board next to the bitstream, then run:
 
 ```bash
 cd /home/xilinx/jupyter_notebooks/jy901_test/jy901_demo
-python demo_cli.py --duration 10
+sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6 demo_cli.py --duration 10
 ```
 
 Defaults:
@@ -53,7 +54,7 @@ Defaults:
 Optional JSONL capture:
 
 ```bash
-python demo_cli.py --duration 30 --interval 0.5 --jsonl jy901_demo_run.jsonl
+sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6 demo_cli.py --duration 30 --interval 0.5 --jsonl jy901_demo_run.jsonl
 ```
 
 Expected pass evidence:
@@ -62,6 +63,28 @@ Expected pass evidence:
 - initial oneshot increments `SAMPLE_CNT`;
 - table rows continue printing without `ACK_ERR` or `TIMEOUT`;
 - moving or rotating the JY901 changes acceleration and roll/pitch/yaw values.
+
+## Readable Data Conversion
+
+`jy901_driver.py` exposes `scale_raw(raw)`, `readable_measurements(raw)`, and
+`JY901DemoDriver.read_readable()` so the CLI, notebook, and JSONL output use
+the same conversion rules.
+
+| JY901 register | Field | Raw interpretation | Converted unit |
+|---:|---|---|---|
+| `0x34` | AX | `raw / 32768 * 16` | g |
+| `0x35` | AY | `raw / 32768 * 16` | g |
+| `0x36` | AZ | `raw / 32768 * 16` | g |
+| `0x37` | GX | `raw / 32768 * 2000` | deg/s |
+| `0x38` | GY | `raw / 32768 * 2000` | deg/s |
+| `0x39` | GZ | `raw / 32768 * 2000` | deg/s |
+| `0x3A` | HX | `raw` | magnetic raw count |
+| `0x3B` | HY | `raw` | magnetic raw count |
+| `0x3C` | HZ | `raw` | magnetic raw count |
+| `0x3D` | Roll | `raw / 32768 * 180` | deg |
+| `0x3E` | Pitch | `raw / 32768 * 180` | deg |
+| `0x3F` | Yaw | `raw / 32768 * 180` | deg |
+| `0x40` | TEMP | `raw / 100` | C |
 
 ## Run Notebook-Style Demo
 
@@ -80,8 +103,13 @@ The notebook path is intentionally short:
 ## Known Failure Hints
 
 - `VERSION` mismatch: confirm `BASE_ADDR=0x43C00000` still matches Vivado Address Editor.
-- `ACK_ERR`: confirm JY901 power, PMODA `Y17/Y16`, 3.3 V pullups, and `DEV_ADDR=0x50`.
+- `ACK_ERR` / `ERROR_CODE=0x01`: the JY901 did not ACK the write-address byte.
+  Confirm module power, PMODA `Y17/Y16`, 3.3 V pullups, Dupont jumper contact,
+  and `DEV_ADDR=0x50`.
 - `TIMEOUT`: confirm I2C lines are not stuck low and the bitstream matches the RTL/register map.
+- all-zero sensor payload: treat the sample as invalid, not as motion. This is
+  usually a sign of an interrupted transaction, stale/cleared sample registers,
+  or unstable sensor wiring before a visible ACK error.
 - `scl_in=0` and `sda_in=0` at idle: check pullups, pin mapping, and IOBUF tri-state behavior.
 
 ## Limitations

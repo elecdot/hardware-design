@@ -136,14 +136,18 @@ overlay discovery because this matches the current smoke-tested board flow.
 
 Board runtime:
 
-- Python 2.7.10;
+- Jupyter kernel uses `/opt/python3.6/bin/python3.6` as root with PYNQ
+  packages under `/opt/python3.6/lib/python3.6/site-packages`;
+- SSH CLI default `/usr/bin/python3` is version 3.4.3+ and does not match the
+  complete Jupyter/PYNQ environment;
+- legacy CLI `python` may report 2.7.10 but is not the demo target;
 - Linux 4.6.0-xilinx on PYNQ-Z1.
 
 Command on the board:
 
 ```bash
 cd /home/xilinx/jupyter_notebooks/jy901_test/jy901_demo
-python demo_cli.py --duration 10
+sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6 demo_cli.py --duration 10
 ```
 
 Default demo parameters:

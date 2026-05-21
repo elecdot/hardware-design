@@ -68,6 +68,125 @@ RAW_FIELDS = (
     ("temp", TEMP_RAW),
 )
 
+RAW_FIELD_NAMES = tuple(name for name, _offset in RAW_FIELDS)
+
+ERROR_CODE_LABELS = {
+    0x00: "none",
+    0x01: "address-write NACK",
+    0x02: "register-address NACK",
+    0x03: "address-read NACK",
+    0x04: "config-low-byte NACK",
+    0x05: "config-high-byte NACK",
+    0x10: "timeout",
+}
+
+READABLE_FIELDS = (
+    {
+        "source_reg": 0x34,
+        "name": "AX",
+        "raw_key": "ax",
+        "value_key": "ax_g",
+        "scale": 16.0 / 32768.0,
+        "unit": "g",
+    },
+    {
+        "source_reg": 0x35,
+        "name": "AY",
+        "raw_key": "ay",
+        "value_key": "ay_g",
+        "scale": 16.0 / 32768.0,
+        "unit": "g",
+    },
+    {
+        "source_reg": 0x36,
+        "name": "AZ",
+        "raw_key": "az",
+        "value_key": "az_g",
+        "scale": 16.0 / 32768.0,
+        "unit": "g",
+    },
+    {
+        "source_reg": 0x37,
+        "name": "GX",
+        "raw_key": "gx",
+        "value_key": "gx_dps",
+        "scale": 2000.0 / 32768.0,
+        "unit": "dps",
+    },
+    {
+        "source_reg": 0x38,
+        "name": "GY",
+        "raw_key": "gy",
+        "value_key": "gy_dps",
+        "scale": 2000.0 / 32768.0,
+        "unit": "dps",
+    },
+    {
+        "source_reg": 0x39,
+        "name": "GZ",
+        "raw_key": "gz",
+        "value_key": "gz_dps",
+        "scale": 2000.0 / 32768.0,
+        "unit": "dps",
+    },
+    {
+        "source_reg": 0x3A,
+        "name": "HX",
+        "raw_key": "hx",
+        "value_key": "hx_counts",
+        "scale": 1.0,
+        "unit": "raw_count",
+    },
+    {
+        "source_reg": 0x3B,
+        "name": "HY",
+        "raw_key": "hy",
+        "value_key": "hy_counts",
+        "scale": 1.0,
+        "unit": "raw_count",
+    },
+    {
+        "source_reg": 0x3C,
+        "name": "HZ",
+        "raw_key": "hz",
+        "value_key": "hz_counts",
+        "scale": 1.0,
+        "unit": "raw_count",
+    },
+    {
+        "source_reg": 0x3D,
+        "name": "Roll",
+        "raw_key": "roll",
+        "value_key": "roll_deg",
+        "scale": 180.0 / 32768.0,
+        "unit": "deg",
+    },
+    {
+        "source_reg": 0x3E,
+        "name": "Pitch",
+        "raw_key": "pitch",
+        "value_key": "pitch_deg",
+        "scale": 180.0 / 32768.0,
+        "unit": "deg",
+    },
+    {
+        "source_reg": 0x3F,
+        "name": "Yaw",
+        "raw_key": "yaw",
+        "value_key": "yaw_deg",
+        "scale": 180.0 / 32768.0,
+        "unit": "deg",
+    },
+    {
+        "source_reg": 0x40,
+        "name": "TEMP",
+        "raw_key": "temp",
+        "value_key": "temp_c",
+        "scale": 1.0 / 100.0,
+        "unit": "C",
+    },
+)
+
 
 class JY901DemoError(Exception):
     pass
@@ -79,6 +198,10 @@ class JY901TimeoutError(JY901DemoError):
 
 class JY901HardwareError(JY901DemoError):
     pass
+
+
+def error_code_label(value):
+    return ERROR_CODE_LABELS.get(value, "unknown")
 
 
 def download_bitstream(bitfile):
@@ -120,20 +243,48 @@ def status_label(status):
     return "OK"
 
 
+def is_all_zero_sample(raw):
+    for name in RAW_FIELD_NAMES:
+        if raw.get(name, 0) != 0:
+            return False
+    return True
+
+
+def validate_sample_payload(raw):
+    if is_all_zero_sample(raw):
+        raise JY901HardwareError(
+            "all-zero sensor payload at SAMPLE_CNT=%d; treating this as invalid data"
+            % raw.get("sample_cnt", -1)
+        )
+    return raw
+
+
 def scale_raw(raw):
-    return {
-        "ax_g": raw["ax"] / 32768.0 * 16.0,
-        "ay_g": raw["ay"] / 32768.0 * 16.0,
-        "az_g": raw["az"] / 32768.0 * 16.0,
-        "gx_dps": raw["gx"] / 32768.0 * 2000.0,
-        "gy_dps": raw["gy"] / 32768.0 * 2000.0,
-        "gz_dps": raw["gz"] / 32768.0 * 2000.0,
-        "roll_deg": raw["roll"] / 32768.0 * 180.0,
-        "pitch_deg": raw["pitch"] / 32768.0 * 180.0,
-        "yaw_deg": raw["yaw"] / 32768.0 * 180.0,
-        "temp_c": raw["temp"] / 100.0,
-        "sample_cnt": raw["sample_cnt"],
-    }
+    scaled = {}
+    for field in READABLE_FIELDS:
+        scaled[field["value_key"]] = raw[field["raw_key"]] * field["scale"]
+    scaled["sample_cnt"] = raw["sample_cnt"]
+    return scaled
+
+
+def readable_measurements(raw, scaled=None):
+    if scaled is None:
+        scaled = scale_raw(raw)
+
+    rows = []
+    for field in READABLE_FIELDS:
+        rows.append(
+            {
+                "source_reg": field["source_reg"],
+                "name": field["name"],
+                "raw_key": field["raw_key"],
+                "value_key": field["value_key"],
+                "raw": raw[field["raw_key"]],
+                "value": scaled[field["value_key"]],
+                "unit": field["unit"],
+            }
+        )
+    return rows
 
 
 class JY901DemoDriver(object):
@@ -212,10 +363,11 @@ class JY901DemoDriver(object):
         while time.time() - start_time < timeout:
             last_status = self.read_status()
             if last_status["ack_error"] or last_status["timeout"]:
+                error_code = self.error_code()
                 self.write_reg(CTRL, CTRL_ENABLE)
                 raise JY901HardwareError(
-                    "I2C error status=0x%08X error_code=0x%02X"
-                    % (last_status["raw"], self.error_code())
+                    "I2C error status=0x%08X error_code=0x%02X (%s)"
+                    % (last_status["raw"], error_code, error_code_label(error_code))
                 )
             if last_status["done"]:
                 self.write_reg(CTRL, CTRL_ENABLE)
@@ -252,5 +404,12 @@ class JY901DemoDriver(object):
         values["sample_cnt"] = self.sample_count()
         return values
 
+    def read_valid_raw(self):
+        return validate_sample_payload(self.read_raw())
+
     def read_scaled(self):
         return scale_raw(self.read_raw())
+
+    def read_readable(self):
+        raw = self.read_raw()
+        return readable_measurements(raw)

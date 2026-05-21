@@ -14,8 +14,11 @@ from jy901_driver import (
     EXPECTED_VERSION,
     JY901DemoDriver,
     download_bitstream,
+    error_code_label,
+    readable_measurements,
     scale_raw,
     status_label,
+    validate_sample_payload,
 )
 
 
@@ -25,7 +28,7 @@ def parse_int(value):
 
 def build_parser():
     parser = argparse.ArgumentParser(
-        description="Minimal JY901 AXI I2C demo for PYNQ-Z1 Python 2.7.",
+        description="Minimal JY901 AXI I2C demo for PYNQ-Z1 Python 3.6.",
     )
     parser.add_argument("--bitfile", default=DEFAULT_BITFILE, help="bitstream path")
     parser.add_argument("--base-addr", type=parse_int, default=DEFAULT_BASE_ADDR, help="AXI base address")
@@ -61,15 +64,30 @@ def write_jsonl(handle, record):
 
 def print_header():
     print(
-        "%7s %8s %8s %7s %7s %7s %8s %8s %8s %8s %8s"
-        % ("time", "cnt", "status", "ax_g", "ay_g", "az_g", "roll", "pitch", "yaw", "temp_c", "motion")
+        "%7s %8s %8s %7s %7s %7s %8s %8s %8s %8s %7s %7s %7s %8s"
+        % (
+            "time",
+            "cnt",
+            "status",
+            "ax_g",
+            "ay_g",
+            "az_g",
+            "roll",
+            "pitch",
+            "yaw",
+            "temp_c",
+            "hx",
+            "hy",
+            "hz",
+            "motion",
+        )
     )
-    print("-" * 96)
+    print("-" * 120)
 
 
 def print_row(elapsed, raw, scaled, status, motion):
     print(
-        "%7.2f %8d %8s %7.3f %7.3f %7.3f %8.2f %8.2f %8.2f %8.2f %8s"
+        "%7.2f %8d %8s %7.3f %7.3f %7.3f %8.2f %8.2f %8.2f %8.2f %7d %7d %7d %8s"
         % (
             elapsed,
             raw["sample_cnt"],
@@ -81,12 +99,15 @@ def print_row(elapsed, raw, scaled, status, motion):
             scaled["pitch_deg"],
             scaled["yaw_deg"],
             scaled["temp_c"],
+            raw["hx"],
+            raw["hy"],
+            raw["hz"],
             motion,
         )
     )
 
 
-def make_record(elapsed, raw, scaled, status, error_code, motion, motion_score):
+def make_record(elapsed, raw, scaled, measurements, status, error_code, motion, motion_score):
     return {
         "elapsed_s": elapsed,
         "sample_cnt": raw["sample_cnt"],
@@ -94,6 +115,7 @@ def make_record(elapsed, raw, scaled, status, error_code, motion, motion_score):
         "error_code": error_code,
         "raw": raw,
         "scaled": scaled,
+        "measurements": measurements,
         "demo": {
             "motion": motion,
             "motion_score": motion_score,
@@ -110,7 +132,7 @@ def run(args):
         print("base address : 0x%08X" % args.base_addr)
         print("addr range   : 0x%X" % args.addr_range)
         print("i2c clkdiv   : %d" % args.i2c_clkdiv)
-        print("runtime note : target board Python 2.7.10, Linux 4.6.0-xilinx")
+        print("runtime note : use sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6 on the board")
 
         if args.jsonl:
             jsonl = open(args.jsonl, "a")
@@ -160,16 +182,31 @@ def run(args):
 
             status = driver.read_status()
             if status["ack_error"] or status["timeout"]:
+                error_code = driver.error_code()
                 raise RuntimeError(
-                    "I2C status error status=0x%08X error_code=0x%02X"
-                    % (status["raw"], driver.error_code())
+                    "I2C status error status=0x%08X error_code=0x%02X (%s)"
+                    % (status["raw"], error_code, error_code_label(error_code))
                 )
 
             raw = driver.read_raw()
+            validate_sample_payload(raw)
             scaled = scale_raw(raw)
+            measurements = readable_measurements(raw, scaled)
             motion, score = motion_hint(previous_scaled, scaled)
             print_row(elapsed, raw, scaled, status, motion)
-            write_jsonl(jsonl, make_record(elapsed, raw, scaled, status, driver.error_code(), motion, score))
+            write_jsonl(
+                jsonl,
+                make_record(
+                    elapsed,
+                    raw,
+                    scaled,
+                    measurements,
+                    status,
+                    driver.error_code(),
+                    motion,
+                    score,
+                ),
+            )
 
             previous_scaled = scaled
             previous_count = shot["after_count"]

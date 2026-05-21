@@ -8,9 +8,9 @@
 #       format_version: '1.3'
 #       jupytext_version: 1.19.3
 #   kernelspec:
-#     display_name: Python 2
+#     display_name: Python 3 (PYNQ)
 #     language: python
-#     name: python2
+#     name: python3
 # ---
 
 # %% [markdown]
@@ -32,11 +32,13 @@ from jy901_driver import (
     EXPECTED_VERSION,
     JY901DemoDriver,
     download_bitstream,
+    readable_measurements,
     scale_raw,
     status_label,
+    validate_sample_payload,
 )
 
-print("target runtime: Python 2.7.10 on Linux 4.6.0-xilinx")
+print("target runtime: /opt/python3.6/bin/python3.6 on Linux 4.6.0-xilinx")
 print("bitfile:", DEFAULT_BITFILE)
 print("base address: 0x%08X" % DEFAULT_BASE_ADDR)
 
@@ -79,7 +81,9 @@ print("status: 0x%08X error_code: 0x%02X" % (result["status"]["raw"], result["er
 
 # %%
 raw = imu.read_raw()
+validate_sample_payload(raw)
 scaled = scale_raw(raw)
+measurements = readable_measurements(raw, scaled)
 
 print("raw:", raw)
 print(
@@ -93,6 +97,13 @@ print(
         scaled["temp_c"],
     )
 )
+print("")
+print("%-6s %-8s %-12s %-10s" % ("field", "raw", "value", "unit"))
+for item in measurements:
+    print(
+        "%-6s %-8d %-12.3f %-10s"
+        % (item["name"], item["raw"], item["value"], item["unit"])
+    )
 
 # %% [markdown]
 # ## Stop
