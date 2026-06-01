@@ -1,3 +1,10 @@
+> This is far more than just a standard "simulation pass".
+> It was built to enable rapid waveform observation, helping
+> me prepare thoroughly for the I2C IP midterm check.
+>
+> A typical simulation might not require complex scripts
+> to build multiple artifacts, but this setup does.
+
 # JY901 I2C Sampler Simulation
 
 This testbench verifies the first hardware milestone from [../../docs/i2c_axi_mpu9250.md](../../docs/i2c_axi_mpu9250.md):
