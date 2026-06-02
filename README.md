@@ -156,6 +156,7 @@ Engineering references:
 | [docs/register_map.md](docs/register_map.md) | Canonical AXI-Lite register map. |
 | [docs/wiring.md](docs/wiring.md) | Wiring and voltage notes. |
 | [docs/test_plan.md](docs/test_plan.md) | Simulation and board-level test checklist. |
+| [docs/handoff_and_intergration.md](docs/handoff_and_intergration.md) | Handoff migration and integration plan for teammate modules. |
 | [docs/protocol.md](docs/protocol.md) | PYNQ-to-PC protocol definition placeholder. |
 | [docs/work_notes.md](docs/work_notes.md) | Human work notes, safety reminders, and common failure modes. |
 
