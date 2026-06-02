@@ -24,6 +24,12 @@ Minimum live sequence:
 5. Enter a periodic loop that reads available sensor values, updates local
    turnover/humidifier logic, and refreshes the TFT LCD.
 
+Initial board-side entry point:
+
+```text
+pynq/sleep_demo/integrated_demo.py
+```
+
 ## TFT LCD Screen
 
 Use the handoff's stable ST7789 layout as the first integrated display target:

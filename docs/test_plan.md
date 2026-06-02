@@ -41,6 +41,84 @@ board-side integrated demo. Validate it in layers:
 Do not let PC firewall, IP address, or `openpyxl` setup block the lower-risk
 board-side integrated acceptance path.
 
+## Migrated Handoff Module Regression
+
+These modules have source files migrated from `handoff/` into tracked repo
+directories. Their handoff evidence is useful context, but local repo
+simulation or board evidence is still required before claiming they work in the
+integrated overlay.
+
+### DHT11 AXI IP
+
+Source:
+
+- [../rtl/dht11_axi/](../rtl/dht11_axi/)
+- [../sim/tb_dht11_axi/](../sim/tb_dht11_axi/)
+- [../pynq/dht11_demo/](../pynq/dht11_demo/)
+
+Expected first checks:
+
+- DHT11 frame simulation emits explicit PASS/FAIL.
+- `DHT11_DATA` decodes humidity and temperature bytes in the documented order.
+- Board test reads nonzero data at intervals of at least 1 to 2 seconds.
+- Integrated overlay uses Arduino IO11 `R17` with 3.3 V logic and pullup.
+
+### AXI Humidifier IP
+
+Source:
+
+- [../rtl/axi_humidifier/](../rtl/axi_humidifier/)
+- [../sim/tb_axi_humidifier/](../sim/tb_axi_humidifier/)
+- [../pynq/humidifier_demo/](../pynq/humidifier_demo/)
+
+Expected handoff PASS markers to reproduce:
+
+```text
+tb_humidifier_core PASS
+tb_axi_humidifier PASS
+```
+
+First integrated demo path:
+
+- PYNQ reads DHT11 humidity.
+- PYNQ writes humidifier `SW_HUM`.
+- Board LEDs reflect humidifier state.
+- [../pynq/sleep_demo/integrated_demo.py](../pynq/sleep_demo/integrated_demo.py)
+  prints `temperature_c`, `humidity_percent`, and `humidifier_on` from the
+  integrated overlay run.
+
+### TFT LCD SPI AXI IP
+
+Source:
+
+- [../rtl/tft_lcd_spi_axi/](../rtl/tft_lcd_spi_axi/)
+- [../sim/tb_tft_lcd_spi_axi/](../sim/tb_tft_lcd_spi_axi/)
+- [../pynq/tft_lcd_demo/](../pynq/tft_lcd_demo/)
+
+Expected first checks:
+
+- SPI byte transmitter and AXI wrapper simulations emit PASS/FAIL.
+- Board test initializes ST7789 with `CLKDIV=50`.
+- Initial UI draws full `SLEEP MONITOR` dashboard once.
+- Runtime loop updates only numeric/status regions at 1 Hz, then up to 2 Hz if
+  stable.
+
+### UART SpO2 AXI IP
+
+Source:
+
+- [../rtl/axi_uart_spo2/](../rtl/axi_uart_spo2/)
+- [../sim/tb_axi_uart_spo2/](../sim/tb_axi_uart_spo2/)
+- [../pynq/spo2_demo/](../pynq/spo2_demo/)
+
+Expected first checks:
+
+- Add a byte-stream/frame-parser simulation for 5-byte mode.
+- Verify 9600 baud timing at the integrated AXI clock.
+- Keep the PYNQ helper Python 3.6-compatible; `Spo2Sample` is intentionally a
+  plain class instead of a `dataclass`.
+- Board test confirms BPM/SpO2 update from the physical module.
+
 ## I2C JY901 / MPU9250 AXI IP
 
 ### Behavioral simulation

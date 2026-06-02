@@ -30,7 +30,7 @@ locations. Do not treat generated Vivado cache/output directories as source.
 | DHT11 | `handoff/DHT11_.../DHT11_.../` | `rtl/dht11_axi/`, `sim/tb_dht11_axi/`, `pynq/dht11_demo/`, `vivado/constraints/dht11_pynq_z1.xdc` | PYNQ single-module test plan and exported `.bit/.hwh`; no complete standalone `dht11_axi` packaged IP metadata was found. |
 | Humidifier | `handoff/humidifier_handoff_pack_20260601(1)/humidifier_handoff_pack_20260601/` | `rtl/axi_humidifier/`, `sim/tb_axi_humidifier/`, `pynq/humidifier_demo/`, optional LED XDC | Handoff records Vivado packaging integrity pass and two simulation PASS markers. |
 | TFT LCD | `handoff/tft_lcd_handoff_pack_20260601/tft_lcd_handoff_pack_20260601/` | `rtl/tft_lcd_spi_axi/`, `sim/tb_tft_lcd_spi_axi/`, `pynq/tft_lcd_demo/`, `vivado/constraints/tft_lcd_pynq_z1.xdc` | Testbenches include PASS markers; handoff notes say local machine lacked simulator tools. PYNQ/Jupyter code is reported as board-tested. |
-| UART SpO2 | `handoff/uart_spo2_pynq_handoff_20260601_portable/handoff_uart_spo2_pynq_20260601/` | `rtl/axi_uart_spo2/`, `sim/tb_axi_uart_spo2/`, `pynq/spo2_demo/`, `vivado/constraints/spo2_pynq_z1.xdc` | PYNQ overlay artifacts and runtime helper exist; no module-level regression test was found in the handoff scan. |
+| UART SpO2 | `handoff/uart_spo2_pynq_handoff_20260601_portable/handoff_uart_spo2_pynq_20260601/` | `rtl/axi_uart_spo2/`, `sim/tb_axi_uart_spo2/`, `pynq/spo2_demo/`, `vivado/constraints/spo2_pmodb_pynq_z1.xdc` | PYNQ overlay artifacts and runtime helper exist; no module-level regression test was found in the handoff scan. |
 | PC socket/Excel demo | `handoff/sleep_socket_project/sleep_socket_project/` | `pc_server/`, optional `pynq/sleep_demo/` client, and [protocol.md](protocol.md) | Handoff records a working PC-side TCP newline-JSON server, fake client, Excel writer, and rule-based classifier demo. |
 
 Target paths are planned names. Create or adjust local README files when the
@@ -150,7 +150,8 @@ Demo priority:
   then writes humidifier AXI registers. Direct PL-to-PL DHT11 valid/humidity
   wiring is optional later validation work.
 - Keep board-side scripts compatible with
-  `/opt/python3.6/bin/python3.6`; do not use standard-library `dataclasses`.
+  `/opt/python3.6/bin/python3.6`; avoid dependencies that are unavailable in
+  the recorded board runtime.
 
 ### Phase 6: Deferred PC Socket Integration
 
@@ -334,8 +335,8 @@ Deferred final-system socket extension:
 
 ### UART SpO2
 
-- Replace `dataclasses` usage before targeting the recorded Python 3.6 PYNQ
-  runtime, or explicitly install and document a backport.
+- `Spo2Sample` is kept as a plain class for the recorded Python 3.6 PYNQ
+  runtime.
 - Add a frame-parser simulation or UART byte-stream test before relying on the
   driver in the combined runtime.
 - Keep both 5-byte and 7-byte modes documented; default to the observed 5-byte

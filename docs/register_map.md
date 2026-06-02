@@ -40,3 +40,62 @@ Current hardware scope:
 - supports single-shot reads, auto-period reads, and one 16-bit config write transaction;
 - does not implement multi-master arbitration, clock stretching, interrupts, DMA, FIFO buffering, or 10-bit addressing;
 - SCL/SDA are open-drain style outputs and require external pullups to 3.3 V.
+
+## Migrated Handoff IP Register Maps
+
+The following register maps are copied from teammate handoff packages after the
+source files were migrated into `rtl/`. They still need local simulation,
+Vivado packaging, integrated BD address assignment, and PYNQ smoke evidence
+before being treated as verified integrated-system registers.
+
+### dht11_axi_v1_0
+
+| Offset | Name | Access | Description |
+|---:|---|---|---|
+| `0x00` | `DHT11_DATA` | R | `[31:24] humidity_int`, `[23:16] humidity_dec`, `[15:8] temperature_int`, `[7:0] temperature_dec`. |
+| `0x04` | `STATUS_DEBUG` | R | Debug/status bits including current state, bit count, raw/synchronized data line, output enable/value, and receive phase. |
+| `0x08` | `COUNT_1US_DBG` | R | Current microsecond counter debug value. |
+| `0x0C` | `RESERVED` | RW | Reserved writable register, currently unused. |
+
+### axi_humidifier_v1_0
+
+| Offset | Name | Access | Description |
+|---:|---|---|---|
+| `0x00` | `CTRL` | RW/W1P | bit0 `enable`, bit1 `manual_mode`, bit2 `manual_on`, bit3 `use_sw_humidity`, bit4 `clear_counter` write-one-pulse. |
+| `0x04` | `SW_HUM` | RW | Software humidity input, 0 to 100 percent. |
+| `0x08` | `THRESH` | RW | `[7:0] threshold_low`, `[15:8] hysteresis`, `[31:16] dry_alert_s`. |
+| `0x0C` | `TIMING` | RW | `[15:0] min_on_s`, `[31:16] min_off_s`. |
+| `0x10` | `STATUS` | R | `[7:0] humidity`, bit8 `humidifier_on`, `[10:9] dry_level`, `[15:12] humidifier_leds`, `[31:16] debug/status`. |
+| `0x14` | `DRY_SEC` | R | Accumulated humidifier-on seconds. |
+| `0x18` | `VERSION` | R | `0x20260601`. |
+
+Default handoff values: `CTRL=0x00000009`, `SW_HUM=50`,
+`THRESH=0x000A052D`, `TIMING=0x00000000`.
+
+### tft_lcd_spi_axi_v1_0
+
+| Offset | Name | Access | Reset | Description |
+|---:|---|---|---:|---|
+| `0x00` | `CTRL` | RW/pulse | `0x0000000C` | bit0 `start`, bit1 `dc`, bit2 `lcd_res`, bit3 `lcd_blk`, bit4 `clear_done`. |
+| `0x04` | `DATA` | RW | `0x00000000` | Next SPI byte in `[7:0]`. |
+| `0x08` | `CLKDIV` | RW | `0x00000019` | SPI half-period divider; `SCL = S_AXI_ACLK / (2 * CLKDIV)`. |
+| `0x0C` | `STATUS` | R | dynamic | bit0 `busy`, bit1 `done_latched`, bit2 `done_pulse`, bit3 `lcd_res`, bit4 `lcd_blk`, bit5 `dc`. |
+
+Software must preserve `CTRL[3:1]` when pulsing `start`; otherwise reset or
+backlight can be accidentally deasserted.
+
+### axi_uart_spo2_v1_0
+
+| Offset | Name | Access | Description |
+|---:|---|---|---|
+| `0x00` | `CTRL` | RW/W1P | bit0 `enable`, bit1 `clear`, bit2 `irq_enable`, bit4 `frame_7byte_mode`. |
+| `0x04` | `TXDATA` | W | `[7:0]` TX byte, write bit8 to transmit one byte. |
+| `0x08` | `STATUS` | R | bit0 frame seen, bit1 frame error, bit2 CRC OK, bit3 sensor off, bit4 sensor error, bit5 searching, bit6 search timeout, `[10:7] frame_len`. |
+| `0x0C` | `MEASURE` | R | `[7:0] BPM`, `[15:8] SpO2`. |
+| `0x10` | `WAVE` | R | `[7:0] pleth`, `[15:8] bar graph`, `[23:16] perfusion index`. |
+| `0x14` | `FLAGS` | R | `[31:16] frame_counter`, CRC fields, pulse/mode flags. |
+| `0x18` | `RAW0` | R | Raw bytes 0 to 3. |
+| `0x1C` | `RAW1` | R | Raw bytes 4 to 6. |
+
+The IP defaults to 5-byte frame mode. Use `CTRL[4]` only after confirming the
+physical sensor emits the 7-byte frame format.

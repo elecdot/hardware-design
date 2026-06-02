@@ -32,8 +32,8 @@ Current workspace status:
   `.hwh` evidence before being treated as an end-to-end overlay release.
 - A minimal PYNQ-side JY901 demo now exists under `pynq/jy901_demo/`. It uses
   `Bitstream.download()` plus direct MMIO for the first classroom demo.
-- PC server code, analysis tools, and most other planned IPs are still future
-  work unless added later.
+- PC socket/Excel demo code has been migrated under `pc_server/` for the later
+  integration layer. Analysis tools and IR AC remain future work.
 
 ## Hardware Platform
 
@@ -59,17 +59,17 @@ Input sensing modules:
 
 | Module | Data | Planned interface | Status |
 |---|---|---|---|
-| Heart-rate / SpO2 sensor | BPM, SPO2 | UART custom IP | Planned |
+| Heart-rate / SpO2 sensor | BPM, SPO2 | UART custom IP | RTL/PYNQ migrated; integration pending |
 | JY901 / MPU9250 IMU | Acceleration, gyro, attitude, temperature | I2C custom IP | RTL, simulation, Vivado packaging, and overlay bring-up in progress |
-| DHT11 | Temperature, humidity | One-Wire custom IP | Planned |
+| DHT11 | Temperature, humidity | One-Wire custom IP | RTL/PYNQ migrated; integration pending |
 
 Display and assistance modules:
 
 | Module | Purpose | Planned interface | Status |
 |---|---|---|---|
-| 1.3-inch TFT display | Board-side real-time display | SPI custom IP | Planned |
+| 1.3-inch TFT display | Board-side real-time display | SPI custom IP | RTL/PYNQ migrated; integration pending |
 | IR air-conditioner transmitter | Environment assistance | IR custom IP | Planned |
-| Humidifier or indicator | Simple actuator control | GPIO / PWM / relay-style output | Planned |
+| Humidifier or indicator | Simple actuator control | GPIO / PWM / relay-style output | RTL/PYNQ migrated; integration pending |
 | Sleep-aid prompt module | Optional audio or prompt output | PDM / PWM / audio | Planned |
 
 ## System Architecture
@@ -115,8 +115,18 @@ Implemented or active subtrees:
 | Path | Purpose |
 |---|---|
 | [rtl/i2c_mpu9250/](rtl/i2c_mpu9250/) | AXI-Lite I2C/JY901 RTL implementation. |
+| [rtl/dht11_axi/](rtl/dht11_axi/) | DHT11 AXI RTL migrated from handoff. |
+| [rtl/axi_humidifier/](rtl/axi_humidifier/) | Humidifier/LED AXI RTL migrated from handoff. |
+| [rtl/tft_lcd_spi_axi/](rtl/tft_lcd_spi_axi/) | TFT LCD SPI AXI RTL migrated from handoff. |
+| [rtl/axi_uart_spo2/](rtl/axi_uart_spo2/) | UART SpO2 AXI RTL migrated from handoff. |
 | [sim/tb_i2c_mpu9250/](sim/tb_i2c_mpu9250/) | Behavioral simulation for the JY901 burst-read path. |
 | [pynq/jy901_demo/](pynq/jy901_demo/) | Minimal PYNQ-Z1 JY901 bitstream/MMIO demo for classroom presentation. |
+| [pynq/dht11_demo/](pynq/dht11_demo/) | DHT11 PYNQ driver/demo migrated from handoff. |
+| [pynq/humidifier_demo/](pynq/humidifier_demo/) | Humidifier PYNQ driver/demo migrated from handoff. |
+| [pynq/sleep_demo/](pynq/sleep_demo/) | Integrated PYNQ demo skeleton for the final overlay. |
+| [pynq/tft_lcd_demo/](pynq/tft_lcd_demo/) | TFT LCD PYNQ driver/demo migrated from handoff. |
+| [pynq/spo2_demo/](pynq/spo2_demo/) | UART SpO2 PYNQ helper migrated from handoff. |
+| [pc_server/](pc_server/) | PC socket/Excel demo migrated from handoff for the deferred PC integration layer. |
 | [vivado/constraints/](vivado/constraints/) | Board-level XDC constraints. |
 | [vivado/ip_repo/](vivado/ip_repo/) | Shared packaged custom IP repository for Vivado projects. |
 | [vivado/project/axi_i2c_jy901_package/](vivado/project/axi_i2c_jy901_package/) | JY901 AXI I2C IP packaging project. |
@@ -126,11 +136,10 @@ Implemented or active subtrees:
 | [vivado/gen/](vivado/gen/) | Ignored local export folder for temporary `.bit`/`.hwh` files. |
 | [docs/JY901/](docs/JY901/) | Vendor reference material for the JY901 module. |
 
-Planned subtrees may be added later:
+Remaining planned subtrees may be added later:
 
 | Path | Purpose |
 |---|---|
-| `pc_server/` | TCP receive service, protocol parsing, and storage code. |
 | `analysis/` | Feature extraction, smoothing, plots, and model experiments. |
 | `tests/` | Python-side tests and reusable fixtures. |
 | `data/` | Raw and processed data; normally ignored unless demo samples are needed. |
@@ -157,14 +166,13 @@ Engineering references:
 | [docs/wiring.md](docs/wiring.md) | Wiring and voltage notes. |
 | [docs/test_plan.md](docs/test_plan.md) | Simulation and board-level test checklist. |
 | [docs/handoff_and_intergration.md](docs/handoff_and_intergration.md) | Handoff migration and integration plan for teammate modules. |
-| [docs/protocol.md](docs/protocol.md) | PYNQ-to-PC protocol definition placeholder. |
+| [docs/protocol.md](docs/protocol.md) | PYNQ-to-PC newline-delimited JSON protocol. |
 | [docs/work_notes.md](docs/work_notes.md) | Human work notes, safety reminders, and common failure modes. |
 
 ## Open Loops
 
 Current open work:
 
-- [ ] Hardware integration: Extract and migrate the teammate-completed modules from `handoff/` (UART SpO2, DHT11, SPI TFT LCD, and humidifier) into our main repository structure.
 - [ ] Integrate the newly imported IP cores into the Vivado block design.
 - [ ] Implement and test the corresponding PYNQ drivers for the new modules.
 
@@ -173,11 +181,12 @@ Completed:
 - [x] Milestone: End-to-end I2C MPU9250 (JY901) integration loop complete: 
 including RTL / Sim, Vivado IP hw debug / packaging, PYNQ overlay (bitstream) 
 generation, Python driver implementation, and hardware smoke test verification.
+- [x] Handoff source/documentation migration skeleton for UART SpO2, DHT11,
+SPI TFT LCD, humidifier, and PC socket/Excel demo.
 
 Further work:
 
-- Define the PYNQ-to-PC JSON protocol in [docs/protocol.md](docs/protocol.md).
-- Add the PC receive/storage path.
+- Integrate the PYNQ board-side socket client with the migrated PC receive/storage path.
 - Add or scope the remaining planned IPs: IR AC.
 
 Keep README files and engineering docs synchronized whenever protocols,

@@ -11,7 +11,7 @@ Project design notes, hardware references, register maps, wiring notes, and test
 | [wiring.md](wiring.md) | Physical wiring and voltage notes for external modules. |
 | [test_plan.md](test_plan.md) | Simulation and board-level test checklist. |
 | [handoff_and_intergration.md](handoff_and_intergration.md) | Handoff migration and Vivado/PYNQ integration plan for teammate modules. |
-| [protocol.md](protocol.md) | PYNQ-to-PC payload protocol placeholder. |
+| [protocol.md](protocol.md) | PYNQ-to-PC newline-delimited JSON protocol. |
 | [demo_plan.md](demo_plan.md) | Course demo or presentation flow notes. |
 | [work_notes.md](work_notes.md) | Human-oriented work notes, safety reminders, and common failure modes. |
 | [JY901/](JY901/) | Vendor documentation, tools, and example code for the JY901 module. |
