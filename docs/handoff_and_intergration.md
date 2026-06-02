@@ -31,6 +31,7 @@ locations. Do not treat generated Vivado cache/output directories as source.
 | Humidifier | `handoff/humidifier_handoff_pack_20260601(1)/humidifier_handoff_pack_20260601/` | `rtl/axi_humidifier/`, `sim/tb_axi_humidifier/`, `pynq/humidifier_demo/`, optional LED XDC | Handoff records Vivado packaging integrity pass and two simulation PASS markers. |
 | TFT LCD | `handoff/tft_lcd_handoff_pack_20260601/tft_lcd_handoff_pack_20260601/` | `rtl/tft_lcd_spi_axi/`, `sim/tb_tft_lcd_spi_axi/`, `pynq/tft_lcd_demo/`, `vivado/constraints/tft_lcd_pynq_z1.xdc` | Testbenches include PASS markers; handoff notes say local machine lacked simulator tools. PYNQ/Jupyter code is reported as board-tested. |
 | UART SpO2 | `handoff/uart_spo2_pynq_handoff_20260601_portable/handoff_uart_spo2_pynq_20260601/` | `rtl/axi_uart_spo2/`, `sim/tb_axi_uart_spo2/`, `pynq/spo2_demo/`, `vivado/constraints/spo2_pynq_z1.xdc` | PYNQ overlay artifacts and runtime helper exist; no module-level regression test was found in the handoff scan. |
+| PC socket/Excel demo | `handoff/sleep_socket_project/sleep_socket_project/` | `pc_server/`, optional `pynq/sleep_demo/` client, and [protocol.md](protocol.md) | Handoff records a working PC-side TCP newline-JSON server, fake client, Excel writer, and rule-based classifier demo. |
 
 Target paths are planned names. Create or adjust local README files when the
 source is actually migrated.
@@ -49,6 +50,43 @@ source is actually migrated.
 7. Keep PYNQ code compatible with the board's Python 3.6 runtime.
 8. Do not commit generated overlay artifacts unless they are intentionally kept
    as release evidence and documented as matching `.bit/.hwh` pairs.
+
+## Integrated Overlay Decisions
+
+The final course-demo target is one complete Vivado overlay hardware platform,
+one matching `.hwh`, one PYNQ driver suite, and one demonstrable program built
+on that driver suite. Separate single-module overlays remain useful as fallback
+validation artifacts if the integrated platform or driver bring-up exposes a
+blocking issue.
+
+Accepted pin-allocation decisions for the integrated overlay:
+
+| Module | Integrated overlay pins | Notes |
+|---|---|---|
+| TFT LCD | Reserve full PMODA: `lcd_scl=Y18`, `lcd_sda=Y19`, `lcd_res=Y16`, `lcd_dc=Y17`, `lcd_blk=U18` | PMODA is dedicated to the display in the integrated build. |
+| JY901 | Arduino I2C: `i2c_scl=P16`, `i2c_sda=P15` | Uses the existing Arduino-header XDC variant. Keep the PMODA JY901 overlay as a single-module fallback only. |
+| UART SpO2 | PMODB pin 1/2: `uart_txd=W14`, `uart_rxd=Y14` | Pin source is the course teaching guide table: `PMODB_1/JB1_P/W14`, `PMODB_2/JB1_N/Y14`. Still verify physical connector orientation before wiring. |
+| DHT11 | Arduino IO11: `dht11_0=R17` | No conflict with the selected PMODA/PMODB plan. |
+| Humidifier | Board LEDs: `humidifier_leds[0]=R14`, `[1]=P14`, `[2]=N16`, `[3]=M14` | LED output simulates the actuator; do not drive a load directly from PL pins. |
+
+Accepted acceptance standard:
+
+- The final acceptance path is the integrated overlay plus the corresponding
+  driver suite and a demonstrable program.
+- Module-specific overlays and direct-MMIO scripts are validation tools, not
+  the final acceptance target unless integrated bring-up is blocked.
+- If integrated platform or driver work fails, record the blocking point and
+  validate the affected module with the smallest meaningful standalone path.
+
+Demo priority:
+
+1. Board-side integrated overlay + PYNQ driver suite + demonstrable local
+   program.
+2. Add PC socket/Excel flow from `handoff/sleep_socket_project/...` after the
+   board-side integrated demo is stable. This is part of the final system
+   architecture, but it is a later priority than local overlay/driver bring-up.
+3. If PC networking or Excel dependencies consume time, defer socket/Excel
+   validation rather than blocking the lower-risk board-side acceptance.
 
 ## Integration Order
 
@@ -92,26 +130,48 @@ source is actually migrated.
 
 ### Phase 4: Block Design Integration
 
-- Build the integrated overlay from the shared `vivado/ip_repo/`.
+- Build the integrated overlay from the shared `vivado/ip_repo/`; this is the
+  primary final acceptance hardware platform.
 - Add one new AXI slave at a time and run BD validation after each addition.
 - Assign non-overlapping AXI address windows in Vivado Address Editor.
 - Export matching `.bit` and `.hwh` from the same build into `vivado/gen/`.
 - Use `.hwh`/`Overlay.ip_dict` for integrated PYNQ binding. Hard-coded
   `0x43C00000` is acceptable only in single-module legacy demos.
+- Apply one integrated XDC set that matches the accepted pin-allocation table.
+  Do not apply the old JY901 PMODA XDC in the same integrated build.
 
 ### Phase 5: PYNQ Runtime Integration
 
 - Keep reusable drivers in `.py` modules, not only notebooks.
-- Provide one small CLI or notebook-style smoke demo per module.
-- Add a later combined runtime only after individual module demos work.
+- Provide one small CLI or notebook-style smoke demo per module during bring-up.
+- Add the final combined acceptance program only after individual module demos
+  work against the integrated overlay.
+- Prefer PS-side control for humidifier integration: PYNQ reads DHT11 humidity,
+  then writes humidifier AXI registers. Direct PL-to-PL DHT11 valid/humidity
+  wiring is optional later validation work.
 - Keep board-side scripts compatible with
   `/opt/python3.6/bin/python3.6`; do not use standard-library `dataclasses`.
+
+### Phase 6: Deferred PC Socket Integration
+
+- Use the handoff architecture under `handoff/sleep_socket_project/...` as the
+  reference PC demo: TCP socket, newline-delimited JSON, Excel logging, and
+  `sleep_result` response.
+- Migrate PC files after the board-side integrated demo is stable enough to
+  provide real sensor values.
+- Keep the PC protocol mirrored in [protocol.md](protocol.md).
+- On PYNQ, implement a real client that reuses the integrated driver suite and
+  sends `sensor_data` packets. Do not keep fake sensor generation in the final
+  board client.
+- Treat Windows firewall, PC IP address, and `openpyxl` installation as demo
+  environment prerequisites.
 
 ## Main Integration Risks
 
 ### Pin Conflicts
 
-Current handoff/default pin maps cannot all coexist:
+Original handoff/default pin maps cannot all coexist, but the integrated
+overlay pin plan now resolves the known PMODA/PMODB conflicts:
 
 | Signal group | Pins currently used | Conflict |
 |---|---|---|
@@ -121,14 +181,22 @@ Current handoff/default pin maps cannot all coexist:
 | DHT11 | `dht11_0=R17` | No conflict found in the current scan. |
 | Humidifier LEDs | `R14/P14/N16/M14` | Uses PYNQ-Z1 board LEDs; verify they are not already reserved by the top design. |
 
-Do not resolve these conflicts by assigning random pins. Candidate approaches:
+Integrated plan:
 
-- keep separate single-module overlays for demo fallback;
-- move JY901 to the existing Arduino-header mapping `P16/P15` in the integrated
-  overlay, after confirming pullups and wiring;
-- reserve PMODA for the TFT LCD if the display must be shown in the final demo;
-- choose and document a new UART SpO2 pin pair only after checking PYNQ-Z1 pin
-  availability, voltage level, and wiring access.
+- PMODA is reserved for TFT LCD.
+- JY901 moves to Arduino `P16/P15`.
+- UART SpO2 moves to PMODB `W14/Y14`.
+- DHT11 remains on Arduino IO11 `R17`.
+- Humidifier remains on board LEDs unless the final demo needs a different
+  visible indicator.
+
+Remaining checks:
+
+- PMODB `W14/Y14` has been confirmed from the course teaching guide table; still
+  confirm connector orientation before wiring sensor `RX(IN)` and `TX(OUT)`.
+- Confirm all selected pins are accessible with the physical wiring layout.
+- Confirm every external signal uses `LVCMOS33`; do not connect 5 V logic to PL
+  pins.
 
 ### AXI Address Collisions
 
@@ -158,11 +226,16 @@ single-module addresses into shared drivers. Use one of these patterns:
   period, usually around 1 to 2 seconds.
 - Humidifier `humidity_hw_valid` should be a one-cycle pulse. If DHT11 exposes
   a level instead, add a pulse adapter or document the repeated-sample behavior.
+- Low-risk humidifier integration uses PS control first: read humidity in PYNQ,
+  then write `SW_HUM` or control registers. Direct hardware humidity wiring is a
+  later optimization, not the first acceptance path.
 - UART SpO2 defaults to the observed 5-byte frame mode. Enable 7-byte mode only
   when the physical sensor output is confirmed to match that format.
 - The SpO2 module may use 5 V power, but UART signals connected to PL pins must
   be verified as 3.3 V TTL.
 - JY901 remains 3.3 V I2C with open-drain SCL/SDA and valid pullups.
+- PC socket integration uses newline-delimited JSON. The PYNQ client must send
+  the PC's real IPv4 address, not `127.0.0.1`.
 
 ### AXI And Driver Semantics
 
@@ -188,12 +261,38 @@ Minimum regression set before any integrated overlay claim:
 | BD integration | Vivado validates the block design after each IP addition, and external ports match the selected XDC. |
 | PYNQ driver smoke | Driver can find the IP from `.hwh` or explicit base address, read a version/status/data register, and report errors clearly. |
 | Board smoke | Physical module wiring, voltage, and a successful sample/control action are recorded. |
+| Integrated acceptance program | One program running on the integrated overlay uses the shared driver suite to demonstrate the required sensor/display/control behavior. |
 
 Do not claim an integrated system pass until multiple IPs operate together on
 one exported overlay and the board-side code reads or controls them through the
 same runtime.
 
+The final acceptance program should, at minimum, show that the integrated driver
+suite can:
+
+- read JY901 sample/status without breaking the known I2C path;
+- read DHT11 temperature/humidity when the sensor is connected;
+- read UART SpO2 BPM/SpO2 frames in the confirmed frame mode;
+- update the TFT LCD through the AXI SPI display driver;
+- control or display humidifier state through PS-side AXI writes, preferably
+  using the DHT11 value read by the PYNQ driver.
+
+Deferred final-system socket extension:
+
+- send a `sensor_data` newline-JSON packet to the PC server;
+- save data to Excel through the PC handoff server;
+- receive a `sleep_result` packet and show or print the returned state.
+
 ## Module-Specific Notes
+
+### JY901
+
+- Integrated overlay uses Arduino `P16/P15`, not the current PMODA `Y17/Y16`
+  overlay pinout.
+- Keep the existing PMODA JY901 overlay/debug flow documented as fallback
+  evidence and wiring reference.
+- Re-run the JY901 PYNQ smoke test after moving to `P16/P15`; a successful
+  PMODA board test does not prove the Arduino-header wiring.
 
 ### DHT11
 
@@ -208,15 +307,26 @@ same runtime.
 
 - Preserve the corrected LED behavior from the handoff: LEDs mirror
   `humidifier_on`.
-- Keep software-humidity mode as the independent demo path.
-- In integrated mode, connect DHT11 humidity integer and a valid pulse only
-  after the DHT11 output timing is confirmed.
+- Keep PS/software-humidity mode as the first integrated demo path.
+- In the low-risk integrated program, PYNQ reads DHT11 humidity and writes
+  humidifier `SW_HUM` or related control registers.
+- Directly connecting DHT11 humidity integer and a valid pulse in PL is optional
+  later validation work after the DHT11 output timing is confirmed.
 - Treat board LEDs as an actuator simulation, not a direct load driver.
 
 ### TFT LCD
 
 - Preserve the driver's CTRL shadow register behavior.
 - Keep `CLKDIV=50` as the conservative first board-test value.
+- Use the current stable display style as the first integrated UI: initialize a
+  full `SLEEP MONITOR` dashboard once, then update only numeric/status regions.
+- First refresh target is 1 Hz local UI updates. After board smoke testing,
+  attempt up to 2 Hz for faster-changing values while keeping DHT11 on its
+  slower valid sample cadence.
+- Display priority: HR, SpO2, turnover count, temperature, humidity, JY901/data
+  status, humidifier state, and PC sleep result if socket is active.
+- Avoid full-screen redraw in the periodic loop; use full redraw only during
+  initialization or error recovery.
 - Current RTL has no CS or MISO. If the display has a CS pin, tie it low only
   if the module documentation and wiring are confirmed.
 - A byte-at-a-time AXI path is slow but acceptable for stable classroom display;
@@ -232,15 +342,28 @@ same runtime.
   mode.
 - Verify signal voltage before connecting to PL pins, especially if the module
   is powered from 5 V.
+- Integrated overlay targets PMODB pin 1/2 as `uart_txd=W14` and
+  `uart_rxd=Y14`, based on the course teaching guide table. Verify direction at
+  the connector before wiring sensor `RX(IN)` and `TX(OUT)`.
+
+### PC Socket/Excel Demo
+
+- Handoff files define a candidate PC integration path:
+  `protocol_config.py`, `excel_utils.py`, `sleep_classifier.py`,
+  `pc_server.py`, and `fake_pynq_client.py`.
+- Protocol is TCP with one JSON object per line.
+- PC server listens on `0.0.0.0:9000`; local fake client uses `127.0.0.1`.
+- PYNQ must connect to the PC's real IPv4 address.
+- `openpyxl` is required on the PC side.
+- Do not open `sleep_monitor_data.xlsx` while the server is writing it.
+- Current classifier is a rule placeholder, not a trained model.
 
 ## Open Decisions
 
-- Final integrated pin assignment for JY901, TFT LCD, and UART SpO2.
-- Whether the course demo requires one all-in overlay or allows separate
-  module-specific fallback overlays.
 - Final integrated AXI address map from Vivado Address Editor.
-- Whether DHT11 exposes a reliable `data_valid` pulse usable by humidifier.
 - Whether UART SpO2 needs interrupt wiring or polling is sufficient.
+- Whether PC socket/Excel is included in the live classroom run or demonstrated
+  after the local overlay demo as a second-stage final-system feature.
 
 ## Completion Criteria For This Migration Step
 

@@ -2,6 +2,45 @@
 
 Module and system-level test checklist.
 
+## Final Integrated Overlay Acceptance Target
+
+Final course acceptance targets one complete Vivado overlay hardware platform,
+one matching `.hwh`, one PYNQ driver suite, and one demonstrable board-side
+program. Single-module overlays and direct-MMIO scripts remain validation tools
+for isolating bring-up failures, but they are not the preferred final
+acceptance path.
+
+Minimum integrated acceptance evidence:
+
+- Vivado Block Design validates with all selected IP present.
+- The integrated build exports matching `.bit` and `.hwh` artifacts from the
+  same run.
+- The integrated XDC uses the planned pin allocation in [wiring.md](wiring.md):
+  PMODA for TFT LCD, Arduino `P16/P15` for JY901 I2C, PMODB `W14/Y14` for UART
+  SpO2, Arduino IO11 `R17` for DHT11, and board LEDs for humidifier indication.
+- PYNQ loads the integrated overlay and binds IPs through `.hwh`/`Overlay.ip_dict`
+  rather than single-module hard-coded base addresses.
+- The acceptance program demonstrates the stable available paths from the
+  shared driver suite: JY901 read/status, DHT11 read, UART SpO2 read, TFT update,
+  and PS-side humidifier control or status display.
+
+If an integrated platform or driver issue blocks one module, record the blocking
+condition and validate that module with the smallest standalone overlay/driver
+path before returning to the integrated build.
+
+PC socket/Excel integration is a later-priority final-system layer after the
+board-side integrated demo. Validate it in layers:
+
+1. PC-only: run `pc_server.py` and `fake_pynq_client.py` from the socket handoff
+   and confirm JSON send/receive plus Excel writes.
+2. PYNQ synthetic: run a PYNQ client that sends synthetic `sensor_data` to the
+   PC's real IPv4 address and receives `sleep_result`.
+3. Integrated driver: replace synthetic values with values from the integrated
+   PYNQ driver suite.
+
+Do not let PC firewall, IP address, or `openpyxl` setup block the lower-risk
+board-side integrated acceptance path.
+
 ## I2C JY901 / MPU9250 AXI IP
 
 ### Behavioral simulation

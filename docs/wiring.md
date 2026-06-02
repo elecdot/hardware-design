@@ -2,6 +2,30 @@
 
 Physical module wiring and voltage notes.
 
+## Planned Integrated Overlay Pin Allocation
+
+These assignments are the target for the final integrated overlay. They are
+not board-verified until the matching integrated XDC, `.bit`, `.hwh`, and PYNQ
+driver smoke test evidence exist.
+
+| Module | Signal | PYNQ-Z1 pin/header | Notes |
+|---|---|---|---|
+| TFT LCD | `lcd_scl` | PMODA `Y18` | PMODA is reserved for TFT LCD in the integrated build. |
+| TFT LCD | `lcd_sda` | PMODA `Y19` | SPI MOSI, write-only display path. |
+| TFT LCD | `lcd_res` | PMODA `Y16` | Active-low display reset. |
+| TFT LCD | `lcd_dc` | PMODA `Y17` | `0` command, `1` data. |
+| TFT LCD | `lcd_blk` | PMODA `U18` | Backlight enable. |
+| JY901 | `i2c_scl` | Arduino SCL `P16` | Use 3.3 V pullups; do not use the PMODA JY901 XDC in the integrated build. |
+| JY901 | `i2c_sda` | Arduino SDA `P15` | Open-drain I2C data. |
+| UART SpO2 | `uart_txd` | PMODB pin 1, `W14` | Course teaching guide lists `PMODB_1/JB1_P/W14`; verify connector orientation before wiring. |
+| UART SpO2 | `uart_rxd` | PMODB pin 2, `Y14` | Course teaching guide lists `PMODB_2/JB1_N/Y14`; add pullup only if required by electrical test. |
+| DHT11 | `dht11_0` | Arduino IO11 `R17` | Bidirectional one-wire DATA with pullup. |
+| Humidifier | `humidifier_leds[3:0]` | Board LEDs `R14/P14/N16/M14` | LED output simulates an actuator; do not drive loads directly. |
+
+All PL-connected signals must be 3.3 V logic. If a module is powered from 5 V,
+verify that its FPGA-facing signal pins are still 3.3 V TTL or add level
+shifting.
+
 ## JY901 I2C Module
 
 Use 3.3 V wiring only with PYNQ-Z1 PL I/O.
