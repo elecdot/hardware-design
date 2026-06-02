@@ -163,15 +163,21 @@ Engineering references:
 
 Current open work:
 
-- [ ] Finish or formalize the PYNQ Python driver for [rtl/i2c_mpu9250/](rtl/i2c_mpu9250/).
-- [ ] Complete the board-level I2C/JY901 test evidence.
-- [ ] Re-run and record the `pynq/jy901_demo/demo_cli.py` board smoke output.
+- [ ] Hardware integration: Extract and migrate the teammate-completed modules from `handoff/` (UART SpO2, DHT11, SPI TFT LCD, and humidifier) into our main repository structure.
+- [ ] Integrate the newly imported IP cores into the Vivado block design.
+- [ ] Implement and test the corresponding PYNQ drivers for the new modules.
+
+Completed:
+
+- [x] Milestone: End-to-end I2C MPU9250 (JY901) integration loop complete: 
+including RTL / Sim, Vivado IP hw debug / packaging, PYNQ overlay (bitstream) 
+generation, Python driver implementation, and hardware smoke test verification.
 
 Further work:
+
 - Define the PYNQ-to-PC JSON protocol in [docs/protocol.md](docs/protocol.md).
 - Add the PC receive/storage path.
-- Add or scope the remaining planned IPs: UART heart-rate/SpO2, DHT11,
-  SPI TFT, IR AC, and GPIO/PWM actuator control.
+- Add or scope the remaining planned IPs: IR AC.
 
 Keep README files and engineering docs synchronized whenever protocols,
 register maps, external ports, wiring, or workflow assumptions change.
