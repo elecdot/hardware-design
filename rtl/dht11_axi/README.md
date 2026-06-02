@@ -7,7 +7,7 @@ handoff package.
 
 | File | Purpose |
 |---|---|
-| [dht11_axi_v1_0.v](dht11_axi_v1_0.v) | AXI IP top wrapper with external `dht11_0` one-wire port. |
+| [dht11_axi_v1_0.v](dht11_axi_v1_0.v) | AXI IP top wrapper with external `dht11` one-wire port. |
 | [dht11_axi_v1_0_S00_AXI.v](dht11_axi_v1_0_S00_AXI.v) | AXI4-Lite register wrapper. |
 | [dht11_onewire.v](dht11_onewire.v) | DHT11 one-wire timing core. |
 
@@ -18,5 +18,7 @@ handoff package.
   `dht11_axi` IP directory, so this IP should be repackaged from tracked RTL.
 - Integrated target pin is Arduino IO11 `R17`, documented in
   [../../docs/wiring.md](../../docs/wiring.md).
+- The integrated XDC currently names the constrained external BD port
+  `dht11_0`; keep that BD external name or update the XDC in the same reviewed
+  scope.
 - Keep the bidirectional DATA line as a top-level inout and use a pullup.
-
