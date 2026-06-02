@@ -10,7 +10,7 @@ Project design notes, hardware references, register maps, wiring notes, and test
 | [register_map.md](register_map.md) | Canonical AXI-Lite register map for implemented custom IP. |
 | [wiring.md](wiring.md) | Physical wiring and voltage notes for external modules. |
 | [test_plan.md](test_plan.md) | Simulation and board-level test checklist. |
-| [handoff_and_intergration.md](handoff_and_intergration.md) | Handoff migration and Vivado/PYNQ integration plan for teammate modules. |
+| [handoff_and_intergration.md](handoff_and_integration.md) | Handoff migration and Vivado/PYNQ integration plan for teammate modules. |
 | [ip_packaging_manual.md](ip_packaging_manual.md) | Phase 3 executable Vivado IP packaging checklist for migrated RTL modules. |
 | [protocol.md](protocol.md) | PYNQ-to-PC newline-delimited JSON protocol. |
 | [demo_plan.md](demo_plan.md) | Course demo or presentation flow notes. |

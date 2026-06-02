@@ -165,7 +165,7 @@ Engineering references:
 | [docs/register_map.md](docs/register_map.md) | Canonical AXI-Lite register map. |
 | [docs/wiring.md](docs/wiring.md) | Wiring and voltage notes. |
 | [docs/test_plan.md](docs/test_plan.md) | Simulation and board-level test checklist. |
-| [docs/handoff_and_intergration.md](docs/handoff_and_intergration.md) | Handoff migration and integration plan for teammate modules. |
+| [docs/handoff_and_intergration.md](docs/handoff_and_integration.md) | Handoff migration and integration plan for teammate modules. |
 | [docs/ip_packaging_manual.md](docs/ip_packaging_manual.md) | Phase 3 Vivado IP packaging checklist for migrated RTL modules. |
 | [docs/protocol.md](docs/protocol.md) | PYNQ-to-PC newline-delimited JSON protocol. |
 | [docs/work_notes.md](docs/work_notes.md) | Human work notes, safety reminders, and common failure modes. |
