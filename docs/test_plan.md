@@ -48,6 +48,32 @@ directories. Their handoff evidence is useful context, but local repo
 simulation or board evidence is still required before claiming they work in the
 integrated overlay.
 
+### Phase2 Smoke Results
+
+Date: 2026-06-02. Tool: Icarus Verilog (`iverilog` + `vvp`).
+
+The following focused simulations compile and run locally:
+
+```text
+tb_humidifier_core PASS
+tb_axi_humidifier PASS
+tb_spi_lcd_master PASS
+tb_tft_lcd_spi_axi PASS
+tb_dht11_onewire_smoke PASS data_valid=37001900
+tb_spo2_frame_parser PASS
+```
+
+Scope of this evidence:
+
+- Humidifier core threshold/manual behavior and AXI register path.
+- TFT SPI byte transmitter and AXI wrapper byte-send path.
+- DHT11 one-wire valid-frame decode for 55% RH and 25 C using an Icarus `IOBUF`
+  stub.
+- SpO2 frame parser decode for known 5-byte and 7-byte frames.
+
+This is not Vivado synthesis, IP packaging, integrated BD validation, or board
+evidence.
+
 ### DHT11 AXI IP
 
 Source:

@@ -63,7 +63,7 @@ module tb_humidifier_core;
         end
     endtask
 
-    task expect;
+    task check;
         input condition;
         input [255:0] message;
         begin
@@ -80,29 +80,29 @@ module tb_humidifier_core;
         resetn = 1'b1;
         wait_cycles(5);
 
-        expect(humidifier_on == 1'b0, "reset/default humidity should keep humidifier off");
-        expect(led == 4'b0000, "LEDs should be off when humidifier is off");
+        check(humidifier_on == 1'b0, "reset/default humidity should keep humidifier off");
+        check(led == 4'b0000, "LEDs should be off when humidifier is off");
 
         sw_humidity = 8'd35;
         wait_cycles(40);
-        expect(humidifier_on == 1'b1, "low humidity should turn humidifier on");
-        expect(led == 4'b1111, "low humidity should turn all LEDs on");
+        check(humidifier_on == 1'b1, "low humidity should turn humidifier on");
+        check(led == 4'b1111, "low humidity should turn all LEDs on");
 
         sw_humidity = 8'd55;
         wait_cycles(40);
-        expect(humidifier_on == 1'b0, "high humidity should turn humidifier off");
-        expect(led == 4'b0000, "high humidity should turn LEDs off");
+        check(humidifier_on == 1'b0, "high humidity should turn humidifier off");
+        check(led == 4'b0000, "high humidity should turn LEDs off");
 
         manual_mode = 1'b1;
         manual_on = 1'b1;
         wait_cycles(5);
-        expect(humidifier_on == 1'b1, "manual_on should force humidifier on");
-        expect(led == 4'b1111, "manual_on should force LEDs on");
+        check(humidifier_on == 1'b1, "manual_on should force humidifier on");
+        check(led == 4'b1111, "manual_on should force LEDs on");
 
         manual_on = 1'b0;
         wait_cycles(5);
-        expect(humidifier_on == 1'b0, "manual off should force humidifier off");
-        expect(led == 4'b0000, "manual off should force LEDs off");
+        check(humidifier_on == 1'b0, "manual off should force humidifier off");
+        check(led == 4'b0000, "manual off should force LEDs off");
 
         $display("tb_humidifier_core PASS");
         $finish;

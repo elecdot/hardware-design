@@ -16,3 +16,13 @@ tb_humidifier_core PASS
 tb_axi_humidifier PASS
 ```
 
+## Run
+
+From this directory:
+
+```powershell
+iverilog -g2012 -o build/tb_humidifier_core.vvp tb_humidifier_core.v ../../rtl/axi_humidifier/humidifier_core.v
+vvp build/tb_humidifier_core.vvp
+iverilog -g2012 -o build/tb_axi_humidifier.vvp tb_axi_humidifier.v ../../rtl/axi_humidifier/axi_humidifier_v1_0.v ../../rtl/axi_humidifier/axi_humidifier_v1_0_S00_AXI.v ../../rtl/axi_humidifier/humidifier_core.v
+vvp build/tb_axi_humidifier.vvp
+```

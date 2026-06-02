@@ -101,6 +101,7 @@ module tb_spi_lcd_master;
 
         #500;
 
+        $display("tb_spi_lcd_master PASS");
         $finish;
     end
 

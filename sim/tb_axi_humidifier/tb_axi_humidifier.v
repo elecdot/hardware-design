@@ -76,7 +76,7 @@ module tb_axi_humidifier;
         end
     endtask
 
-    task expect;
+    task check;
         input condition;
         input [255:0] message;
         begin
@@ -135,24 +135,24 @@ module tb_axi_humidifier;
         wait_cycles(5);
 
         axi_read(5'h18, readback);
-        expect(readback == 32'h2026_0601, "VERSION register mismatch");
+        check(readback == 32'h2026_0601, "VERSION register mismatch");
 
         axi_write(5'h04, 32'd35);
         wait_cycles(50);
         axi_read(5'h10, readback);
-        expect(readback[8] == 1'b1, "low software humidity should turn humidifier on");
-        expect(readback[15:12] == 4'b1111, "low software humidity should turn LEDs on");
+        check(readback[8] == 1'b1, "low software humidity should turn humidifier on");
+        check(readback[15:12] == 4'b1111, "low software humidity should turn LEDs on");
 
         axi_write(5'h04, 32'd55);
         wait_cycles(50);
         axi_read(5'h10, readback);
-        expect(readback[8] == 1'b0, "high software humidity should turn humidifier off");
-        expect(readback[15:12] == 4'b0000, "high software humidity should turn LEDs off");
+        check(readback[8] == 1'b0, "high software humidity should turn humidifier off");
+        check(readback[15:12] == 4'b0000, "high software humidity should turn LEDs off");
 
         axi_write(5'h00, 32'h0000_000F);
         wait_cycles(5);
         axi_read(5'h10, readback);
-        expect(readback[8] == 1'b1, "manual mode should turn humidifier on");
+        check(readback[8] == 1'b1, "manual mode should turn humidifier on");
 
         $display("tb_axi_humidifier PASS");
         $finish;
