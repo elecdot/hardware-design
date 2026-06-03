@@ -19,3 +19,7 @@ Track the packaged IP files needed to rediscover and reuse the IP, such as
 Do not treat Vivado-generated cache, run directories, hardware exports,
 `ip_user_files`, simulation output, journals, or logs as design source.
 
+Board-level XDC files must not be included in reusable IP synthesis file sets.
+The root-level JY901 package is reused by both the old PMODA overlay and the
+integrated overlay; pin constraints belong in the consuming Vivado project, not
+inside the packaged IP.
