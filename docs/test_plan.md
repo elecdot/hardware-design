@@ -18,8 +18,11 @@ Minimum integrated acceptance evidence:
 - The integrated XDC uses the planned pin allocation in [wiring.md](wiring.md):
   PMODA for TFT LCD, Arduino `P16/P15` for JY901 I2C, PMODB `W14/Y14` for UART
   SpO2, Arduino IO11 `R17` for DHT11, and board LEDs for humidifier indication.
-- PYNQ loads the integrated overlay and binds IPs through `.hwh`/`Overlay.ip_dict`
-  rather than single-module hard-coded base addresses.
+- PYNQ loads the integrated overlay and binds IPs through exported metadata
+  when available. On older PYNQ images that require same-basename `.tcl`
+  metadata, the first board smoke may use the documented Phase4 static address
+  map fallback; final metadata acceptance should rerun with
+  `--metadata-source overlay` after exporting compatible metadata.
 - The acceptance program demonstrates the stable available paths from the
   shared driver suite: JY901 read/status, DHT11 read, UART SpO2 read, TFT update,
   and PS-side humidifier control or status display.
@@ -177,6 +180,10 @@ Known limitations before Phase 5:
   `vivado/gen/system_v0_1.bit` and `vivado/gen/system_v0_1.hwh`. These files
   are ignored by Git; copy them to the PYNQ board together before driver
   binding.
+- Board-side smoke on the recorded PYNQ Python 3.6 image may require
+  same-basename `.tcl` metadata. `pynq/sleep_demo/integrated_demo.py` now has an
+  `auto` metadata mode that falls back to the Phase4 static address map when
+  `system_v0_1.tcl` is absent.
 
 Conclusion:
 

@@ -147,7 +147,9 @@ Status on 2026-06-03:
 - Assign non-overlapping AXI address windows in Vivado Address Editor.
 - Export matching `.bit` and `.hwh` from the same build into `vivado/gen/`.
 - Use `.hwh`/`Overlay.ip_dict` for integrated PYNQ binding. Hard-coded
-  `0x43C00000` is acceptable only in single-module legacy demos.
+  `0x43C00000` is acceptable only in single-module legacy demos. For older
+  PYNQ images that require same-basename `.tcl` metadata, the first integrated
+  board smoke may use the documented Phase4 static address map fallback.
 - Apply one integrated XDC set that matches the accepted pin-allocation table.
   Do not apply the old JY901 PMODA XDC in the same integrated build.
 
@@ -213,10 +215,13 @@ Status on 2026-06-03:
 - A matching local integrated artifact pair exists at
   `vivado/gen/system_v0_1.bit` and `vivado/gen/system_v0_1.hwh`; copy both to
   the PYNQ board before runtime smoke.
-- First PYNQ smoke should use `Overlay(...).ip_dict` to bind these instance
+- First PYNQ smoke should prefer `Overlay(...).ip_dict` to bind these instance
   names: `axi_i2c_jy901_v1_0_0`, `axi_humidifier_v1_0_0`,
   `tft_lcd_spi_axi_v1_0_0`, `dht11_axi_v1_0_0`, and
-  `axi_uart_spo2_v1_0_0`.
+  `axi_uart_spo2_v1_0_0`. If the board image raises a missing
+  `system_v0_1.tcl` error before exposing `ip_dict`, use
+  `integrated_demo.py --metadata-source auto` or `static` for first smoke, then
+  rerun with `--metadata-source overlay` after exporting compatible metadata.
 
 Phase 5 first-pass order:
 

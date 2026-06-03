@@ -20,6 +20,8 @@ sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6 integrated_demo.py --bitfile
 
 Keep the matching `.hwh` beside the `.bit` with the same base name. For
 example, `system_v0_1.bit` must be next to `system_v0_1.hwh`.
+If the board's PYNQ image expects a same-basename `.tcl`, the default
+`--metadata-source auto` mode falls back to the Phase4 static address map.
 
 First inspect the integrated overlay metadata:
 

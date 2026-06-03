@@ -8,8 +8,11 @@ Current integrated local artifacts:
 - `vivado/gen/system_v0_1.bit`
 - `vivado/gen/system_v0_1.hwh`
 
-Both files must be copied to the board together with the same base name. PYNQ
-uses the `.hwh` metadata to populate `Overlay.ip_dict`.
+Both files must be copied to the board together with the same base name. Newer
+PYNQ images use the `.hwh` metadata to populate `Overlay.ip_dict`. Some older
+PYNQ images instead look for a same-basename `.tcl`; `integrated_demo.py`
+therefore falls back to the Phase4 static address map when
+`system_v0_1.tcl` is absent.
 
 ## Target Layout
 
@@ -19,6 +22,7 @@ Use one dedicated directory on the board:
 /home/xilinx/jupyter_notebooks/sleep_monitor/
   system_v0_1.bit
   system_v0_1.hwh
+  system_v0_1.tcl        # optional, only if exported for old PYNQ metadata
   sleep_demo/
     integrated_demo.py
     display_ui.py
@@ -139,8 +143,11 @@ ls -lh system_v0_1.bit system_v0_1.hwh sleep_demo/integrated_demo.py
 
 ## Overlay Metadata Smoke
 
-Run this first. It programs the overlay, parses the `.hwh`, prints IP names and
-addresses, then exits.
+Run this first. It programs the overlay, prints IP names and addresses, then
+exits. On newer PYNQ images this uses `Overlay.ip_dict` metadata from the
+exported handoff. On older images that raise `FileNotFoundError` for
+`system_v0_1.tcl`, the script prints a warning and uses the Phase4 static
+address map.
 
 ```bash
 cd /home/xilinx/jupyter_notebooks/sleep_monitor/sleep_demo
@@ -158,6 +165,16 @@ Expected custom IP entries:
 | `tft_lcd_spi_axi_v1_0_0` | `0x40002000` |
 | `dht11_axi_v1_0_0` | `0x40003000` |
 | `axi_uart_spo2_v1_0_0` | `0x40004000` |
+
+If the output includes this warning, it is acceptable for first board smoke:
+
+```text
+WARNING: Overlay metadata TCL is missing; falling back to the Phase4 static address map.
+```
+
+To require Vivado/PYNQ metadata instead of the fallback, pass
+`--metadata-source overlay`. To force the static path during bring-up, pass
+`--metadata-source static`.
 
 If this step fails, do not continue to the full demo. Fix the bit/hwh pair,
 driver file deployment, or IP instance names first.
@@ -269,6 +286,7 @@ Useful fields:
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | Missing `.hwh` error | `.bit` was copied without same-basename `.hwh` | Copy `system_v0_1.bit` and `system_v0_1.hwh` together |
+| Missing `.tcl` error from `pynq.pl._TCL` | Older PYNQ image expects TCL metadata | Update `integrated_demo.py`; default `--metadata-source auto` falls back to the Phase4 static address map |
 | `Cannot find IP ...` | Wrong `.hwh`, stale overlay, or old default IP names | Run `--list-ips`; compare instance names with this runbook |
 | `ImportError` for driver modules | Only `sleep_demo/` was copied | Deploy local `pynq/` contents so sibling driver directories exist |
 | JY901 timeout/NACK | Wiring, pullups, address, or module power issue | Check `P16/P15`, 3.3 V pullups, GND, and `DEV_ADDR=0x50` |

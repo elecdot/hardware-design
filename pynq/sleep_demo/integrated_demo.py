@@ -19,7 +19,7 @@ import sys
 import time
 
 
-DEFAULT_BITFILE = "/home/xilinx/jupyter_notebooks/sleep_monitor/sleep_monitor.bit"
+DEFAULT_BITFILE = "/home/xilinx/jupyter_notebooks/sleep_monitor/system_v0_1.bit"
 DEFAULT_IP_NAMES = {
     "jy901": "axi_i2c_jy901_v1_0_0",
     "dht11": "dht11_axi_v1_0_0",
@@ -27,6 +27,42 @@ DEFAULT_IP_NAMES = {
     "tft": "tft_lcd_spi_axi_v1_0_0",
     "humidifier": "axi_humidifier_v1_0_0",
 }
+STATIC_IP_LAYOUT = {
+    "jy901": {
+        "phys_addr": 0x40000000,
+        "addr_range": 0x1000,
+        "type": "xilinx.com:user:axi_i2c_jy901_v1_0:1.0",
+    },
+    "humidifier": {
+        "phys_addr": 0x40001000,
+        "addr_range": 0x1000,
+        "type": "xilinx.com:user:axi_humidifier_v1_0:1.0",
+    },
+    "tft": {
+        "phys_addr": 0x40002000,
+        "addr_range": 0x1000,
+        "type": "xilinx.com:user:tft_lcd_spi_axi_v1_0:1.0",
+    },
+    "dht11": {
+        "phys_addr": 0x40003000,
+        "addr_range": 0x1000,
+        "type": "xilinx.com:user:dht11_axi_v1_0:1.0",
+    },
+    "spo2": {
+        "phys_addr": 0x40004000,
+        "addr_range": 0x1000,
+        "type": "xilinx.com:user:axi_uart_spo2_v1_0:1.0",
+    },
+}
+
+
+class StaticOverlayMetadata(object):
+    """Minimal overlay-like object for old PYNQ images without `.hwh` support."""
+
+    def __init__(self, bitfile_name, ip_dict):
+        self.bitfile_name = bitfile_name
+        self.ip_dict = ip_dict
+        self.metadata_source = "static Phase4 address map"
 
 
 def add_demo_paths():
@@ -64,7 +100,54 @@ def check_overlay_artifacts(bitfile):
     return bitfile, hwh
 
 
+def build_static_ip_dict(args):
+    return {
+        args.jy901_ip: dict(STATIC_IP_LAYOUT["jy901"]),
+        args.humidifier_ip: dict(STATIC_IP_LAYOUT["humidifier"]),
+        args.tft_ip: dict(STATIC_IP_LAYOUT["tft"]),
+        args.dht11_ip: dict(STATIC_IP_LAYOUT["dht11"]),
+        args.spo2_ip: dict(STATIC_IP_LAYOUT["spo2"]),
+    }
+
+
+def missing_tcl_metadata(exc):
+    filename = getattr(exc, "filename", "")
+    if filename and filename.endswith(".tcl"):
+        return True
+    return ".tcl" in str(exc)
+
+
+def load_static_overlay(bitfile, args):
+    if not args.no_download:
+        from pynq import Bitstream
+
+        Bitstream(bitfile).download()
+    return StaticOverlayMetadata(bitfile, build_static_ip_dict(args))
+
+
+def load_integrated_overlay(bitfile, args):
+    if args.metadata_source == "static":
+        return load_static_overlay(bitfile, args)
+
+    from pynq import Overlay
+
+    try:
+        return Overlay(bitfile, download=not args.no_download)
+    except (IOError, OSError) as exc:
+        if args.metadata_source == "auto" and missing_tcl_metadata(exc):
+            print(
+                "WARNING: Overlay metadata TCL is missing; falling back to "
+                "the Phase4 static address map.",
+                file=sys.stderr,
+            )
+            return load_static_overlay(bitfile, args)
+        raise
+
+
 def print_ip_dict(overlay):
+    source = getattr(overlay, "metadata_source", None)
+    if source is not None:
+        print("Metadata source: {0}".format(source))
     print("Available IPs:")
     for name in sorted(overlay.ip_dict.keys()):
         desc = overlay.ip_dict[name]
@@ -109,7 +192,6 @@ class TurnCounter(object):
 def bind_drivers(args):
     add_demo_paths()
 
-    from pynq import Overlay
     from jy901_driver import JY901DemoDriver, scale_raw, status_label
     from dht11_driver import DHT11Driver
     from spo2_mmio import AxiUartSpo2
@@ -120,7 +202,7 @@ def bind_drivers(args):
     if not args.skip_artifact_check:
         bitfile, _hwh = check_overlay_artifacts(args.bitfile)
 
-    overlay = Overlay(bitfile, download=not args.no_download)
+    overlay = load_integrated_overlay(bitfile, args)
     if args.list_ips:
         print_ip_dict(overlay)
         raise SystemExit(0)
@@ -339,6 +421,12 @@ def parse_args(argv=None):
     parser.add_argument("--no-display", action="store_true")
     parser.add_argument("--no-humidifier", action="store_true")
     parser.add_argument("--skip-artifact-check", action="store_true")
+    parser.add_argument(
+        "--metadata-source",
+        choices=("auto", "overlay", "static"),
+        default="auto",
+        help="auto tries PYNQ Overlay metadata first, then uses the Phase4 static address map if .tcl metadata is missing.",
+    )
     parser.add_argument("--list-ips", action="store_true", help="Load overlay, print ip_dict, and exit.")
     parser.add_argument("--jy901-ip", default=DEFAULT_IP_NAMES["jy901"])
     parser.add_argument("--dht11-ip", default=DEFAULT_IP_NAMES["dht11"])
