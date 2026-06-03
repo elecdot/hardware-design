@@ -74,6 +74,48 @@ Scope of this evidence:
 This is not Vivado synthesis, IP packaging, integrated BD validation, or board
 evidence.
 
+### Phase3 IP Packaging Static Validation
+
+Date: 2026-06-03.
+
+Scope:
+
+- User completed Vivado IP packaging and checked package ports/parameters in
+  Vivado.
+- Local repo validation checked package files, IP-XACT metadata, source file
+  sets, AXI interface metadata, parameter defaults, and accidental generated
+  artifact inclusion.
+- Vivado CLI is not available in the current shell `PATH`, so this section is
+  not a Vivado batch catalog-validation log and is not BD validation,
+  synthesis, implementation, bitstream export, or board evidence.
+
+Validated packaged IP directories:
+
+| IP package | Package files | AXI metadata | Parameters | External ports |
+|---|---|---|---|---|
+| `vivado/ip_repo/axi_humidifier/` | `component.xml`, `xgui/`, `src/` present; source files match `rtl/axi_humidifier/` | `aximm/aximm_rtl`, `s00_axi`, `s00_axi_aclk`, `s00_axi_aresetn`, 4096-byte memory range | `C_S00_AXI_DATA_WIDTH=32`, `C_S00_AXI_ADDR_WIDTH=5`, `CLK_FREQ_HZ=100000000` | `humidity_hw_valid`, `humidity_hw[7:0]`, `humidifier_led`, `humidifier_leds[3:0]` |
+| `vivado/ip_repo/tft_lcd_spi_axi/` | `component.xml`, `xgui/`, `src/` present; source files match `rtl/tft_lcd_spi_axi/` | `aximm/aximm_rtl`, `s00_axi`, `s00_axi_aclk`, `s00_axi_aresetn`, 4096-byte memory range | `C_S00_AXI_DATA_WIDTH=32`, `C_S00_AXI_ADDR_WIDTH=5` | `lcd_scl`, `lcd_sda`, `lcd_res`, `lcd_dc`, `lcd_blk` |
+| `vivado/ip_repo/dht11_axi/` | `component.xml`, `xgui/`, `src/` present; source files match `rtl/dht11_axi/` | `aximm/aximm_rtl`, `s00_axi`, `s00_axi_aclk`, `s00_axi_aresetn`, 4096-byte memory range | `C_S00_AXI_DATA_WIDTH=32`, `C_S00_AXI_ADDR_WIDTH=4` | RTL/IP port is `dht11`; integrated XDC expects BD external port `dht11_0` |
+| `vivado/ip_repo/axi_uart_spo2/` | `component.xml`, `xgui/`, `src/` present; source files match `rtl/axi_uart_spo2/` | `aximm/aximm_rtl`, `s00_axi`, `s00_axi_aclk`, `s00_axi_aresetn`, 4096-byte memory range | `C_BPS=9600`, `C_SYS_CLK_FRE=100000000`, `C_S00_AXI_DATA_WIDTH=32`, `C_S00_AXI_ADDR_WIDTH=5` | `uart_rxd`, `uart_txd`, `irq` |
+
+Additional checks:
+
+- No `top_spi_lcd_test`, testbench, journal, log, run, cache, hardware, or
+  `ip_user_files` artifacts were found under the four new package directories.
+- The old root-level JY901 IP package remains present in `vivado/ip_repo/` and
+  is separate from the four new subdirectory packages.
+- DHT11 package source includes the Vivado `IOBUF` primitive in
+  `dht11_onewire.v`; this is expected for Vivado packaging. Icarus simulations
+  still require their local stub.
+
+Conclusion:
+
+- Phase 3 static package validation is complete for the four migrated IP
+  packages.
+- The package set can enter Phase 4 Block Design integration, with the remaining
+  validation gates being Vivado catalog refresh, BD instantiation, BD validation,
+  synthesis/implementation, exported `.bit/.hwh`, and board/PYNQ smoke tests.
+
 ### DHT11 AXI IP
 
 Source:

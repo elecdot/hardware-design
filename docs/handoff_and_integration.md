@@ -128,6 +128,17 @@ Demo priority:
   but source ownership should still point back to tracked RTL.
 - Run Vivado IP integrity checks and record warnings that affect integration.
 
+Status on 2026-06-03:
+
+- Four migrated IP packages now exist under `vivado/ip_repo/`:
+  `axi_humidifier/`, `tft_lcd_spi_axi/`, `dht11_axi/`, and `axi_uart_spo2/`.
+- Local static validation confirmed `component.xml`, `xgui/`, copied `src/`
+  files, AXI4-Lite metadata, 4096-byte memory maps, expected parameters, and
+  expected external ports.
+- Packaged HDL copies match the authoritative RTL files under `rtl/`.
+- Vivado CLI is not available in the current shell `PATH`; therefore catalog
+  refresh and BD instantiation remain Phase 4 Vivado validation tasks.
+
 ### Phase 4: Block Design Integration
 
 - Build the integrated overlay from the shared `vivado/ip_repo/`; this is the
@@ -139,6 +150,31 @@ Demo priority:
   `0x43C00000` is acceptable only in single-module legacy demos.
 - Apply one integrated XDC set that matches the accepted pin-allocation table.
   Do not apply the old JY901 PMODA XDC in the same integrated build.
+
+Phase 4 entry plan:
+
+1. Create or open the integrated overlay project and set `ip_repo_paths` to the
+   shared `vivado/ip_repo/`.
+2. Refresh the IP catalog and confirm these IPs are discoverable:
+   `axi_i2c_jy901_v1_0`, `axi_humidifier_v1_0`,
+   `tft_lcd_spi_axi_v1_0`, `dht11_axi_v1_0`, and
+   `axi_uart_spo2_v1_0`.
+3. Start from a minimal Zynq PS design with 100 MHz FCLK, AXI GP master,
+   Processor System Reset, and AXI Interconnect or SmartConnect.
+4. Add one AXI slave at a time, run `Validate Design`, and only then add the
+   next IP. Recommended order: JY901, humidifier, TFT LCD, DHT11, UART SpO2.
+5. For the first PS-controlled humidifier path, tie `humidity_hw_valid` low and
+   `humidity_hw[7:0]` to zero; expose `humidifier_leds[3:0]` only unless the
+   scalar `humidifier_led` is intentionally constrained.
+6. For DHT11, keep the IP port `dht11` but name the BD external port `dht11_0`
+   to match `vivado/constraints/integrated/sleep_monitor_pynq_z1.xdc`.
+7. For UART SpO2, expose `uart_rxd` and `uart_txd`; leave `irq` unconnected for
+   the polling-first demo unless interrupt wiring is intentionally added.
+8. Apply only `vivado/constraints/integrated/sleep_monitor_pynq_z1.xdc` for the
+   integrated build.
+9. After full BD validation, assign non-overlapping AXI address ranges and
+   record the final address table before PYNQ driver binding.
+10. Export matching `.bit` and `.hwh` from the same build into `vivado/gen/`.
 
 ### Phase 5: PYNQ Runtime Integration
 
