@@ -145,9 +145,9 @@ ls -lh system_v0_1.bit system_v0_1.hwh sleep_demo/integrated_demo.py
 
 Run this first. It programs the overlay, prints IP names and addresses, then
 exits. On newer PYNQ images this uses `Overlay.ip_dict` metadata from the
-exported handoff. On older images that raise `FileNotFoundError` for
-`system_v0_1.tcl`, the script prints a warning and uses the Phase4 static
-address map.
+exported handoff. On older images that either raise `FileNotFoundError` for
+`system_v0_1.tcl` or parse the Tcl into an empty `ip_dict`, the script prints a
+warning and uses the Phase4 static address map.
 
 ```bash
 cd /home/xilinx/jupyter_notebooks/sleep_monitor/sleep_demo
@@ -170,6 +170,12 @@ If the output includes this warning, it is acceptable for first board smoke:
 
 ```text
 WARNING: Overlay metadata TCL is missing; falling back to the Phase4 static address map.
+```
+
+This warning is also acceptable for first board smoke:
+
+```text
+WARNING: Overlay metadata produced an empty ip_dict; falling back to the Phase4 static address map.
 ```
 
 To require Vivado/PYNQ metadata instead of the fallback, pass
@@ -287,6 +293,7 @@ Useful fields:
 |---|---|---|
 | Missing `.hwh` error | `.bit` was copied without same-basename `.hwh` | Copy `system_v0_1.bit` and `system_v0_1.hwh` together |
 | Missing `.tcl` error from `pynq.pl._TCL` | Older PYNQ image expects TCL metadata | Update `integrated_demo.py`; default `--metadata-source auto` falls back to the Phase4 static address map |
+| `--metadata-source overlay` prints `(none)` or no IP entries | Tcl exists but this PYNQ parser did not extract IP metadata | Use default `auto` or explicit `static` for first board smoke; do not treat this as a hardware failure |
 | `Cannot find IP ...` | Wrong `.hwh`, stale overlay, or old default IP names | Run `--list-ips`; compare instance names with this runbook |
 | `ImportError` for driver modules | Only `sleep_demo/` was copied | Deploy local `pynq/` contents so sibling driver directories exist |
 | JY901 timeout/NACK | Wiring, pullups, address, or module power issue | Check `P16/P15`, 3.3 V pullups, GND, and `DEV_ADDR=0x50` |

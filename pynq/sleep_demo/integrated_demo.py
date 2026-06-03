@@ -132,7 +132,7 @@ def load_integrated_overlay(bitfile, args):
     from pynq import Overlay
 
     try:
-        return Overlay(bitfile, download=not args.no_download)
+        overlay = Overlay(bitfile, download=not args.no_download)
     except (IOError, OSError) as exc:
         if args.metadata_source == "auto" and missing_tcl_metadata(exc):
             print(
@@ -142,6 +142,14 @@ def load_integrated_overlay(bitfile, args):
             )
             return load_static_overlay(bitfile, args)
         raise
+    if args.metadata_source == "auto" and not overlay.ip_dict:
+        print(
+            "WARNING: Overlay metadata produced an empty ip_dict; falling back "
+            "to the Phase4 static address map.",
+            file=sys.stderr,
+        )
+        return load_static_overlay(bitfile, args)
+    return overlay
 
 
 def print_ip_dict(overlay):
@@ -149,6 +157,9 @@ def print_ip_dict(overlay):
     if source is not None:
         print("Metadata source: {0}".format(source))
     print("Available IPs:")
+    if not overlay.ip_dict:
+        print("  (none)")
+        return
     for name in sorted(overlay.ip_dict.keys()):
         desc = overlay.ip_dict[name]
         phys_addr = desc.get("phys_addr")

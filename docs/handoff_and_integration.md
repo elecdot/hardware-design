@@ -219,8 +219,9 @@ Status on 2026-06-03:
   names: `axi_i2c_jy901_v1_0_0`, `axi_humidifier_v1_0_0`,
   `tft_lcd_spi_axi_v1_0_0`, `dht11_axi_v1_0_0`, and
   `axi_uart_spo2_v1_0_0`. If the board image raises a missing
-  `system_v0_1.tcl` error before exposing `ip_dict`, use
-  `integrated_demo.py --metadata-source auto` or `static` for first smoke, then
+  `system_v0_1.tcl` error before exposing `ip_dict`, or if a Tcl file exists
+  but parses into an empty `ip_dict`, use
+  `integrated_demo.py --metadata-source auto` or `static` for first smoke. Then
   rerun with `--metadata-source overlay` after exporting compatible metadata.
 
 Phase 5 first-pass order:

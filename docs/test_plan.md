@@ -183,7 +183,8 @@ Known limitations before Phase 5:
 - Board-side smoke on the recorded PYNQ Python 3.6 image may require
   same-basename `.tcl` metadata. `pynq/sleep_demo/integrated_demo.py` now has an
   `auto` metadata mode that falls back to the Phase4 static address map when
-  `system_v0_1.tcl` is absent.
+  `system_v0_1.tcl` is absent or when the old PYNQ Tcl parser returns an empty
+  `ip_dict`.
 
 Conclusion:
 
