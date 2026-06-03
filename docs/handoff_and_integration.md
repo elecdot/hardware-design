@@ -159,6 +159,11 @@ Phase 4 entry plan:
    `axi_i2c_jy901_v1_0`, `axi_humidifier_v1_0`,
    `tft_lcd_spi_axi_v1_0`, `dht11_axi_v1_0`, and
    `axi_uart_spo2_v1_0`.
+   If Vivado still reports `i2c_scl/i2c_sda` occupying PMODA `Y17/Y16`, the
+   project is using stale JY901 IP output products or an old JY901 PMODA XDC.
+   Refresh the IP catalog, upgrade/regenerate the JY901 IP instance, and ensure
+   the root JY901 package does not include `jy901_debug*.xdc` in its synthesis
+   file set.
 3. Start from a minimal Zynq PS design with 100 MHz FCLK, AXI GP master,
    Processor System Reset, and AXI Interconnect or SmartConnect.
 4. Add one AXI slave at a time, run `Validate Design`, and only then add the
@@ -176,6 +181,16 @@ Phase 4 entry plan:
    record the final address table before PYNQ driver binding.
 10. Export matching `.bit` and `.hwh` from the same build into `vivado/gen/`.
 
+Final address table:
+
+| IP instance | Base | Range | End |
+|---|---:|---:|---:|
+| `axi_i2c_jy901_v1_0_0` | `0x4000_0000` | 4K | `0x4000_0FFF` |
+| `axi_humidifier_v1_0_0` | `0x4000_1000` | 4K | `0x4000_1FFF` |
+| `tft_lcd_spi_axi_v1_0_0` | `0x4000_2000` | 4K | `0x4000_2FFF` |
+| `dht11_axi_v1_0_0` | `0x4000_3000` | 4K | `0x4000_3FFF` |
+| `axi_uart_spo2_v1_0_0` | `0x4000_4000` | 4K | `0x4000_4FFF` |
+
 ### Phase 5: PYNQ Runtime Integration
 
 - Keep reusable drivers in `.py` modules, not only notebooks.
@@ -188,6 +203,35 @@ Phase 4 entry plan:
 - Keep board-side scripts compatible with
   `/opt/python3.6/bin/python3.6`; avoid dependencies that are unavailable in
   the recorded board runtime.
+
+Status on 2026-06-03:
+
+- Phase 4 BD/build evidence is sufficient to prepare PYNQ runtime smoke work:
+  five custom IP instances are present, address windows are assigned, routed DRC
+  has 0 violations, route status has 0 routing errors, and bitstream generation
+  is logged as successful.
+- A matching local integrated artifact pair exists at
+  `vivado/gen/system_v0_1.bit` and `vivado/gen/system_v0_1.hwh`; copy both to
+  the PYNQ board before runtime smoke.
+- First PYNQ smoke should use `Overlay(...).ip_dict` to bind these instance
+  names: `axi_i2c_jy901_v1_0_0`, `axi_humidifier_v1_0_0`,
+  `tft_lcd_spi_axi_v1_0_0`, `dht11_axi_v1_0_0`, and
+  `axi_uart_spo2_v1_0_0`.
+
+Phase 5 first-pass order:
+
+1. Add an integrated overlay artifact check that refuses to run unless both
+   `.bit` and `.hwh` exist and share the same base name.
+2. Add or update a board-side driver-binding helper that prints `ip_dict`
+   instance names and resolved physical addresses.
+3. Smoke JY901 first to protect the known-good I2C path on the new `P16/P15`
+   wiring.
+4. Smoke humidifier registers in PS-controlled mode without relying on DHT11.
+5. Smoke TFT initialization and one dashboard draw at conservative `CLKDIV`.
+6. Smoke DHT11 at 1 to 2 second read intervals.
+7. Smoke UART SpO2 in 5-byte/polling mode.
+8. Only after individual smoke checks, run the combined
+   `pynq/sleep_demo/integrated_demo.py` path.
 
 ### Phase 6: Deferred PC Socket Integration
 

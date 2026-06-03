@@ -116,6 +116,76 @@ Conclusion:
   validation gates being Vivado catalog refresh, BD instantiation, BD validation,
   synthesis/implementation, exported `.bit/.hwh`, and board/PYNQ smoke tests.
 
+### Phase4 Integrated Block Design Validation
+
+Date: 2026-06-03. Project:
+`vivado/project/system_v0_1/system_v0_1.xpr`.
+
+Scope:
+
+- User completed the integrated Vivado Block Design and build flow.
+- Local validation inspected the Vivado project, BD file, XPR constraints,
+  routed reports, IO placement report, and run logs.
+- This is not board/PYNQ runtime evidence.
+
+Validated BD content:
+
+| IP instance | Address | Range | Notes |
+|---|---:|---:|---|
+| `axi_i2c_jy901_v1_0_0` | `0x4000_0000` | 4K | External `i2c_scl/i2c_sda` |
+| `axi_humidifier_v1_0_0` | `0x4000_1000` | 4K | `humidity_hw_valid` and `humidity_hw[7:0]` tied from `xlconstant`; external `humidifier_leds[3:0]` |
+| `tft_lcd_spi_axi_v1_0_0` | `0x4000_2000` | 4K | External `lcd_scl/lcd_sda/lcd_res/lcd_dc/lcd_blk` |
+| `dht11_axi_v1_0_0` | `0x4000_3000` | 4K | IP port `dht11` exported as top-level `dht11_0` |
+| `axi_uart_spo2_v1_0_0` | `0x4000_4000` | 4K | External `uart_rxd/uart_txd`; polling-first path |
+
+Validated constraints and IO placement:
+
+| Signal | Package pin | Evidence |
+|---|---|---|
+| `lcd_scl` | `Y18` | `system_v0_1_wrapper_io_placed.rpt` |
+| `lcd_sda` | `Y19` | `system_v0_1_wrapper_io_placed.rpt` |
+| `lcd_res` | `Y16` | `system_v0_1_wrapper_io_placed.rpt` |
+| `lcd_dc` | `Y17` | `system_v0_1_wrapper_io_placed.rpt` |
+| `lcd_blk` | `U18` | `system_v0_1_wrapper_io_placed.rpt` |
+| `i2c_scl` | `P16` | `system_v0_1_wrapper_io_placed.rpt` |
+| `i2c_sda` | `P15` | `system_v0_1_wrapper_io_placed.rpt` |
+| `uart_txd` | `W14` | `system_v0_1_wrapper_io_placed.rpt` |
+| `uart_rxd` | `Y14` | `system_v0_1_wrapper_io_placed.rpt` |
+| `dht11_0` | `R17` | `system_v0_1_wrapper_io_placed.rpt` |
+| `humidifier_leds[3:0]` | `R14/P14/N16/M14` | `system_v0_1_wrapper_io_placed.rpt` |
+
+Build evidence:
+
+- `system_v0_1.xpr` references only
+  `vivado/constraints/integrated/sleep_monitor_pynq_z1.xdc` as the project
+  target constraints file.
+- `ip_upgrade.log` reports successful update of the JY901 custom IP instance.
+- `synth_1/__synthesis_is_complete__` exists.
+- Routed DRC report has `Violations found: 0`.
+- Route status report has `# of nets with routing errors: 0`.
+- Routed timing summary reports 0 setup, 0 hold, and 0 pulse-width failing
+  endpoints. Worst setup slack is 10.575 ns and worst hold slack is 0.034 ns.
+- `impl_1/runme.log` reports `write_bitstream completed successfully`.
+
+Known limitations before Phase 5:
+
+- Methodology report has 17 `TIMING-18` warnings for missing input/output
+  delays on external low-speed peripheral ports. These are recorded as
+  non-blocking for first board smoke, but the XDC is not a complete external
+  timing model.
+- A matching local integrated artifact pair exists at
+  `vivado/gen/system_v0_1.bit` and `vivado/gen/system_v0_1.hwh`. These files
+  are ignored by Git; copy them to the PYNQ board together before driver
+  binding.
+
+Conclusion:
+
+- Phase 4 integrated BD/build validation is sufficient to prepare Phase 5 PYNQ
+  runtime smoke planning.
+- Phase 5 cannot claim an integrated overlay runtime pass until a matching
+  integrated `.bit/.hwh` pair is copied to the board and PYNQ loads it
+  successfully.
+
 ### DHT11 AXI IP
 
 Source:
