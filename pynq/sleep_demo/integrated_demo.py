@@ -2,11 +2,11 @@
 
 This script expects the final integrated overlay to expose:
 
-- `axi_i2c_jy901_0`
-- `dht11_axi_0`
-- `axi_uart_spo2_0`
-- `tft_lcd_spi_axi_0`
-- `axi_humidifier_0`
+- `axi_i2c_jy901_v1_0_0`
+- `dht11_axi_v1_0_0`
+- `axi_uart_spo2_v1_0_0`
+- `tft_lcd_spi_axi_v1_0_0`
+- `axi_humidifier_v1_0_0`
 
 It keeps PC socket transport out of the first live path; the printed sample
 dictionary already matches the fields needed by `docs/protocol.md`.
@@ -21,11 +21,11 @@ import time
 
 DEFAULT_BITFILE = "/home/xilinx/jupyter_notebooks/sleep_monitor/sleep_monitor.bit"
 DEFAULT_IP_NAMES = {
-    "jy901": "axi_i2c_jy901_0",
-    "dht11": "dht11_axi_0",
-    "spo2": "axi_uart_spo2_0",
-    "tft": "tft_lcd_spi_axi_0",
-    "humidifier": "axi_humidifier_0",
+    "jy901": "axi_i2c_jy901_v1_0_0",
+    "dht11": "dht11_axi_v1_0_0",
+    "spo2": "axi_uart_spo2_v1_0_0",
+    "tft": "tft_lcd_spi_axi_v1_0_0",
+    "humidifier": "axi_humidifier_v1_0_0",
 }
 
 
@@ -46,6 +46,42 @@ def overlay_ip_addr(overlay, ip_name, allow_missing=False):
         return None, None
     available = ", ".join(sorted(overlay.ip_dict.keys()))
     raise KeyError("Cannot find IP {0}; available IPs: {1}".format(ip_name, available))
+
+
+def check_overlay_artifacts(bitfile):
+    bitfile = os.path.abspath(bitfile)
+    stem, ext = os.path.splitext(bitfile)
+    if ext.lower() != ".bit":
+        raise ValueError("Expected a .bit file, got: {0}".format(bitfile))
+    hwh = stem + ".hwh"
+    missing = []
+    if not os.path.exists(bitfile):
+        missing.append(bitfile)
+    if not os.path.exists(hwh):
+        missing.append(hwh)
+    if missing:
+        raise IOError("Missing integrated overlay artifact(s): {0}".format(", ".join(missing)))
+    return bitfile, hwh
+
+
+def print_ip_dict(overlay):
+    print("Available IPs:")
+    for name in sorted(overlay.ip_dict.keys()):
+        desc = overlay.ip_dict[name]
+        phys_addr = desc.get("phys_addr")
+        addr_range = desc.get("addr_range")
+        ip_type = desc.get("type", "")
+        if phys_addr is None:
+            print("  {0}: {1}".format(name, ip_type))
+        else:
+            print(
+                "  {0}: phys_addr=0x{1:08X}, range=0x{2:X}, type={3}".format(
+                    name,
+                    int(phys_addr),
+                    int(addr_range or 0),
+                    ip_type,
+                )
+            )
 
 
 class TurnCounter(object):
@@ -80,7 +116,15 @@ def bind_drivers(args):
     from tft_lcd import TftLcd
     from humidifier_driver import AxiHumidifier
 
-    overlay = Overlay(args.bitfile, download=not args.no_download)
+    bitfile = args.bitfile
+    if not args.skip_artifact_check:
+        bitfile, _hwh = check_overlay_artifacts(args.bitfile)
+
+    overlay = Overlay(bitfile, download=not args.no_download)
+    if args.list_ips:
+        print_ip_dict(overlay)
+        raise SystemExit(0)
+
     drivers = {
         "overlay": overlay,
         "jy901_scale_raw": scale_raw,
@@ -294,6 +338,8 @@ def parse_args(argv=None):
     parser.add_argument("--no-download", action="store_true")
     parser.add_argument("--no-display", action="store_true")
     parser.add_argument("--no-humidifier", action="store_true")
+    parser.add_argument("--skip-artifact-check", action="store_true")
+    parser.add_argument("--list-ips", action="store_true", help="Load overlay, print ip_dict, and exit.")
     parser.add_argument("--jy901-ip", default=DEFAULT_IP_NAMES["jy901"])
     parser.add_argument("--dht11-ip", default=DEFAULT_IP_NAMES["dht11"])
     parser.add_argument("--spo2-ip", default=DEFAULT_IP_NAMES["spo2"])
