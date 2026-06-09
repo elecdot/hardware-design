@@ -5,6 +5,16 @@ module into the final sleep-monitor system. It is a planning document; do not
 treat the final integrated overlay as verified until the Phase gates below have
 board evidence.
 
+Scope boundary:
+
+- Current implementation scope: TX-only IR hardware platform integration and
+  board demo validation, through `IR-5`.
+- Deferred software scope: PC/PYNQ socket integration, dashboard refactor,
+  classifier/policy integration, and end-to-end control loop. Confirmed
+  software decisions are recorded in
+  [software_integration_plan.md](software_integration_plan.md) so that work can
+  be picked up after IR hardware validation.
+
 ## Confirmed Decisions
 
 | Topic | Decision |
@@ -207,7 +217,11 @@ PYNQ execution layer hard guards:
 - Different IR command inside the minimum hardware interval is skipped or
   deferred and reported.
 
-## Software Architecture Plan
+## Deferred Software Architecture Summary
+
+The confirmed software direction is summarized here only to keep the IR
+hardware plan aligned with the final system. The executable software plan is
+[software_integration_plan.md](software_integration_plan.md).
 
 PYNQ side:
 
@@ -238,7 +252,7 @@ the final software integration stable. The final design should preserve the
 protocol contract first, then adapt `dashboard_server.py`, `pc_server.py`, and
 Excel logging around that contract.
 
-## Execution Plan
+## IR Hardware Execution Plan
 
 ### IR-0: Standalone Evidence Capture
 
@@ -292,20 +306,10 @@ Excel logging around that contract.
 - If the lab AC is available, confirm real response again from the integrated
   overlay.
 
-### IR-6: Protocol And PC Integration
+## Deferred Software Execution
 
-- Update `docs/protocol.md` with `control_command` and `control_status`.
-- Add PYNQ socket client support for receiving `control_command` and sending
-  `control_status`.
-- Refactor PC service around classifier, policy, dashboard, and storage layers.
-- Replace the dashboard's current manual action to `sleep_result` mapping with
-  real `control_command.targets`.
-- Add fake-client or local integration tests for protocol parsing and policy
-  outputs before running on the board.
-
-### IR-7: End-To-End Acceptance
-
-Target flow:
+After `IR-5` passes, continue with
+[software_integration_plan.md](software_integration_plan.md). Target final flow:
 
 ```text
 PYNQ reads sensors
@@ -316,14 +320,6 @@ PYNQ applies humidifier and/or IR AC target
 PYNQ sends control_status
 PC dashboard/logs show the full loop
 ```
-
-Minimum final evidence:
-
-- Board-originated `sensor_data` reaches PC.
-- PC writes or displays classifier result and control decision.
-- PYNQ returns `control_status`.
-- Integrated board can update TFT and keep sensor loop stable while applying at
-  least one actuator command.
 
 ## Known Open Items
 
