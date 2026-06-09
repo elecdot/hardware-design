@@ -11,6 +11,7 @@ Project design notes, hardware references, register maps, wiring notes, and test
 | [wiring.md](wiring.md) | Physical wiring and voltage notes for external modules. |
 | [test_plan.md](test_plan.md) | Simulation and board-level test checklist. |
 | [handoff_and_integration.md](handoff_and_integration.md) | Handoff migration and Vivado/PYNQ integration plan for teammate modules. |
+| [ir_ac_integration_plan.md](ir_ac_integration_plan.md) | TX-only Gree IR AC integration plan, protocol decisions, and execution phases. |
 | [ip_packaging_manual.md](ip_packaging_manual.md) | Phase 3 executable Vivado IP packaging checklist for migrated RTL modules. |
 | [protocol.md](protocol.md) | PYNQ-to-PC newline-delimited JSON protocol. |
 | [demo_plan.md](demo_plan.md) | Course demo or presentation flow notes. |

@@ -31,6 +31,7 @@ locations. Do not treat generated Vivado cache/output directories as source.
 | Humidifier | `handoff/humidifier_handoff_pack_20260601(1)/humidifier_handoff_pack_20260601/` | `rtl/axi_humidifier/`, `sim/tb_axi_humidifier/`, `pynq/humidifier_demo/`, optional LED XDC | Handoff records Vivado packaging integrity pass and two simulation PASS markers. |
 | TFT LCD | `handoff/tft_lcd_handoff_pack_20260601/tft_lcd_handoff_pack_20260601/` | `rtl/tft_lcd_spi_axi/`, `sim/tb_tft_lcd_spi_axi/`, `pynq/tft_lcd_demo/`, `vivado/constraints/tft_lcd_pynq_z1.xdc` | Testbenches include PASS markers; handoff notes say local machine lacked simulator tools. PYNQ/Jupyter code is reported as board-tested. |
 | UART SpO2 | `handoff/uart_spo2_pynq_handoff_20260601_portable/handoff_uart_spo2_pynq_20260601/` | `rtl/axi_uart_spo2/`, `sim/tb_axi_uart_spo2/`, `pynq/spo2_demo/`, `vivado/constraints/spo2_pmodb_pynq_z1.xdc` | PYNQ overlay artifacts and runtime helper exist; no module-level regression test was found in the handoff scan. |
+| Gree IR AC TX/RX | `handoff/gree_ir_txrx_hardware_package/` | First integration targets TX-only: `rtl/gree_ir_axi/`, `sim/tb_gree_ir_axi/`, `pynq/ir_ac_demo/`, integrated XDC `ir_pwm=T14`; RX remains standalone validation tooling. | Teammate completed standalone module testing and confirmed the lab Gree AC responds to the handoff command set. Detailed plan: [ir_ac_integration_plan.md](ir_ac_integration_plan.md). |
 | PC socket/Excel demo | `handoff/sleep_socket_project/sleep_socket_project/` | `pc_server/`, optional `pynq/sleep_demo/` client, and [protocol.md](protocol.md) | Handoff records a working PC-side TCP newline-JSON server, fake client, Excel writer, and rule-based classifier demo. |
 
 Target paths are planned names. Create or adjust local README files when the
@@ -68,6 +69,7 @@ Accepted pin-allocation decisions for the integrated overlay:
 | UART SpO2 | PMODB pin 1/2: `uart_txd=W14`, `uart_rxd=Y14` | Pin source is the course teaching guide table: `PMODB_1/JB1_P/W14`, `PMODB_2/JB1_N/Y14`. Still verify physical connector orientation before wiring. |
 | DHT11 | Arduino IO11: `dht11_0=R17` | No conflict with the selected PMODA/PMODB plan. |
 | Humidifier | Board LEDs: `humidifier_leds[0]=R14`, `[1]=P14`, `[2]=N16`, `[3]=M14` | LED output simulates the actuator; do not drive a load directly from PL pins. |
+| Gree IR AC TX | Arduino `ck_io[0]`: `ir_pwm=T14` | TX-only first integration. Use an IR transmitter module or driver circuit; do not drive a bare IR LED directly from PL. |
 
 Accepted acceptance standard:
 
@@ -82,10 +84,13 @@ Demo priority:
 
 1. Board-side integrated overlay + PYNQ driver suite + demonstrable local
    program.
-2. Add PC socket/Excel flow from `handoff/sleep_socket_project/...` after the
-   board-side integrated demo is stable. This is part of the final system
-   architecture, but it is a later priority than local overlay/driver bring-up.
-3. If PC networking or Excel dependencies consume time, defer socket/Excel
+2. Add TX-only Gree IR AC into the integrated hardware/software path using
+   [ir_ac_integration_plan.md](ir_ac_integration_plan.md).
+3. Add PC socket/Excel/dashboard flow from `handoff/sleep_socket_project/...`
+   after the board-side integrated demo and IR TX path are stable. This is part
+   of the final system architecture, but it is a later priority than local
+   overlay/driver bring-up.
+4. If PC networking or Excel dependencies consume time, defer socket/Excel
    validation rather than blocking the lower-risk board-side acceptance.
 
 ## Integration Order
