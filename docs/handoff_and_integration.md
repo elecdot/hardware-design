@@ -430,8 +430,12 @@ Deferred final-system socket extension:
 - Verify signal voltage before connecting to PL pins, especially if the module
   is powered from 5 V.
 - Integrated overlay targets PMODB pin 1/2 as `uart_txd=W14` and
-  `uart_rxd=Y14`, based on the course teaching guide table. Verify direction at
-  the connector before wiring sensor `RX(IN)` and `TX(OUT)`.
+  `uart_rxd=Y14`, based on the course teaching guide table. Board bring-up
+  confirmed the physical SpO2 module's RX/TX labels must be treated as crossed;
+  if BPM/SpO2 remain `NA`, swap the two UART signal wires before changing RTL.
+- 2026-06-09 integrated board run confirmed 5-byte/polling SpO2 updates in the
+  full local demo after correcting RX/TX orientation: observed BPM `86..87`,
+  SpO2 `99`, `checksum_ok=1`, and `status_code=0`.
 
 ### PC Socket/Excel Demo
 

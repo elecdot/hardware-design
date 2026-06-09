@@ -17,14 +17,18 @@ driver smoke test evidence exist.
 | TFT LCD | `lcd_blk` | PMODA `U18` | Backlight enable. |
 | JY901 | `i2c_scl` | Arduino SCL `P16` | Use 3.3 V pullups; do not use the PMODA JY901 XDC in the integrated build. |
 | JY901 | `i2c_sda` | Arduino SDA `P15` | Open-drain I2C data. |
-| UART SpO2 | `uart_txd` | PMODB pin 1, `W14` | Course teaching guide lists `PMODB_1/JB1_P/W14`; verify connector orientation before wiring. |
-| UART SpO2 | `uart_rxd` | PMODB pin 2, `Y14` | Course teaching guide lists `PMODB_2/JB1_N/Y14`; add pullup only if required by electrical test. |
+| UART SpO2 | `uart_txd` | PMODB pin 1, `W14` | Course teaching guide lists `PMODB_1/JB1_P/W14`; board test confirmed the external module's RX/TX labels must be treated as crossed. |
+| UART SpO2 | `uart_rxd` | PMODB pin 2, `Y14` | Course teaching guide lists `PMODB_2/JB1_N/Y14`; if BPM/SpO2 stay `NA`, swap the two UART signal wires before changing RTL. |
 | DHT11 | `dht11_0` | Arduino IO11 `R17` | Bidirectional one-wire DATA with pullup. |
 | Humidifier | `humidifier_leds[3:0]` | Board LEDs `R14/P14/N16/M14` | LED output simulates an actuator; do not drive loads directly. |
 
 All PL-connected signals must be 3.3 V logic. If a module is powered from 5 V,
 verify that its FPGA-facing signal pins are still 3.3 V TTL or add level
 shifting.
+
+UART links must share ground. For the SpO2 module used in the integrated board
+test, the working orientation was confirmed only after reversing the module-side
+RX/TX wiring relative to its labels.
 
 ## JY901 I2C Module
 

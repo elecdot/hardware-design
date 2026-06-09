@@ -194,6 +194,59 @@ Conclusion:
   integrated `.bit/.hwh` pair is copied to the board and PYNQ loads it
   successfully.
 
+### Phase5 Integrated Board Runtime Smoke
+
+Date: 2026-06-09. Evidence source: user-confirmed PYNQ-Z1 board run with
+`pynq/sleep_demo/integrated_demo.py`, integrated
+`vivado/gen/system_v0_1.bit`, matching `.hwh`, and static address-map fallback
+because the board's PYNQ Tcl parser returned an empty `ip_dict`.
+
+Command shape:
+
+```bash
+sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6 integrated_demo.py \
+  --bitfile /home/xilinx/jupyter_notebooks/sleep_monitor/system_v0_1.bit \
+  --samples 30 \
+  --interval 1.0 \
+  --sensor-timeout 0.5 \
+  --dht11-period 2.0 \
+  --tft-clkdiv 50 \
+  --spo2-frame-len 5
+```
+
+Observed pass evidence:
+
+- Display smoke passed by human observation: TFT initialized correctly and
+  updated during the demo.
+- JY901 returned valid samples with `jy901_status="OK"` and `data_valid=1`.
+- DHT11 returned temperature/humidity values, for example approximately
+  `26.0 C` and `22..24% RH` during the recorded run.
+- UART SpO2 returned valid 5-byte/polling samples after correcting the physical
+  RX/TX orientation: `heart_rate_bpm=86..87`, `spo2_percent=99`,
+  `checksum_ok=1`, and `status_code=0`.
+- PS-side humidifier control/status participated in the loop and reported
+  `humidifier_on=true` under low humidity.
+- The integrated loop produced JSON-compatible `sensor_data` records without
+  module exceptions in the provided sample.
+
+Important wiring note:
+
+- The SpO2 module's RX/TX labels were confirmed with the responsible teammate
+  to require crossed signal wiring for this board setup. If HR/SpO2 stay `NA`,
+  swap the UART signal wires before changing the RTL, register map, or parser.
+
+Known remaining limitations:
+
+- Board system time was still incorrect in the captured log
+  (`2017-08-16 ...`). Correct board time before PC socket/Excel logging or any
+  timestamp-based acceptance capture.
+- Turnover count remained `0` in the shared logs. JY901 data was valid, but
+  turnover trigger behavior should be validated separately with a deliberate
+  roll/pitch motion test or temporary angle debug output.
+- Strict `Overlay.ip_dict` metadata parsing is still not accepted on the old
+  board image; the current integrated board smoke uses the documented static
+  address-map fallback.
+
 ### DHT11 AXI IP
 
 Source:

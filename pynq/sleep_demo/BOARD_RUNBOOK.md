@@ -299,7 +299,7 @@ Useful fields:
 | JY901 timeout/NACK | Wiring, pullups, address, or module power issue | Check `P16/P15`, 3.3 V pullups, GND, and `DEV_ADDR=0x50` |
 | TFT blank | Wiring, backlight, reset/DC pins, or SPI speed issue | Confirm PMODA wiring and retry with `--tft-clkdiv 50` |
 | DHT11 always zero | Sensor timing, pullup, or data pin issue | Use 1 to 2 second read interval and confirm `R17` DATA pullup |
-| SpO2 never updates | Sensor not emitting expected frame mode | Start with default 5-byte mode and verify `W14/Y14` orientation |
+| SpO2 never updates | UART signal direction or frame mode issue | Start with default 5-byte mode; board test confirmed the module-side RX/TX labels may need crossed wiring on `W14/Y14` |
 | Board-side Python cannot import `pynq` | Wrong Python interpreter | Use `sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6` |
 
 ## When Updating Files
