@@ -166,6 +166,8 @@ Engineering references:
 | [docs/wiring.md](docs/wiring.md) | Wiring and voltage notes. |
 | [docs/test_plan.md](docs/test_plan.md) | Simulation and board-level test checklist. |
 | [docs/handoff_and_integration.md](docs/handoff_and_integration.md) | Handoff migration and integration plan for teammate modules. |
+| [docs/ir_ac_integration_plan.md](docs/ir_ac_integration_plan.md) | TX-only Gree IR AC hardware integration plan and confirmed protocol decisions. |
+| [docs/software_integration_plan.md](docs/software_integration_plan.md) | Deferred PC/PYNQ software integration plan after IR hardware demo validation. |
 | [docs/ip_packaging_manual.md](docs/ip_packaging_manual.md) | Phase 3 Vivado IP packaging checklist for migrated RTL modules. |
 | [docs/protocol.md](docs/protocol.md) | PYNQ-to-PC newline-delimited JSON protocol. |
 | [docs/work_notes.md](docs/work_notes.md) | Human work notes, safety reminders, and common failure modes. |
@@ -174,8 +176,24 @@ Engineering references:
 
 Current open work:
 
-- [ ] Integrate the newly imported IP cores into the Vivado block design.
-- [ ] Implement and test the corresponding PYNQ drivers for the new modules.
+- [ ] IR-1 source migration skeleton: migrate TX-only Gree IR AC RTL from
+  `handoff/gree_ir_txrx_hardware_package/` into `rtl/gree_ir_axi/`, add
+  `pynq/ir_ac_demo/`, and update local README/register/wiring docs.
+- [ ] IR-2 module regression: add focused simulation for Gree IR TX preset
+  selection, start/done/error behavior, and explicit PASS/FAIL output.
+- [ ] IR-3 IP packaging: package `gree_ir_axi_v1_0` from tracked RTL and
+  validate AXI4-Lite metadata, `ir_pwm` external port, parameters, and file
+  sets.
+- [ ] IR-4 integrated Vivado overlay: add TX-only `gree_ir_axi_v1_0_0` to the
+  current integrated Block Design, expose `ir_pwm`, constrain it to
+  `T14 / Arduino ck_io[0]`, rebuild, and export matching PYNQ artifacts.
+- [ ] IR-5 PYNQ board bring-up: bind the integrated IR TX IP, send a safe
+  verified preset such as `temp_26`, record TX status, and confirm lab Gree AC
+  response from the integrated overlay.
+- [ ] After IR hardware validation, resume
+  [docs/software_integration_plan.md](docs/software_integration_plan.md):
+  implement the PYNQ top-level orchestrator, PC policy/service refactor,
+  `control_command`, and `control_status` flow.
 
 Completed:
 
@@ -184,11 +202,18 @@ including RTL / Sim, Vivado IP hw debug / packaging, PYNQ overlay (bitstream)
 generation, Python driver implementation, and hardware smoke test verification.
 - [x] Handoff source/documentation migration skeleton for UART SpO2, DHT11,
 SPI TFT LCD, humidifier, and PC socket/Excel demo.
+- [x] Integrated local board demo pass for JY901, DHT11, UART SpO2, TFT LCD,
+humidifier status/control, and display update, with documented metadata
+fallback limitations.
+- [x] TX-only Gree IR AC integration plan and deferred software integration
+plan documented; teammate standalone test confirmed lab Gree AC response.
 
 Further work:
 
-- Integrate the PYNQ board-side socket client with the migrated PC receive/storage path.
-- Add or scope the remaining planned IPs: IR AC.
+- Integrate the PYNQ board-side socket client with the PC service/dashboard
+  after IR hardware integration passes.
+- Replace or wrap the placeholder sleep classifier with the future neural
+  network classifier through the PC classifier adapter.
 
 Keep README files and engineering docs synchronized whenever protocols,
 register maps, external ports, wiring, or workflow assumptions change.
