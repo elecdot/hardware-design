@@ -1,0 +1,9 @@
+[
+  {"name":"power_on",  "preset":1, "estimated_hex":"0x1090040A400080016", "low64":"0x090040A400080016", "sample_count":140, "bit_count":67},
+  {"name":"power_off", "preset":2, "estimated_hex":"0x8050040A40008001C", "low64":"0x050040A40008001C", "sample_count":140, "bit_count":67},
+  {"name":"temp_24",   "preset":3, "estimated_hex":"0x9010040A400080016", "low64":"0x010040A400080016", "sample_count":140, "bit_count":67},
+  {"name":"temp_25",   "preset":4, "estimated_hex":"0x9090040A40008000E", "low64":"0x090040A40008000E", "sample_count":140, "bit_count":67},
+  {"name":"temp_26",   "preset":5, "estimated_hex":"0x9050040A40008001E", "low64":"0x050040A40008001E", "sample_count":140, "bit_count":67},
+  {"name":"temp_27",   "preset":6, "estimated_hex":"0x90D0040A400080000", "low64":"0x0D0040A400080000", "sample_count":140, "bit_count":67},
+  {"name":"temp_28",   "preset":7, "estimated_hex":"0x9030040A400080010", "low64":"0x030040A400080010", "sample_count":140, "bit_count":67}
+]
