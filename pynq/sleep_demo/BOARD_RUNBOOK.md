@@ -275,6 +275,22 @@ Expected result:
 - If the lab AC is available and aimed correctly, confirm real response by
   observation before claiming IR-5 board evidence.
 
+For distance or aiming checks, keep the same command and repeat it for a
+bounded period:
+
+```bash
+sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6 demo_ir_ac.py \
+  --bitfile /home/xilinx/jupyter_notebooks/sleep_monitor/system_v0_2.bit \
+  --base-addr 0x40005000 \
+  --command temp_26 \
+  --duration 60 \
+  --interval 5 \
+  --timeout 15.0
+```
+
+Move the transmitter closer to the AC receiver or adjust the angle during this
+run. Do not use an unbounded repeat loop for the lab demo.
+
 ### 5. Full Local Demo
 
 Run after the previous layers are stable:

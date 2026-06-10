@@ -54,6 +54,23 @@ sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6 demo_ir_ac.py \
   --command temp_26
 ```
 
+For distance or aiming checks, repeat the same safe command for a bounded
+period:
+
+```bash
+sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6 demo_ir_ac.py \
+  --bitfile /home/xilinx/jupyter_notebooks/sleep_monitor/system_v0_2.bit \
+  --base-addr 0x40005000 \
+  --command temp_26 \
+  --duration 60 \
+  --interval 5 \
+  --timeout 15.0
+```
+
+Each attempt prints a timestamped `before` and `after` status. A successful
+driver/IP transaction should report `done: True`, `error: False`, and
+`command: temp_26` after every attempt.
+
 ## Safety
 
 - Use 3.3 V logic into the PYNQ-Z1 PL pin.
