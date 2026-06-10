@@ -15,18 +15,18 @@ Integrated PYNQ demo skeleton for the final sleep-monitor overlay.
 Use the PYNQ Jupyter-equivalent Python 3.6 environment:
 
 ```bash
-sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6 integrated_demo.py --bitfile /home/xilinx/jupyter_notebooks/sleep_monitor/system_v0_1.bit --samples 30
+sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6 integrated_demo.py --bitfile /home/xilinx/jupyter_notebooks/sleep_monitor/system_v0_2.bit --samples 30
 ```
 
 Keep the matching `.hwh` beside the `.bit` with the same base name. For
-example, `system_v0_1.bit` must be next to `system_v0_1.hwh`.
+example, `system_v0_2.bit` must be next to `system_v0_2.hwh`.
 If the board's PYNQ image expects a same-basename `.tcl`, the default
 `--metadata-source auto` mode falls back to the Phase4 static address map.
 
 First inspect the integrated overlay metadata:
 
 ```bash
-sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6 integrated_demo.py --bitfile /home/xilinx/jupyter_notebooks/sleep_monitor/system_v0_1.bit --list-ips
+sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6 integrated_demo.py --bitfile /home/xilinx/jupyter_notebooks/sleep_monitor/system_v0_2.bit --list-ips
 ```
 
 The default IP names are:
@@ -38,6 +38,7 @@ The default IP names are:
 | UART SpO2 | `axi_uart_spo2_v1_0_0` |
 | TFT LCD | `tft_lcd_spi_axi_v1_0_0` |
 | Humidifier | `axi_humidifier_v1_0_0` |
+| Gree IR AC TX | `gree_ir_axi_v1_0_0` |
 
 Use `--allow-missing` only for bring-up isolation. Final demo should run
 without missing required IPs.

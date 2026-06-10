@@ -102,7 +102,7 @@ Recommended integrated address:
 
 | IP instance | Proposed base | Range | Notes |
 |---|---:|---:|---|
-| `gree_ir_axi_v1_0_0` | `0x4000_5000` | 4K | Final address must be assigned and confirmed in Vivado Address Editor. |
+| `gree_ir_axi_v1_0_0` | `0x4000_5000` | 4K | Confirmed by `system_v0_2.hwh` and `system_v0_2.tcl`. |
 
 The 4K range matches the existing integrated overlay style. If Vivado package
 metadata requires a larger range, record the final assigned range before PYNQ
@@ -299,19 +299,26 @@ Status: complete.
 
 ### IR-4: Integrated Vivado Overlay
 
+Status: complete.
+
 - Add `gree_ir_axi_v1_0_0` as the next AXI slave.
-- Proposed address is `0x4000_5000`, final value to be confirmed in Vivado.
+- Address is `0x4000_5000` with a 4K range in the exported `system_v0_2.hwh`.
 - Expose `ir_pwm` and constrain it to `T14`.
 - Repo-side XDC preparation is in
   `vivado/constraints/integrated/sleep_monitor_pynq_z1.xdc`; the BD external
   port must be named exactly `ir_pwm` for that constraint to match.
 - Run BD validation, synthesis, implementation, DRC, route status, timing, and
   bitstream generation.
-- Export matching `.bit`, `.hwh`, and any board-needed `.tcl` into `vivado/gen/`.
+- Exported matching `system_v0_2.bit`, `system_v0_2.hwh`, and
+  `system_v0_2.tcl` into `vivado/gen/`.
+- Known methodology warnings are recorded in [test_plan.md](test_plan.md);
+  they do not block first IR-5 board smoke but should guide debugging if IR TX
+  behaves unexpectedly.
 
 ### IR-5: PYNQ Board Bring-Up
 
-- Extend the integrated static metadata fallback with `gree_ir_axi_v1_0_0`.
+- Integrated static metadata fallback is prepared with
+  `gree_ir_axi_v1_0_0 @ 0x4000_5000`; still validate on the board.
 - Bind the IR TX driver through the top-level orchestrator.
 - Run a TX-only board smoke command that sends a safe command, preferably
   `temp_26` or a mutually agreed non-disruptive preset.
@@ -336,7 +343,6 @@ PC dashboard/logs show the full loop
 
 ## Known Open Items
 
-- Final integrated IR address is not assigned until Vivado BD update.
 - `control_command` and `control_status` are planned but not implemented.
 - The PYNQ top-level orchestrator class is planned but not implemented.
 - PC policy defaults need implementation and test fixtures.

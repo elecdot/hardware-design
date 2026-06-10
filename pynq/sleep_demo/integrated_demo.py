@@ -7,6 +7,7 @@ This script expects the final integrated overlay to expose:
 - `axi_uart_spo2_v1_0_0`
 - `tft_lcd_spi_axi_v1_0_0`
 - `axi_humidifier_v1_0_0`
+- `gree_ir_axi_v1_0_0`
 
 It keeps PC socket transport out of the first live path; the printed sample
 dictionary already matches the fields needed by `docs/protocol.md`.
@@ -19,13 +20,14 @@ import sys
 import time
 
 
-DEFAULT_BITFILE = "/home/xilinx/jupyter_notebooks/sleep_monitor/system_v0_1.bit"
+DEFAULT_BITFILE = "/home/xilinx/jupyter_notebooks/sleep_monitor/system_v0_2.bit"
 DEFAULT_IP_NAMES = {
     "jy901": "axi_i2c_jy901_v1_0_0",
     "dht11": "dht11_axi_v1_0_0",
     "spo2": "axi_uart_spo2_v1_0_0",
     "tft": "tft_lcd_spi_axi_v1_0_0",
     "humidifier": "axi_humidifier_v1_0_0",
+    "ir_ac": "gree_ir_axi_v1_0_0",
 }
 STATIC_IP_LAYOUT = {
     "jy901": {
@@ -53,6 +55,11 @@ STATIC_IP_LAYOUT = {
         "addr_range": 0x1000,
         "type": "xilinx.com:user:axi_uart_spo2_v1_0:1.0",
     },
+    "ir_ac": {
+        "phys_addr": 0x40005000,
+        "addr_range": 0x1000,
+        "type": "xilinx.com:user:gree_ir_axi_v1_0:1.0",
+    },
 }
 
 
@@ -68,7 +75,7 @@ class StaticOverlayMetadata(object):
 def add_demo_paths():
     here = os.path.dirname(os.path.abspath(__file__))
     parent = os.path.dirname(here)
-    for rel in ("jy901_demo", "dht11_demo", "spo2_demo", "tft_lcd_demo", "humidifier_demo"):
+    for rel in ("jy901_demo", "dht11_demo", "spo2_demo", "tft_lcd_demo", "humidifier_demo", "ir_ac_demo"):
         path = os.path.join(parent, rel)
         if path not in sys.path:
             sys.path.insert(0, path)
@@ -107,6 +114,7 @@ def build_static_ip_dict(args):
         args.tft_ip: dict(STATIC_IP_LAYOUT["tft"]),
         args.dht11_ip: dict(STATIC_IP_LAYOUT["dht11"]),
         args.spo2_ip: dict(STATIC_IP_LAYOUT["spo2"]),
+        args.ir_ac_ip: dict(STATIC_IP_LAYOUT["ir_ac"]),
     }
 
 
@@ -203,12 +211,6 @@ class TurnCounter(object):
 def bind_drivers(args):
     add_demo_paths()
 
-    from jy901_driver import JY901DemoDriver, scale_raw, status_label
-    from dht11_driver import DHT11Driver
-    from spo2_mmio import AxiUartSpo2
-    from tft_lcd import TftLcd
-    from humidifier_driver import AxiHumidifier
-
     bitfile = args.bitfile
     if not args.skip_artifact_check:
         bitfile, _hwh = check_overlay_artifacts(args.bitfile)
@@ -217,6 +219,12 @@ def bind_drivers(args):
     if args.list_ips:
         print_ip_dict(overlay)
         raise SystemExit(0)
+
+    from jy901_driver import JY901DemoDriver, scale_raw, status_label
+    from dht11_driver import DHT11Driver
+    from spo2_mmio import AxiUartSpo2
+    from tft_lcd import TftLcd
+    from humidifier_driver import AxiHumidifier
 
     drivers = {
         "overlay": overlay,
@@ -444,6 +452,7 @@ def parse_args(argv=None):
     parser.add_argument("--spo2-ip", default=DEFAULT_IP_NAMES["spo2"])
     parser.add_argument("--tft-ip", default=DEFAULT_IP_NAMES["tft"])
     parser.add_argument("--humidifier-ip", default=DEFAULT_IP_NAMES["humidifier"])
+    parser.add_argument("--ir-ac-ip", default=DEFAULT_IP_NAMES["ir_ac"])
     parser.add_argument("--jy901-clkdiv", type=int, default=500)
     parser.add_argument("--tft-clkdiv", type=int, default=50)
     parser.add_argument("--spo2-frame-len", type=int, choices=(5, 7), default=5)

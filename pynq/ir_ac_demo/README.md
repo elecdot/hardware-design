@@ -44,15 +44,14 @@ The standalone handoff TX base address is `0x43C00000`.
 
 ## Integrated Smoke
 
-After IR is added to the integrated overlay, pass the Vivado-assigned base
-address or use the future top-level board orchestrator. The planned integrated
-address is `0x40005000`, but the final value must be confirmed in Vivado.
+For the `system_v0_2` integrated overlay, the confirmed IR AXI base address is
+`0x40005000`.
 
 ```bash
 sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6 demo_ir_ac.py \
+  --bitfile /home/xilinx/jupyter_notebooks/sleep_monitor/system_v0_2.bit \
   --base-addr 0x40005000 \
-  --command temp_26 \
-  --no-download
+  --command temp_26
 ```
 
 ## Safety

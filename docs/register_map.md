@@ -128,5 +128,5 @@ Supported first-version presets:
 | 6 | `temp_27` | `0x90D0040A400080000` |
 | 7 | `temp_28` | `0x9030040A400080010` |
 
-Planned integrated base address is `0x4000_5000`, but the final address must be
-confirmed in Vivado Address Editor before PYNQ driver binding.
+Confirmed integrated base address in `system_v0_2.hwh` is `0x4000_5000` with a
+4K range (`0x4000_5000..0x4000_5FFF`).

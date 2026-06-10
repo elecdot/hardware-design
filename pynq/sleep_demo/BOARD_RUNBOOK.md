@@ -5,14 +5,15 @@ files to the PYNQ-Z1 board, then run the first layered board demo.
 
 Current integrated local artifacts:
 
-- `vivado/gen/system_v0_1.bit`
-- `vivado/gen/system_v0_1.hwh`
+- `vivado/gen/system_v0_2.bit`
+- `vivado/gen/system_v0_2.hwh`
+- `vivado/gen/system_v0_2.tcl`
 
 Both files must be copied to the board together with the same base name. Newer
 PYNQ images use the `.hwh` metadata to populate `Overlay.ip_dict`. Some older
 PYNQ images instead look for a same-basename `.tcl`; `integrated_demo.py`
 therefore falls back to the Phase4 static address map when
-`system_v0_1.tcl` is absent.
+`system_v0_2.tcl` is absent.
 
 ## Target Layout
 
@@ -20,9 +21,9 @@ Use one dedicated directory on the board:
 
 ```text
 /home/xilinx/jupyter_notebooks/sleep_monitor/
-  system_v0_1.bit
-  system_v0_1.hwh
-  system_v0_1.tcl        # optional, only if exported for old PYNQ metadata
+  system_v0_2.bit
+  system_v0_2.hwh
+  system_v0_2.tcl        # optional, only if exported for old PYNQ metadata
   sleep_demo/
     integrated_demo.py
     display_ui.py
@@ -31,6 +32,7 @@ Use one dedicated directory on the board:
   spo2_demo/
   tft_lcd_demo/
   humidifier_demo/
+  ir_ac_demo/
 ```
 
 Deploy the contents of local `pynq/` into this target directory. Do not deploy
@@ -63,8 +65,9 @@ rsync -av --delete \
   pynq/ "$BOARD:$DEST/"
 
 rsync -av \
-  vivado/gen/system_v0_1.bit \
-  vivado/gen/system_v0_1.hwh \
+  vivado/gen/system_v0_2.bit \
+  vivado/gen/system_v0_2.hwh \
+  vivado/gen/system_v0_2.tcl \
   "$BOARD:$DEST/"
 ```
 
@@ -79,7 +82,7 @@ $Dest = "/home/xilinx/jupyter_notebooks/sleep_monitor"
 
 ssh $Board "mkdir -p $Dest"
 rsync -av --delete --exclude '__pycache__/' --exclude '*.pyc' --exclude '.ipynb_checkpoints/' .\pynq\ "${Board}:${Dest}/"
-rsync -av .\vivado\gen\system_v0_1.bit .\vivado\gen\system_v0_1.hwh "${Board}:${Dest}/"
+rsync -av .\vivado\gen\system_v0_2.bit .\vivado\gen\system_v0_2.hwh .\vivado\gen\system_v0_2.tcl "${Board}:${Dest}/"
 ```
 
 ### Fallback: scp
@@ -92,7 +95,7 @@ $Dest = "/home/xilinx/jupyter_notebooks/sleep_monitor"
 
 ssh $Board "mkdir -p $Dest"
 scp -r .\pynq\* "${Board}:${Dest}/"
-scp .\vivado\gen\system_v0_1.bit .\vivado\gen\system_v0_1.hwh "${Board}:${Dest}/"
+scp .\vivado\gen\system_v0_2.bit .\vivado\gen\system_v0_2.hwh .\vivado\gen\system_v0_2.tcl "${Board}:${Dest}/"
 ```
 
 The scp path is less clean because it does not delete stale files and may copy
@@ -111,6 +114,7 @@ Required integrated pin plan:
 | UART SpO2 | PMODB: `uart_txd=W14`, `uart_rxd=Y14` |
 | DHT11 | Arduino IO11: `dht11_0=R17`, pullup required |
 | Humidifier | Board LEDs: `humidifier_leds[3:0]` |
+| Gree IR AC TX | Arduino `ck_io[0]`: `ir_pwm=T14` |
 
 Safety checks:
 
@@ -138,7 +142,7 @@ Check deployed files:
 
 ```bash
 cd /home/xilinx/jupyter_notebooks/sleep_monitor
-ls -lh system_v0_1.bit system_v0_1.hwh sleep_demo/integrated_demo.py
+ls -lh system_v0_2.bit system_v0_2.hwh sleep_demo/integrated_demo.py
 ```
 
 ## Overlay Metadata Smoke
@@ -146,13 +150,13 @@ ls -lh system_v0_1.bit system_v0_1.hwh sleep_demo/integrated_demo.py
 Run this first. It programs the overlay, prints IP names and addresses, then
 exits. On newer PYNQ images this uses `Overlay.ip_dict` metadata from the
 exported handoff. On older images that either raise `FileNotFoundError` for
-`system_v0_1.tcl` or parse the Tcl into an empty `ip_dict`, the script prints a
+`system_v0_2.tcl` or parse the Tcl into an empty `ip_dict`, the script prints a
 warning and uses the Phase4 static address map.
 
 ```bash
 cd /home/xilinx/jupyter_notebooks/sleep_monitor/sleep_demo
 sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6 integrated_demo.py \
-  --bitfile /home/xilinx/jupyter_notebooks/sleep_monitor/system_v0_1.bit \
+  --bitfile /home/xilinx/jupyter_notebooks/sleep_monitor/system_v0_2.bit \
   --list-ips
 ```
 
@@ -165,6 +169,7 @@ Expected custom IP entries:
 | `tft_lcd_spi_axi_v1_0_0` | `0x40002000` |
 | `dht11_axi_v1_0_0` | `0x40003000` |
 | `axi_uart_spo2_v1_0_0` | `0x40004000` |
+| `gree_ir_axi_v1_0_0` | `0x40005000` |
 
 If the output includes this warning, it is acceptable for first board smoke:
 
@@ -195,7 +200,7 @@ polling do not crash before initializing the TFT.
 ```bash
 cd /home/xilinx/jupyter_notebooks/sleep_monitor/sleep_demo
 sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6 integrated_demo.py \
-  --bitfile /home/xilinx/jupyter_notebooks/sleep_monitor/system_v0_1.bit \
+  --bitfile /home/xilinx/jupyter_notebooks/sleep_monitor/system_v0_2.bit \
   --samples 5 \
   --interval 1.0 \
   --sensor-timeout 0.5 \
@@ -217,7 +222,7 @@ This keeps display off and exercises the PS-controlled humidifier path.
 
 ```bash
 sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6 integrated_demo.py \
-  --bitfile /home/xilinx/jupyter_notebooks/sleep_monitor/system_v0_1.bit \
+  --bitfile /home/xilinx/jupyter_notebooks/sleep_monitor/system_v0_2.bit \
   --samples 5 \
   --interval 1.0 \
   --no-display
@@ -234,7 +239,7 @@ Run only after the TFT is wired and powered correctly.
 
 ```bash
 sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6 integrated_demo.py \
-  --bitfile /home/xilinx/jupyter_notebooks/sleep_monitor/system_v0_1.bit \
+  --bitfile /home/xilinx/jupyter_notebooks/sleep_monitor/system_v0_2.bit \
   --samples 3 \
   --interval 1.0 \
   --tft-clkdiv 50
@@ -248,13 +253,35 @@ Expected result:
 If display initialization fails, rerun with `--no-display` to keep other module
 smoke tests moving.
 
-### 4. Full Local Demo
+### 4. Gree IR AC TX Smoke
+
+Run this only when the IR transmitter is wired, the lab Gree AC can receive
+the command, and sending `temp_26` is acceptable.
+
+```bash
+cd /home/xilinx/jupyter_notebooks/sleep_monitor/ir_ac_demo
+sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6 demo_ir_ac.py \
+  --bitfile /home/xilinx/jupyter_notebooks/sleep_monitor/system_v0_2.bit \
+  --base-addr 0x40005000 \
+  --command temp_26 \
+  --timeout 15.0
+```
+
+Expected result:
+
+- The command prints `before` and `after` status dictionaries.
+- `after` should report `done: True`, `error: False`, `preset: 5`, and
+  `command: temp_26`.
+- If the lab AC is available and aimed correctly, confirm real response by
+  observation before claiming IR-5 board evidence.
+
+### 5. Full Local Demo
 
 Run after the previous layers are stable:
 
 ```bash
 sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6 integrated_demo.py \
-  --bitfile /home/xilinx/jupyter_notebooks/sleep_monitor/system_v0_1.bit \
+  --bitfile /home/xilinx/jupyter_notebooks/sleep_monitor/system_v0_2.bit \
   --samples 30 \
   --interval 1.0 \
   --sensor-timeout 0.5 \
@@ -291,7 +318,7 @@ Useful fields:
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| Missing `.hwh` error | `.bit` was copied without same-basename `.hwh` | Copy `system_v0_1.bit` and `system_v0_1.hwh` together |
+| Missing `.hwh` error | `.bit` was copied without same-basename `.hwh` | Copy `system_v0_2.bit` and `system_v0_2.hwh` together |
 | Missing `.tcl` error from `pynq.pl._TCL` | Older PYNQ image expects TCL metadata | Update `integrated_demo.py`; default `--metadata-source auto` falls back to the Phase4 static address map |
 | `--metadata-source overlay` prints `(none)` or no IP entries | Tcl exists but this PYNQ parser did not extract IP metadata | Use default `auto` or explicit `static` for first board smoke; do not treat this as a hardware failure |
 | `Cannot find IP ...` | Wrong `.hwh`, stale overlay, or old default IP names | Run `--list-ips`; compare instance names with this runbook |
@@ -313,7 +340,7 @@ rsync -av --delete --exclude '__pycache__/' --exclude '*.pyc' pynq/ xilinx@pynq:
 For a regenerated overlay:
 
 ```bash
-rsync -av vivado/gen/system_v0_1.bit vivado/gen/system_v0_1.hwh xilinx@pynq:/home/xilinx/jupyter_notebooks/sleep_monitor/
+rsync -av vivado/gen/system_v0_2.bit vivado/gen/system_v0_2.hwh vivado/gen/system_v0_2.tcl xilinx@pynq:/home/xilinx/jupyter_notebooks/sleep_monitor/
 ```
 
 Use both commands when code and hardware artifacts changed.

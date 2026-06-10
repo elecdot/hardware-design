@@ -263,6 +263,8 @@ Current status:
 - IR-2 focused module regression passes locally with Icarus Verilog.
 - IR-3 packaged IP static validation is complete for
   `vivado/ip_repo/ir_ac_axi/`.
+- IR-4 integrated overlay build/export validation is complete for
+  `vivado/gen/system_v0_2.bit/.hwh/.tcl`.
 - The handoff RX capture IP remains standalone validation tooling and is not in
   the first integrated source path.
 - Teammate standalone module testing confirmed the lab Gree AC responds to the
@@ -333,9 +335,42 @@ Validated package facts:
 | External port | `ir_pwm` output is present; no board pin constraint is embedded in the IP package |
 | Project metadata | `ir_axi_package.xpr` references tracked RTL and `vivado/ip_repo/ir_ac_axi/component.xml`; `IPRepoPath` is aligned to `../../ip_repo/ir_ac_axi` |
 
+IR-4 integrated overlay validation:
+
+Date: 2026-06-10. Project:
+`vivado/project/system_v0_1/system_v0_1.xpr`. Exported artifacts:
+`vivado/gen/system_v0_2.bit`, `vivado/gen/system_v0_2.hwh`, and
+`vivado/gen/system_v0_2.tcl`.
+
+Validated integration evidence:
+
+| Item | Evidence |
+|---|---|
+| BD Tcl IP catalog | `system_v0_2.tcl` includes `xilinx.com:user:gree_ir_axi_v1_0:1.0` |
+| New IP instance | `gree_ir_axi_v1_0_0` exists in `.hwh` with VLNV `xilinx.com:user:gree_ir_axi_v1_0:1.0` |
+| Address map | `.hwh` memory range is `0x40005000..0x40005FFF`; Tcl assigns `0x40005000` range `0x1000` |
+| AXI connection | Tcl connects `gree_ir_axi_v1_0_0/s00_axi` to `ps7_0_axi_periph/M05_AXI` |
+| Clock/reset | Tcl connects IR IP to `processing_system7_0/FCLK_CLK0` and `rst_ps7_0_50M/peripheral_aresetn` |
+| External port | `.hwh` and wrapper expose output `ir_pwm` connected to `gree_ir_axi_v1_0_0/ir_pwm` |
+| IO placement | `system_v0_1_wrapper_io_placed.rpt` places `ir_pwm` on `T14`, `LVCMOS33`, drive `8`, slew `SLOW` |
+| DRC | Routed DRC reports `Violations found: 0` |
+| Route | Route status reports `# of nets with routing errors: 0` |
+| Timing | Routed timing summary reports WNS `10.274 ns`, WHS `0.040 ns`, no failing endpoints, and all user specified timing constraints met |
+| Bitstream | `impl_1/runme.log` reports `write_bitstream completed successfully`; `system_v0_2.bit` is non-empty and matches the run output size |
+
+Known limitations before IR-5:
+
+- Methodology report has 19 warnings: 18 `TIMING-18` missing input/output delay
+  warnings for low-speed external ports, plus one `LUTAR-1` warning where the
+  IR core's locally generated soft-reset path drives asynchronous clear pins.
+  The build still routes, meets timing, and writes a bitstream. If IR TX shows
+  unstable behavior on board, prioritize replacing the IR core soft reset with
+  a synchronous reset implementation.
+- This is not PYNQ runtime evidence and does not yet confirm real lab AC
+  response from the integrated overlay.
+
 Expected next checks:
 
-- IR-4 integrated overlay constrains `ir_pwm` to Arduino `ck_io[0]` / `T14`.
 - IR-5 PYNQ board smoke sends a safe verified preset, records TX
   `done=true/error=false`, and confirms lab Gree AC response from the
   integrated overlay.

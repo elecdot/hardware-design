@@ -31,7 +31,7 @@ locations. Do not treat generated Vivado cache/output directories as source.
 | Humidifier | `handoff/humidifier_handoff_pack_20260601(1)/humidifier_handoff_pack_20260601/` | `rtl/axi_humidifier/`, `sim/tb_axi_humidifier/`, `pynq/humidifier_demo/`, optional LED XDC | Handoff records Vivado packaging integrity pass and two simulation PASS markers. |
 | TFT LCD | `handoff/tft_lcd_handoff_pack_20260601/tft_lcd_handoff_pack_20260601/` | `rtl/tft_lcd_spi_axi/`, `sim/tb_tft_lcd_spi_axi/`, `pynq/tft_lcd_demo/`, `vivado/constraints/tft_lcd_pynq_z1.xdc` | Testbenches include PASS markers; handoff notes say local machine lacked simulator tools. PYNQ/Jupyter code is reported as board-tested. |
 | UART SpO2 | `handoff/uart_spo2_pynq_handoff_20260601_portable/handoff_uart_spo2_pynq_20260601/` | `rtl/axi_uart_spo2/`, `sim/tb_axi_uart_spo2/`, `pynq/spo2_demo/`, `vivado/constraints/spo2_pmodb_pynq_z1.xdc` | PYNQ overlay artifacts and runtime helper exist; no module-level regression test was found in the handoff scan. |
-| Gree IR AC TX/RX | `handoff/gree_ir_txrx_hardware_package/` | First integration targets TX-only: `rtl/gree_ir_axi/`, `sim/tb_gree_ir_axi/`, `pynq/ir_ac_demo/`, integrated XDC `ir_pwm=T14`; RX remains standalone validation tooling. | IR-1 source migration skeleton, IR-2 focused module regression, and IR-3 package static validation are complete. Teammate completed standalone module testing and confirmed the lab Gree AC responds to the handoff command set. Detailed plan: [ir_ac_integration_plan.md](ir_ac_integration_plan.md). |
+| Gree IR AC TX/RX | `handoff/gree_ir_txrx_hardware_package/` | First integration targets TX-only: `rtl/gree_ir_axi/`, `sim/tb_gree_ir_axi/`, `pynq/ir_ac_demo/`, integrated XDC `ir_pwm=T14`; RX remains standalone validation tooling. | IR-1 source migration skeleton, IR-2 focused module regression, IR-3 package static validation, and IR-4 integrated overlay build are complete. Teammate completed standalone module testing and confirmed the lab Gree AC responds to the handoff command set. Detailed plan: [ir_ac_integration_plan.md](ir_ac_integration_plan.md). |
 | PC socket/Excel demo | `handoff/sleep_socket_project/sleep_socket_project/` | `pc_server/`, optional `pynq/sleep_demo/` client, and [protocol.md](protocol.md) | Handoff records a working PC-side TCP newline-JSON server, fake client, Excel writer, and rule-based classifier demo. |
 
 Target paths are planned names. Create or adjust local README files when the
@@ -212,8 +212,8 @@ Final address table:
 | `axi_uart_spo2_v1_0_0` | `0x4000_4000` | 4K | `0x4000_4FFF` |
 | `gree_ir_axi_v1_0_0` | `0x4000_5000` | 4K | `0x4000_5FFF` |
 
-For IR-4, confirm the new `gree_ir_axi_v1_0_0` address in Vivado Address
-Editor before treating this table as final integrated metadata.
+The `gree_ir_axi_v1_0_0` address is confirmed by
+`vivado/gen/system_v0_2.hwh` and `vivado/gen/system_v0_2.tcl`.
 
 ### Phase 5: PYNQ Runtime Integration
 
@@ -228,20 +228,21 @@ Editor before treating this table as final integrated metadata.
   `/opt/python3.6/bin/python3.6`; avoid dependencies that are unavailable in
   the recorded board runtime.
 
-Status on 2026-06-03:
+Status on 2026-06-10:
 
-- Phase 4 BD/build evidence is sufficient to prepare PYNQ runtime smoke work:
-  five custom IP instances are present, address windows are assigned, routed DRC
-  has 0 violations, route status has 0 routing errors, and bitstream generation
-  is logged as successful.
+- IR-4 BD/build evidence is sufficient to prepare PYNQ IR runtime smoke work:
+  six custom IP instances are present, address windows are assigned, routed DRC
+  has 0 violations, route status has 0 routing errors, timing is met, and
+  bitstream generation is logged as successful.
 - A matching local integrated artifact pair exists at
-  `vivado/gen/system_v0_1.bit` and `vivado/gen/system_v0_1.hwh`; copy both to
-  the PYNQ board before runtime smoke.
+  `vivado/gen/system_v0_2.bit` and `vivado/gen/system_v0_2.hwh`; copy both,
+  plus `system_v0_2.tcl` when using the old PYNQ metadata path, to the PYNQ
+  board before runtime smoke.
 - First PYNQ smoke should prefer `Overlay(...).ip_dict` to bind these instance
   names: `axi_i2c_jy901_v1_0_0`, `axi_humidifier_v1_0_0`,
-  `tft_lcd_spi_axi_v1_0_0`, `dht11_axi_v1_0_0`, and
-  `axi_uart_spo2_v1_0_0`. If the board image raises a missing
-  `system_v0_1.tcl` error before exposing `ip_dict`, or if a Tcl file exists
+  `tft_lcd_spi_axi_v1_0_0`, `dht11_axi_v1_0_0`,
+  `axi_uart_spo2_v1_0_0`, and `gree_ir_axi_v1_0_0`. If the board image raises
+  a missing `system_v0_2.tcl` error before exposing `ip_dict`, or if a Tcl file exists
   but parses into an empty `ip_dict`, use
   `integrated_demo.py --metadata-source auto` or `static` for first smoke. Then
   rerun with `--metadata-source overlay` after exporting compatible metadata.
@@ -258,7 +259,8 @@ Phase 5 first-pass order:
 5. Smoke TFT initialization and one dashboard draw at conservative `CLKDIV`.
 6. Smoke DHT11 at 1 to 2 second read intervals.
 7. Smoke UART SpO2 in 5-byte/polling mode.
-8. Only after individual smoke checks, run the combined
+8. Smoke Gree IR TX with one safe verified preset such as `temp_26`.
+9. Only after individual smoke checks, run the combined
    `pynq/sleep_demo/integrated_demo.py` path.
 
 ### Phase 6: Deferred PC Socket Integration

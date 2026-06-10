@@ -181,9 +181,6 @@ Engineering references:
 
 Current open work:
 
-- [ ] IR-4 integrated Vivado overlay: add TX-only `gree_ir_axi_v1_0_0` to the
-  current integrated Block Design, expose `ir_pwm`, constrain it to
-  `T14 / Arduino ck_io[0]`, rebuild, and export matching PYNQ artifacts.
 - [ ] IR-5 PYNQ board bring-up: bind the integrated IR TX IP, send a safe
   verified preset such as `temp_26`, record TX status, and confirm lab Gree AC
   response from the integrated overlay.
@@ -212,6 +209,9 @@ SPI TFT LCD, humidifier, and PC socket/Excel demo.
 - [x] IR-3 IP packaging: `gree_ir_axi_v1_0` packaged under
   `vivado/ip_repo/ir_ac_axi/` from tracked RTL and statically validated for
   AXI4-Lite metadata, `ir_pwm`, parameters, and file sets.
+- [x] IR-4 integrated Vivado overlay: `gree_ir_axi_v1_0_0` added to the
+  integrated Block Design, `ir_pwm` exported and placed on `T14`, and
+  `system_v0_2.bit/.hwh/.tcl` exported under `vivado/gen/`.
 
 Further work:
 
