@@ -375,6 +375,38 @@ Expected next checks:
   `done=true/error=false`, and confirms lab Gree AC response from the
   integrated overlay.
 
+IR-5 partial PYNQ board smoke:
+
+Date: 2026-06-10. Overlay artifact:
+`/home/xilinx/jupyter_notebooks/sleep_monitor/system_v0_2.bit`. IP base:
+`0x40005000`.
+
+Command:
+
+```bash
+cd /home/xilinx/jupyter_notebooks/sleep_monitor/ir_ac_demo
+sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6 demo_ir_ac.py \
+  --bitfile /home/xilinx/jupyter_notebooks/sleep_monitor/system_v0_2.bit \
+  --base-addr 0x40005000 \
+  --command temp_26 \
+  --timeout 15.0
+```
+
+Observed status:
+
+| Phase | Key fields |
+|---|---|
+| Before | `busy=false`, `done=false`, `error=false`, `preset=1`, `command=power_on`, `raw_status=0` |
+| After | `busy=false`, `done=true`, `error=false`, `preset=5`, `command=temp_26`, `raw_status=2` |
+
+Scope of this evidence:
+
+- Confirms PYNQ MMIO binding to the integrated IR IP at `0x40005000`.
+- Confirms `temp_26` maps to preset `5` and updates the command shadow.
+- Confirms one TX transaction completed without the IP error bit.
+- This is not yet recorded as real lab AC response evidence unless an operator
+  also confirms the AC reacted to the command.
+
 ### DHT11 AXI IP
 
 Source:

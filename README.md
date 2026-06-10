@@ -181,9 +181,10 @@ Engineering references:
 
 Current open work:
 
-- [ ] IR-5 PYNQ board bring-up: bind the integrated IR TX IP, send a safe
-  verified preset such as `temp_26`, record TX status, and confirm lab Gree AC
-  response from the integrated overlay.
+- [ ] IR-5 PYNQ board bring-up: integrated PYNQ driver smoke has sent
+  `temp_26` through `gree_ir_axi_v1_0_0 @ 0x40005000` and reported
+  `done=true/error=false`; still confirm and record lab Gree AC response from
+  the integrated overlay before closing this loop.
 - [ ] After IR hardware validation, resume
   [docs/software_integration_plan.md](docs/software_integration_plan.md):
   implement the PYNQ top-level orchestrator, PC policy/service refactor,

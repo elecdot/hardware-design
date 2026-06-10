@@ -317,6 +317,8 @@ Status: complete.
 
 ### IR-5: PYNQ Board Bring-Up
 
+Status: in progress.
+
 - Integrated static metadata fallback is prepared with
   `gree_ir_axi_v1_0_0 @ 0x4000_5000`; still validate on the board.
 - Bind the IR TX driver through the top-level orchestrator.
@@ -325,6 +327,18 @@ Status: complete.
 - Record TX status: `done=true`, `error=false`.
 - If the lab AC is available, confirm real response again from the integrated
   overlay.
+
+Partial board evidence captured on 2026-06-10:
+
+- Command:
+  `demo_ir_ac.py --bitfile /home/xilinx/jupyter_notebooks/sleep_monitor/system_v0_2.bit --base-addr 0x40005000 --command temp_26 --timeout 15.0`
+- Result after TX:
+  `busy=false`, `done=true`, `error=false`, `preset=5`,
+  `command=temp_26`, `raw_status=2`.
+- Scope: confirms integrated PYNQ MMIO binding, register access, preset
+  selection, and TX completion from the `system_v0_2` overlay. This evidence
+  does not by itself confirm that the lab AC received/responded to the IR
+  waveform.
 
 ## Deferred Software Execution
 
