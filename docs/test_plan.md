@@ -17,7 +17,8 @@ Minimum integrated acceptance evidence:
   same run.
 - The integrated XDC uses the planned pin allocation in [wiring.md](wiring.md):
   PMODA for TFT LCD, Arduino `P16/P15` for JY901 I2C, PMODB `W14/Y14` for UART
-  SpO2, Arduino IO11 `R17` for DHT11, and board LEDs for humidifier indication.
+  SpO2, Arduino IO11 `R17` for DHT11, Arduino `ck_io[0]` / `T14` for Gree IR
+  AC TX, and board LEDs for humidifier indication.
 - PYNQ loads the integrated overlay and binds IPs through exported metadata
   when available. On older PYNQ images that require same-basename `.tcl`
   metadata, the first board smoke may use the documented Phase4 static address

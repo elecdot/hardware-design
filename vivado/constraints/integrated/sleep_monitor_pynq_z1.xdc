@@ -26,6 +26,11 @@ set_property PULLUP true [get_ports uart_rxd]
 set_property -dict { PACKAGE_PIN R17 IOSTANDARD LVCMOS33 } [get_ports dht11_0]
 set_property PULLUP true [get_ports dht11_0]
 
+## Gree IR AC TX on Arduino ck_io[0]
+set_property -dict { PACKAGE_PIN T14 IOSTANDARD LVCMOS33 } [get_ports ir_pwm]
+set_property SLEW SLOW [get_ports ir_pwm]
+set_property DRIVE 8 [get_ports ir_pwm]
+
 ## Board LEDs for humidifier indicator
 set_property -dict { PACKAGE_PIN R14 IOSTANDARD LVCMOS33 } [get_ports { humidifier_leds[0] }]
 set_property -dict { PACKAGE_PIN P14 IOSTANDARD LVCMOS33 } [get_ports { humidifier_leds[1] }]

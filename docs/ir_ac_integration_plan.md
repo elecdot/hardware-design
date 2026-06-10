@@ -302,6 +302,9 @@ Status: complete.
 - Add `gree_ir_axi_v1_0_0` as the next AXI slave.
 - Proposed address is `0x4000_5000`, final value to be confirmed in Vivado.
 - Expose `ir_pwm` and constrain it to `T14`.
+- Repo-side XDC preparation is in
+  `vivado/constraints/integrated/sleep_monitor_pynq_z1.xdc`; the BD external
+  port must be named exactly `ir_pwm` for that constraint to match.
 - Run BD validation, synthesis, implementation, DRC, route status, timing, and
   bitstream generation.
 - Export matching `.bit`, `.hwh`, and any board-needed `.tcl` into `vivado/gen/`.

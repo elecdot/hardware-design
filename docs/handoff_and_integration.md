@@ -210,6 +210,10 @@ Final address table:
 | `tft_lcd_spi_axi_v1_0_0` | `0x4000_2000` | 4K | `0x4000_2FFF` |
 | `dht11_axi_v1_0_0` | `0x4000_3000` | 4K | `0x4000_3FFF` |
 | `axi_uart_spo2_v1_0_0` | `0x4000_4000` | 4K | `0x4000_4FFF` |
+| `gree_ir_axi_v1_0_0` | `0x4000_5000` | 4K | `0x4000_5FFF` |
+
+For IR-4, confirm the new `gree_ir_axi_v1_0_0` address in Vivado Address
+Editor before treating this table as final integrated metadata.
 
 ### Phase 5: PYNQ Runtime Integration
 
