@@ -46,7 +46,13 @@ First integrated target:
 | IN / SIG | Arduino `ck_io[0]`, `T14` | Driven by `ir_pwm` from `gree_ir_axi_v1_0`. |
 
 The handoff package's standalone test confirmed the lab Gree AC responds to the
-seven Gree YB0F2 preset commands. Integrated overlay response is still pending.
+seven Gree YB0F2 preset commands. Integrated overlay board smoke later
+confirmed real lab AC response to `power_on`, `power_off`, and `temp_26`.
+
+In the lab setup, the IR transmitter needed to be within approximately 20 cm of
+the AC receiver for reliable response. If the AXI status reports
+`done=true/error=false` but the AC does not react, first move the transmitter
+closer to the receiver and adjust the angle before changing RTL or software.
 
 ## JY901 I2C Module
 

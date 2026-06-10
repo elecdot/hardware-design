@@ -317,28 +317,25 @@ Status: complete.
 
 ### IR-5: PYNQ Board Bring-Up
 
-Status: in progress.
+Status: complete.
 
 - Integrated static metadata fallback is prepared with
-  `gree_ir_axi_v1_0_0 @ 0x4000_5000`; still validate on the board.
-- Bind the IR TX driver through the top-level orchestrator.
-- Run a TX-only board smoke command that sends a safe command, preferably
-  `temp_26` or a mutually agreed non-disruptive preset.
-- Record TX status: `done=true`, `error=false`.
-- If the lab AC is available, confirm real response again from the integrated
-  overlay.
+  `gree_ir_axi_v1_0_0 @ 0x4000_5000` and validated on the board.
+- TX-only board smoke sent verified presets from the integrated overlay.
+- TX status was recorded with `done=true`, `error=false` for `temp_26`.
+- User confirmed the lab Gree AC responded to `power_on`, `power_off`, and
+  `temp_26` from the integrated overlay.
 
-Partial board evidence captured on 2026-06-10:
+Board evidence captured on 2026-06-10:
 
 - Command:
   `demo_ir_ac.py --bitfile /home/xilinx/jupyter_notebooks/sleep_monitor/system_v0_2.bit --base-addr 0x40005000 --command temp_26 --timeout 15.0`
 - Result after TX:
   `busy=false`, `done=true`, `error=false`, `preset=5`,
   `command=temp_26`, `raw_status=2`.
-- Scope: confirms integrated PYNQ MMIO binding, register access, preset
-  selection, and TX completion from the `system_v0_2` overlay. This evidence
-  does not by itself confirm that the lab AC received/responded to the IR
-  waveform.
+- Operator-confirmed real AC response: `power_on`, `power_off`, and `temp_26`.
+- Important physical limitation: the IR transmitter needed to be within
+  approximately 20 cm of the AC receiver for reliable response in the lab.
 
 ## Deferred Software Execution
 

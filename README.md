@@ -181,11 +181,7 @@ Engineering references:
 
 Current open work:
 
-- [ ] IR-5 PYNQ board bring-up: integrated PYNQ driver smoke has sent
-  `temp_26` through `gree_ir_axi_v1_0_0 @ 0x40005000` and reported
-  `done=true/error=false`; still confirm and record lab Gree AC response from
-  the integrated overlay before closing this loop.
-- [ ] After IR hardware validation, resume
+- [ ] Resume
   [docs/software_integration_plan.md](docs/software_integration_plan.md):
   implement the PYNQ top-level orchestrator, PC policy/service refactor,
   `control_command`, and `control_status` flow.
@@ -213,6 +209,9 @@ SPI TFT LCD, humidifier, and PC socket/Excel demo.
 - [x] IR-4 integrated Vivado overlay: `gree_ir_axi_v1_0_0` added to the
   integrated Block Design, `ir_pwm` exported and placed on `T14`, and
   `system_v0_2.bit/.hwh/.tcl` exported under `vivado/gen/`.
+- [x] IR-5 PYNQ board bring-up: integrated overlay driver smoke sent
+  `power_on`, `power_off`, and `temp_26`; the lab Gree AC responded when the
+  IR transmitter was within approximately 20 cm of the AC receiver.
 
 Further work:
 

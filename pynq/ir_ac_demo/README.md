@@ -71,6 +71,11 @@ Each attempt prints a timestamped `before` and `after` status. A successful
 driver/IP transaction should report `done: True`, `error: False`, and
 `command: temp_26` after every attempt.
 
+Board validation on 2026-06-10 confirmed the lab Gree AC responded to
+`power_on`, `power_off`, and `temp_26` from the integrated `system_v0_2`
+overlay. The IR transmitter needed to be within approximately 20 cm of the AC
+receiver for reliable response.
+
 ## Safety
 
 - Use 3.3 V logic into the PYNQ-Z1 PL pin.

@@ -366,16 +366,16 @@ Known limitations before IR-5:
   The build still routes, meets timing, and writes a bitstream. If IR TX shows
   unstable behavior on board, prioritize replacing the IR core soft reset with
   a synchronous reset implementation.
-- This is not PYNQ runtime evidence and does not yet confirm real lab AC
-  response from the integrated overlay.
+- This section is pre-board static evidence only; IR-5 board evidence is
+  recorded below.
 
-Expected next checks:
+IR-5 board checks:
 
-- IR-5 PYNQ board smoke sends a safe verified preset, records TX
+- PYNQ board smoke sends verified presets, records TX
   `done=true/error=false`, and confirms lab Gree AC response from the
   integrated overlay.
 
-IR-5 partial PYNQ board smoke:
+IR-5 PYNQ board smoke:
 
 Date: 2026-06-10. Overlay artifact:
 `/home/xilinx/jupyter_notebooks/sleep_monitor/system_v0_2.bit`. IP base:
@@ -404,8 +404,10 @@ Scope of this evidence:
 - Confirms PYNQ MMIO binding to the integrated IR IP at `0x40005000`.
 - Confirms `temp_26` maps to preset `5` and updates the command shadow.
 - Confirms one TX transaction completed without the IP error bit.
-- This is not yet recorded as real lab AC response evidence unless an operator
-  also confirms the AC reacted to the command.
+- User confirmed real lab AC response to `power_on`, `power_off`, and
+  `temp_26` from the integrated overlay.
+- Important physical limitation: the IR transmitter needed to be within
+  approximately 20 cm of the AC receiver for reliable response in the lab.
 
 ### DHT11 AXI IP
 

@@ -272,8 +272,10 @@ Expected result:
 - The command prints `before` and `after` status dictionaries.
 - `after` should report `done: True`, `error: False`, `preset: 5`, and
   `command: temp_26`.
-- If the lab AC is available and aimed correctly, confirm real response by
-  observation before claiming IR-5 board evidence.
+- Board validation on 2026-06-10 confirmed the lab Gree AC responded to
+  `power_on`, `power_off`, and `temp_26` from the integrated overlay.
+- In the lab setup, the IR transmitter needed to be within approximately 20 cm
+  of the AC receiver for reliable response.
 
 For distance or aiming checks, keep the same command and repeat it for a
 bounded period:
@@ -343,6 +345,7 @@ Useful fields:
 | TFT blank | Wiring, backlight, reset/DC pins, or SPI speed issue | Confirm PMODA wiring and retry with `--tft-clkdiv 50` |
 | DHT11 always zero | Sensor timing, pullup, or data pin issue | Use 1 to 2 second read interval and confirm `R17` DATA pullup |
 | SpO2 never updates | UART signal direction or frame mode issue | Start with default 5-byte mode; board test confirmed the module-side RX/TX labels may need crossed wiring on `W14/Y14` |
+| IR TX status is done but AC does not react | IR distance or aiming issue | Move the transmitter within approximately 20 cm of the AC receiver and adjust angle before changing RTL/software |
 | Board-side Python cannot import `pynq` | Wrong Python interpreter | Use `sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6` |
 
 ## When Updating Files
