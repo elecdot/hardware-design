@@ -120,6 +120,7 @@ Implemented or active subtrees:
 | [rtl/axi_humidifier/](rtl/axi_humidifier/) | Humidifier/LED AXI RTL migrated from handoff. |
 | [rtl/tft_lcd_spi_axi/](rtl/tft_lcd_spi_axi/) | TFT LCD SPI AXI RTL migrated from handoff. |
 | [rtl/axi_uart_spo2/](rtl/axi_uart_spo2/) | UART SpO2 AXI RTL migrated from handoff. |
+| [sim/tb_gree_ir_axi/](sim/tb_gree_ir_axi/) | TX-only Gree IR AC AXI preset/start/done/error regression. |
 | [sim/tb_i2c_mpu9250/](sim/tb_i2c_mpu9250/) | Behavioral simulation for the JY901 burst-read path. |
 | [pynq/jy901_demo/](pynq/jy901_demo/) | Minimal PYNQ-Z1 JY901 bitstream/MMIO demo for classroom presentation. |
 | [pynq/dht11_demo/](pynq/dht11_demo/) | DHT11 PYNQ driver/demo migrated from handoff. |
@@ -178,8 +179,6 @@ Engineering references:
 
 Current open work:
 
-- [ ] IR-2 module regression: add focused simulation for Gree IR TX preset
-  selection, start/done/error behavior, and explicit PASS/FAIL output.
 - [ ] IR-3 IP packaging: package `gree_ir_axi_v1_0` from tracked RTL and
   validate AXI4-Lite metadata, `ir_pwm` external port, parameters, and file
   sets.
@@ -209,6 +208,8 @@ SPI TFT LCD, humidifier, and PC socket/Excel demo.
 - [x] IR-1 source migration skeleton: TX-only Gree IR AC RTL migrated into
   `rtl/gree_ir_axi/`, PYNQ TX demo skeleton added under `pynq/ir_ac_demo/`,
   and local README/register/wiring docs updated.
+- [x] IR-2 module regression: focused Icarus simulation for Gree IR TX preset
+  selection, start/done/error behavior, and explicit PASS output.
 
 Further work:
 

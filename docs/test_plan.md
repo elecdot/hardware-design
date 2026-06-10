@@ -259,16 +259,49 @@ Source:
 Current status:
 
 - IR-1 source migration skeleton is complete for TX-only scope.
+- IR-2 focused module regression passes locally with Icarus Verilog.
 - The handoff RX capture IP remains standalone validation tooling and is not in
   the first integrated source path.
 - Teammate standalone module testing confirmed the lab Gree AC responds to the
   handoff command set. This is standalone evidence, not integrated overlay
   evidence.
 
+IR-2 simulation evidence:
+
+Date: 2026-06-10. Tool: Icarus Verilog (`iverilog` + `vvp`).
+
+Command:
+
+```powershell
+iverilog -g2012 -o E:\tmp\tb_gree_ir_axi.vvp `
+  sim\tb_gree_ir_axi\tb_gree_ir_axi.v `
+  rtl\gree_ir_axi\gree_ir_core.v `
+  rtl\gree_ir_axi\gree_ir_axi_v1_0_S00_AXI.v `
+  rtl\gree_ir_axi\gree_ir_axi_v1_0.v
+vvp E:\tmp\tb_gree_ir_axi.vvp
+```
+
+Observed PASS marker:
+
+```text
+tb_gree_ir_axi PASS
+```
+
+Scope of this evidence:
+
+- Reset defaults for `PRESET`, `CMD_LOW`, `CMD_HIGH`, and `STATUS`.
+- All seven committed preset IDs and command-shadow register values.
+- Normal `CONTROL.start` to `STATUS.done` behavior.
+- Write-1-to-clear behavior for `STATUS.done` and `STATUS.error`.
+- Repeated start while busy latches `STATUS.error`.
+- `CONTROL.soft_reset` clears active/latch status.
+
+The testbench shortens internal ROM durations through simulation-only
+hierarchical assignment. This is not Vivado synthesis, IP packaging, integrated
+BD validation, or board evidence.
+
 Expected next checks:
 
-- IR-2 simulation emits explicit PASS/FAIL for preset selection and
-  start/done/error behavior.
 - IR-3 Vivado package validates AXI4-Lite metadata and `ir_pwm` external port.
 - IR-4 integrated overlay constrains `ir_pwm` to Arduino `ck_io[0]` / `T14`.
 - IR-5 PYNQ board smoke sends a safe verified preset, records TX

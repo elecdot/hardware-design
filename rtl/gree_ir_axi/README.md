@@ -75,5 +75,7 @@ IR LED directly from an FPGA pin.
 
 - Teammate standalone module test confirmed the lab Gree AC responds to the
   handoff command set.
-- Local repo simulation for this migrated RTL is planned in `IR-2`.
+- Local repo simulation passed in `IR-2`: `sim/tb_gree_ir_axi/` validates reset
+  defaults, all seven preset shadows, start/done, clear-done/clear-error,
+  repeated-start error latch, and soft reset.
 - Integrated Vivado packaging and board smoke are not complete yet.

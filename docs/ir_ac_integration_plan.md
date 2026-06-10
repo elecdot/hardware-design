@@ -276,10 +276,13 @@ Status: complete.
 
 ### IR-2: Module Regression
 
+Status: complete.
+
 - Add a focused simulation for TX preset selection and done/error behavior.
 - Test at least one preset and ideally all seven preset IDs.
 - Testbench output must include explicit PASS/FAIL.
 - This does not claim real AC behavior; it only validates RTL behavior.
+- Local evidence: `tb_gree_ir_axi PASS` with Icarus Verilog on 2026-06-10.
 
 ### IR-3: IP Packaging
 
