@@ -286,11 +286,16 @@ Status: complete.
 
 ### IR-3: IP Packaging
 
+Status: complete.
+
 - Package `gree_ir_axi_v1_0` from tracked `rtl/gree_ir_axi/`.
 - Keep RX package out of the first integrated IP repo unless intentionally
   needed for validation.
 - Validate AXI4-Lite metadata, external port `ir_pwm`, parameters, and source
   file sets.
+- Local static validation on 2026-06-10 confirmed package output under
+  `vivado/ip_repo/ir_ac_axi/`, matching packaged HDL hashes, 4K AXI memory map,
+  `ir_pwm` output, and default timing parameters.
 
 ### IR-4: Integrated Vivado Overlay
 

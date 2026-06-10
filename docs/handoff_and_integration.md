@@ -31,7 +31,7 @@ locations. Do not treat generated Vivado cache/output directories as source.
 | Humidifier | `handoff/humidifier_handoff_pack_20260601(1)/humidifier_handoff_pack_20260601/` | `rtl/axi_humidifier/`, `sim/tb_axi_humidifier/`, `pynq/humidifier_demo/`, optional LED XDC | Handoff records Vivado packaging integrity pass and two simulation PASS markers. |
 | TFT LCD | `handoff/tft_lcd_handoff_pack_20260601/tft_lcd_handoff_pack_20260601/` | `rtl/tft_lcd_spi_axi/`, `sim/tb_tft_lcd_spi_axi/`, `pynq/tft_lcd_demo/`, `vivado/constraints/tft_lcd_pynq_z1.xdc` | Testbenches include PASS markers; handoff notes say local machine lacked simulator tools. PYNQ/Jupyter code is reported as board-tested. |
 | UART SpO2 | `handoff/uart_spo2_pynq_handoff_20260601_portable/handoff_uart_spo2_pynq_20260601/` | `rtl/axi_uart_spo2/`, `sim/tb_axi_uart_spo2/`, `pynq/spo2_demo/`, `vivado/constraints/spo2_pmodb_pynq_z1.xdc` | PYNQ overlay artifacts and runtime helper exist; no module-level regression test was found in the handoff scan. |
-| Gree IR AC TX/RX | `handoff/gree_ir_txrx_hardware_package/` | First integration targets TX-only: `rtl/gree_ir_axi/`, `sim/tb_gree_ir_axi/`, `pynq/ir_ac_demo/`, integrated XDC `ir_pwm=T14`; RX remains standalone validation tooling. | IR-1 source migration skeleton and IR-2 focused module regression are complete. Teammate completed standalone module testing and confirmed the lab Gree AC responds to the handoff command set. Detailed plan: [ir_ac_integration_plan.md](ir_ac_integration_plan.md). |
+| Gree IR AC TX/RX | `handoff/gree_ir_txrx_hardware_package/` | First integration targets TX-only: `rtl/gree_ir_axi/`, `sim/tb_gree_ir_axi/`, `pynq/ir_ac_demo/`, integrated XDC `ir_pwm=T14`; RX remains standalone validation tooling. | IR-1 source migration skeleton, IR-2 focused module regression, and IR-3 package static validation are complete. Teammate completed standalone module testing and confirmed the lab Gree AC responds to the handoff command set. Detailed plan: [ir_ac_integration_plan.md](ir_ac_integration_plan.md). |
 | PC socket/Excel demo | `handoff/sleep_socket_project/sleep_socket_project/` | `pc_server/`, optional `pynq/sleep_demo/` client, and [protocol.md](protocol.md) | Handoff records a working PC-side TCP newline-JSON server, fake client, Excel writer, and rule-based classifier demo. |
 
 Target paths are planned names. Create or adjust local README files when the
@@ -144,6 +144,17 @@ Status on 2026-06-03:
 - Vivado CLI is not available in the current shell `PATH`; therefore catalog
   refresh and BD instantiation remain Phase 4 Vivado validation tasks.
 
+Status on 2026-06-10:
+
+- The TX-only Gree IR AC package exists under `vivado/ip_repo/ir_ac_axi/`.
+- Local static validation confirmed `component.xml`, `xgui/`, copied `src/`
+  files, AXI4-Lite metadata, a 4096-byte memory map, expected parameters, and
+  the external `ir_pwm` output.
+- Packaged HDL copies match the authoritative RTL files under
+  `rtl/gree_ir_axi/`.
+- Vivado CLI is not available in the current shell `PATH`; therefore catalog
+  refresh and BD instantiation remain IR-4 Vivado validation tasks.
+
 ### Phase 4: Block Design Integration
 
 - Build the integrated overlay from the shared `vivado/ip_repo/`; this is the
@@ -164,8 +175,8 @@ Phase 4 entry plan:
    shared `vivado/ip_repo/`.
 2. Refresh the IP catalog and confirm these IPs are discoverable:
    `axi_i2c_jy901_v1_0`, `axi_humidifier_v1_0`,
-   `tft_lcd_spi_axi_v1_0`, `dht11_axi_v1_0`, and
-   `axi_uart_spo2_v1_0`.
+   `tft_lcd_spi_axi_v1_0`, `dht11_axi_v1_0`,
+   `axi_uart_spo2_v1_0`, and `gree_ir_axi_v1_0`.
    If Vivado still reports `i2c_scl/i2c_sda` occupying PMODA `Y17/Y16`, the
    project is using stale JY901 IP output products or an old JY901 PMODA XDC.
    Refresh the IP catalog, upgrade/regenerate the JY901 IP instance, and ensure
@@ -174,7 +185,9 @@ Phase 4 entry plan:
 3. Start from a minimal Zynq PS design with 100 MHz FCLK, AXI GP master,
    Processor System Reset, and AXI Interconnect or SmartConnect.
 4. Add one AXI slave at a time, run `Validate Design`, and only then add the
-   next IP. Recommended order: JY901, humidifier, TFT LCD, DHT11, UART SpO2.
+   next IP. Recommended order for the current IR-4 update: start from the
+   existing validated JY901, humidifier, TFT LCD, DHT11, and UART SpO2 design,
+   then add Gree IR TX as the next and only new AXI slave.
 5. For the first PS-controlled humidifier path, tie `humidity_hw_valid` low and
    `humidity_hw[7:0]` to zero; expose `humidifier_leds[3:0]` only unless the
    scalar `humidifier_led` is intentionally constrained.

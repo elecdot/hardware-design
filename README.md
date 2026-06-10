@@ -132,8 +132,10 @@ Implemented or active subtrees:
 | [pc_server/](pc_server/) | PC socket/Excel demo migrated from handoff for the deferred PC integration layer. |
 | [vivado/constraints/](vivado/constraints/) | Board-level XDC constraints. |
 | [vivado/ip_repo/](vivado/ip_repo/) | Shared packaged custom IP repository for Vivado projects. |
+| [vivado/ip_repo/ir_ac_axi/](vivado/ip_repo/ir_ac_axi/) | Packaged TX-only Gree IR AC AXI IP. |
 | [vivado/project/axi_i2c_jy901_package/](vivado/project/axi_i2c_jy901_package/) | JY901 AXI I2C IP packaging project. |
 | [vivado/project/axi_i2c_jy901/](vivado/project/axi_i2c_jy901/) | JY901 AXI/PYNQ overlay project. |
+| [vivado/project/ir_axi_package/](vivado/project/ir_axi_package/) | TX-only Gree IR AC AXI IP packaging project. |
 | [vivado/project/jy901_hw_debug/](vivado/project/jy901_hw_debug/) | PL-only JY901 hardware debug and ILA bring-up project. |
 | [vivado/project/i2c_ip_test/](vivado/project/i2c_ip_test/) | Legacy Vivado project for historical I2C IP testing. |
 | [vivado/gen/](vivado/gen/) | Ignored local export folder for temporary `.bit`/`.hwh` files. |
@@ -179,9 +181,6 @@ Engineering references:
 
 Current open work:
 
-- [ ] IR-3 IP packaging: package `gree_ir_axi_v1_0` from tracked RTL and
-  validate AXI4-Lite metadata, `ir_pwm` external port, parameters, and file
-  sets.
 - [ ] IR-4 integrated Vivado overlay: add TX-only `gree_ir_axi_v1_0_0` to the
   current integrated Block Design, expose `ir_pwm`, constrain it to
   `T14 / Arduino ck_io[0]`, rebuild, and export matching PYNQ artifacts.
@@ -210,6 +209,9 @@ SPI TFT LCD, humidifier, and PC socket/Excel demo.
   and local README/register/wiring docs updated.
 - [x] IR-2 module regression: focused Icarus simulation for Gree IR TX preset
   selection, start/done/error behavior, and explicit PASS output.
+- [x] IR-3 IP packaging: `gree_ir_axi_v1_0` packaged under
+  `vivado/ip_repo/ir_ac_axi/` from tracked RTL and statically validated for
+  AXI4-Lite metadata, `ir_pwm`, parameters, and file sets.
 
 Further work:
 

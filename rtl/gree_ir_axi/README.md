@@ -78,4 +78,6 @@ IR LED directly from an FPGA pin.
 - Local repo simulation passed in `IR-2`: `sim/tb_gree_ir_axi/` validates reset
   defaults, all seven preset shadows, start/done, clear-done/clear-error,
   repeated-start error latch, and soft reset.
-- Integrated Vivado packaging and board smoke are not complete yet.
+- Vivado IP packaging static validation passed in `IR-3` for
+  `vivado/ip_repo/ir_ac_axi/`.
+- Integrated Vivado overlay and board smoke are not complete yet.

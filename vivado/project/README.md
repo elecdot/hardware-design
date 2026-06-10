@@ -11,6 +11,7 @@ simulation products are Vivado state rather than authoritative design source.
 |---|---|
 | [axi_i2c_jy901_package/](axi_i2c_jy901_package/) | IP packaging project for `axi_i2c_jy901_v1_0`; uses RTL from `rtl/i2c_mpu9250/` and updates the shared [../ip_repo/](../ip_repo/). |
 | [axi_i2c_jy901/](axi_i2c_jy901/) | PYNQ/Zynq overlay project. Instantiates the packaged AXI I2C IP in Block Design `jy901_axi_system`, top `jy901_axi_system_wrapper`, and applies [../constraints/axi_i2c_jy901_package.xdc](../constraints/axi_i2c_jy901_package.xdc). |
+| [ir_axi_package/](ir_axi_package/) | IP packaging project for `gree_ir_axi_v1_0`; uses RTL from `rtl/gree_ir_axi/` and updates [../ip_repo/ir_ac_axi/](../ip_repo/ir_ac_axi/). |
 | [jy901_hw_debug/](jy901_hw_debug/) | PL-only hardware debug project for `jy901_hw_debug_top`; uses [../constraints/jy901_debug.xdc](../constraints/jy901_debug.xdc), optional ILA, and direct PMODA I2C bring-up. |
 | [i2c_ip_test/](i2c_ip_test/) | Legacy reference project. It mixes packaging, Block Design, and debug flows; do not use it as the clean entry point for new work. |
 

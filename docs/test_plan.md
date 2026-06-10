@@ -260,6 +260,8 @@ Current status:
 
 - IR-1 source migration skeleton is complete for TX-only scope.
 - IR-2 focused module regression passes locally with Icarus Verilog.
+- IR-3 packaged IP static validation is complete for
+  `vivado/ip_repo/ir_ac_axi/`.
 - The handoff RX capture IP remains standalone validation tooling and is not in
   the first integrated source path.
 - Teammate standalone module testing confirmed the lab Gree AC responds to the
@@ -300,9 +302,38 @@ The testbench shortens internal ROM durations through simulation-only
 hierarchical assignment. This is not Vivado synthesis, IP packaging, integrated
 BD validation, or board evidence.
 
+IR-3 IP packaging static validation:
+
+Date: 2026-06-10. Package project:
+`vivado/project/ir_axi_package/ir_axi_package.xpr`. Packaged IP:
+`vivado/ip_repo/ir_ac_axi/`.
+
+Scope:
+
+- User completed packaging in Vivado.
+- Local validation inspected `component.xml`, `xgui/`, copied `src/` files,
+  AXI4-Lite metadata, 4096-byte memory map, parameter defaults, and external
+  port metadata.
+- Vivado CLI is not available in the current shell `PATH`, so this is not a
+  Vivado batch catalog-validation or `ipx::check_integrity` log.
+- This is not BD validation, synthesis, implementation, bitstream export, or
+  board evidence.
+
+Validated package facts:
+
+| Item | Evidence |
+|---|---|
+| VLNV | `xilinx.com:user:gree_ir_axi_v1_0:1.0` |
+| Packaged files | `component.xml`, `xgui/gree_ir_axi_v1_0_v1_0.tcl`, and `src/` RTL files present |
+| Source ownership | Packaged HDL SHA256 values match `rtl/gree_ir_axi/` for `gree_ir_core.v`, `gree_ir_axi_v1_0_S00_AXI.v`, and `gree_ir_axi_v1_0.v` |
+| AXI metadata | `s00_axi` `aximm/aximm_rtl` slave, associated `s00_axi_aclk`, associated active-low `s00_axi_aresetn` |
+| Memory map | `reg0` base `0x0`, range `4096`, width `32` |
+| Parameters | `C_S00_AXI_DATA_WIDTH=32`, `C_S00_AXI_ADDR_WIDTH=5`, `CORE_CLK_FREQ=100000000`, `CORE_CLK_1US=100`, `CORE_CARRIER_HZ=38000` |
+| External port | `ir_pwm` output is present; no board pin constraint is embedded in the IP package |
+| Project metadata | `ir_axi_package.xpr` references tracked RTL and `vivado/ip_repo/ir_ac_axi/component.xml`; `IPRepoPath` is aligned to `../../ip_repo/ir_ac_axi` |
+
 Expected next checks:
 
-- IR-3 Vivado package validates AXI4-Lite metadata and `ir_pwm` external port.
 - IR-4 integrated overlay constrains `ir_pwm` to Arduino `ck_io[0]` / `T14`.
 - IR-5 PYNQ board smoke sends a safe verified preset, records TX
   `done=true/error=false`, and confirms lab Gree AC response from the

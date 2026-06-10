@@ -23,3 +23,9 @@ Board-level XDC files must not be included in reusable IP synthesis file sets.
 The root-level JY901 package is reused by both the old PMODA overlay and the
 integrated overlay; pin constraints belong in the consuming Vivado project, not
 inside the packaged IP.
+
+## Packaged IP
+
+| Path | IP |
+|---|---|
+| [ir_ac_axi/](ir_ac_axi/) | `xilinx.com:user:gree_ir_axi_v1_0:1.0`, TX-only Gree IR AC AXI IP. |
