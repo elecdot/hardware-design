@@ -99,3 +99,34 @@ backlight can be accidentally deasserted.
 
 The IP defaults to 5-byte frame mode. Use `CTRL[4]` only after confirming the
 physical sensor emits the 7-byte frame format.
+
+### gree_ir_axi_v1_0
+
+TX-only AXI-Lite Gree YB0F2 IR AC transmitter migrated from
+`handoff/gree_ir_txrx_hardware_package/`. The first integrated scope exposes
+only the seven verified preset commands and does not include the handoff RX
+capture IP.
+
+| Offset | Name | Access | Reset | Description |
+|---:|---|---|---:|---|
+| `0x00` | `CONTROL` | RW/pulse | `0x00000000` | bit0 `start` pulse, bit1 `soft_reset` pulse. A `start` while the core is busy latches `STATUS.error`. |
+| `0x04` | `STATUS` | R/W1C | dynamic | bit0 `busy`, bit1 `done`, bit2 `error`. Write `1` to bit1 or bit2 to clear the corresponding latched status. |
+| `0x08` | `CMD_LOW` | RW | `0x00080016` | Low 32 bits of the compatibility command shadow. This is not a raw transmit path in first scope. |
+| `0x0C` | `CMD_HIGH` | RW | `0x090040A4` | High 32 bits of the compatibility command shadow. This is not a raw transmit path in first scope. |
+| `0x10` | `PRESET` | RW | `0x00000001` | Selects the 67-bit command ROM preset. Valid presets are 1 to 7. |
+| `0x14` | `DEBUG` | R | dynamic | `[3:0] core state`, `[17:8] debug bit/sample index`. |
+
+Supported first-version presets:
+
+| Preset | Command | 67-bit command |
+|---:|---|---|
+| 1 | `power_on` | `0x1090040A400080016` |
+| 2 | `power_off` | `0x8050040A40008001C` |
+| 3 | `temp_24` | `0x9010040A400080016` |
+| 4 | `temp_25` | `0x9090040A40008000E` |
+| 5 | `temp_26` | `0x9050040A40008001E` |
+| 6 | `temp_27` | `0x90D0040A400080000` |
+| 7 | `temp_28` | `0x9030040A400080010` |
+
+Planned integrated base address is `0x4000_5000`, but the final address must be
+confirmed in Vivado Address Editor before PYNQ driver binding.

@@ -21,6 +21,7 @@ driver smoke test evidence exist.
 | UART SpO2 | `uart_rxd` | PMODB pin 2, `Y14` | Course teaching guide lists `PMODB_2/JB1_N/Y14`; if BPM/SpO2 stay `NA`, swap the two UART signal wires before changing RTL. |
 | DHT11 | `dht11_0` | Arduino IO11 `R17` | Bidirectional one-wire DATA with pullup. |
 | Humidifier | `humidifier_leds[3:0]` | Board LEDs `R14/P14/N16/M14` | LED output simulates an actuator; do not drive loads directly. |
+| Gree IR AC TX | `ir_pwm` | Arduino `ck_io[0]`, `T14` | TX-only first integration. Use an IR transmitter module or driver circuit; do not drive a bare IR LED directly from PL. |
 
 All PL-connected signals must be 3.3 V logic. If a module is powered from 5 V,
 verify that its FPGA-facing signal pins are still 3.3 V TTL or add level
@@ -29,6 +30,23 @@ shifting.
 UART links must share ground. For the SpO2 module used in the integrated board
 test, the working orientation was confirmed only after reversing the module-side
 RX/TX wiring relative to its labels.
+
+IR transmitter modules must share ground with the PYNQ-Z1. If a transmitter is
+powered from an external supply, verify that its `IN/SIG` pin accepts 3.3 V
+logic before connecting `ir_pwm`.
+
+## Gree IR AC Transmitter
+
+First integrated target:
+
+| IR transmitter | PYNQ-Z1 | Notes |
+|---|---|---|
+| VCC | 3V3 or external module supply | Confirm module input remains 3.3 V-compatible if powered externally. |
+| GND | GND | Shared ground is required. |
+| IN / SIG | Arduino `ck_io[0]`, `T14` | Driven by `ir_pwm` from `gree_ir_axi_v1_0`. |
+
+The handoff package's standalone test confirmed the lab Gree AC responds to the
+seven Gree YB0F2 preset commands. Integrated overlay response is still pending.
 
 ## JY901 I2C Module
 

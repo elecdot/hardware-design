@@ -265,6 +265,8 @@ Excel logging around that contract.
 
 ### IR-1: Source Migration Skeleton
 
+Status: complete.
+
 - Copy TX-only RTL into `rtl/gree_ir_axi/`.
 - Copy or adapt the PYNQ TX driver into `pynq/ir_ac_demo/`.
 - Do not migrate RX RTL into the first integrated source path.

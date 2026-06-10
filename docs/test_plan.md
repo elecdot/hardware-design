@@ -247,6 +247,34 @@ Known remaining limitations:
   board image; the current integrated board smoke uses the documented static
   address-map fallback.
 
+### Gree IR AC TX
+
+Source:
+
+- [../rtl/gree_ir_axi/](../rtl/gree_ir_axi/)
+- [../pynq/ir_ac_demo/](../pynq/ir_ac_demo/)
+- Handoff source:
+  `../handoff/gree_ir_txrx_hardware_package/`
+
+Current status:
+
+- IR-1 source migration skeleton is complete for TX-only scope.
+- The handoff RX capture IP remains standalone validation tooling and is not in
+  the first integrated source path.
+- Teammate standalone module testing confirmed the lab Gree AC responds to the
+  handoff command set. This is standalone evidence, not integrated overlay
+  evidence.
+
+Expected next checks:
+
+- IR-2 simulation emits explicit PASS/FAIL for preset selection and
+  start/done/error behavior.
+- IR-3 Vivado package validates AXI4-Lite metadata and `ir_pwm` external port.
+- IR-4 integrated overlay constrains `ir_pwm` to Arduino `ck_io[0]` / `T14`.
+- IR-5 PYNQ board smoke sends a safe verified preset, records TX
+  `done=true/error=false`, and confirms lab Gree AC response from the
+  integrated overlay.
+
 ### DHT11 AXI IP
 
 Source:

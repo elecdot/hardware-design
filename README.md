@@ -116,6 +116,7 @@ Implemented or active subtrees:
 |---|---|
 | [rtl/i2c_mpu9250/](rtl/i2c_mpu9250/) | AXI-Lite I2C/JY901 RTL implementation. |
 | [rtl/dht11_axi/](rtl/dht11_axi/) | DHT11 AXI RTL migrated from handoff. |
+| [rtl/gree_ir_axi/](rtl/gree_ir_axi/) | TX-only Gree IR AC AXI RTL migrated from handoff. |
 | [rtl/axi_humidifier/](rtl/axi_humidifier/) | Humidifier/LED AXI RTL migrated from handoff. |
 | [rtl/tft_lcd_spi_axi/](rtl/tft_lcd_spi_axi/) | TFT LCD SPI AXI RTL migrated from handoff. |
 | [rtl/axi_uart_spo2/](rtl/axi_uart_spo2/) | UART SpO2 AXI RTL migrated from handoff. |
@@ -123,6 +124,7 @@ Implemented or active subtrees:
 | [pynq/jy901_demo/](pynq/jy901_demo/) | Minimal PYNQ-Z1 JY901 bitstream/MMIO demo for classroom presentation. |
 | [pynq/dht11_demo/](pynq/dht11_demo/) | DHT11 PYNQ driver/demo migrated from handoff. |
 | [pynq/humidifier_demo/](pynq/humidifier_demo/) | Humidifier PYNQ driver/demo migrated from handoff. |
+| [pynq/ir_ac_demo/](pynq/ir_ac_demo/) | TX-only Gree IR AC driver/demo migrated from handoff. |
 | [pynq/sleep_demo/](pynq/sleep_demo/) | Integrated PYNQ demo skeleton for the final overlay. |
 | [pynq/tft_lcd_demo/](pynq/tft_lcd_demo/) | TFT LCD PYNQ driver/demo migrated from handoff. |
 | [pynq/spo2_demo/](pynq/spo2_demo/) | UART SpO2 PYNQ helper migrated from handoff. |
@@ -176,9 +178,6 @@ Engineering references:
 
 Current open work:
 
-- [ ] IR-1 source migration skeleton: migrate TX-only Gree IR AC RTL from
-  `handoff/gree_ir_txrx_hardware_package/` into `rtl/gree_ir_axi/`, add
-  `pynq/ir_ac_demo/`, and update local README/register/wiring docs.
 - [ ] IR-2 module regression: add focused simulation for Gree IR TX preset
   selection, start/done/error behavior, and explicit PASS/FAIL output.
 - [ ] IR-3 IP packaging: package `gree_ir_axi_v1_0` from tracked RTL and
@@ -203,10 +202,13 @@ generation, Python driver implementation, and hardware smoke test verification.
 - [x] Handoff source/documentation migration skeleton for UART SpO2, DHT11,
 SPI TFT LCD, humidifier, and PC socket/Excel demo.
 - [x] Integrated local board demo pass for JY901, DHT11, UART SpO2, TFT LCD,
-humidifier status/control, and display update, with documented metadata
-fallback limitations.
+  humidifier status/control, and display update, with documented metadata
+  fallback limitations.
 - [x] TX-only Gree IR AC integration plan and deferred software integration
-plan documented; teammate standalone test confirmed lab Gree AC response.
+  plan documented; teammate standalone test confirmed lab Gree AC response.
+- [x] IR-1 source migration skeleton: TX-only Gree IR AC RTL migrated into
+  `rtl/gree_ir_axi/`, PYNQ TX demo skeleton added under `pynq/ir_ac_demo/`,
+  and local README/register/wiring docs updated.
 
 Further work:
 
