@@ -172,6 +172,7 @@ Engineering references:
 | [docs/handoff_and_integration.md](docs/handoff_and_integration.md) | Handoff migration and integration plan for teammate modules. |
 | [docs/ir_ac_integration_plan.md](docs/ir_ac_integration_plan.md) | Closed TX-only Gree IR AC hardware integration record and confirmed protocol decisions. |
 | [docs/software_integration_plan.md](docs/software_integration_plan.md) | Current PC/PYNQ software integration plan after IR hardware demo validation. |
+| [docs/software_integration_runbook.md](docs/software_integration_runbook.md) | Executable PC/PYNQ software integration runbook, including deployment, socket smoke, and evidence capture. |
 | [docs/ip_packaging_manual.md](docs/ip_packaging_manual.md) | Phase 3 Vivado IP packaging checklist for migrated RTL modules. |
 | [docs/protocol.md](docs/protocol.md) | PYNQ-to-PC newline-delimited JSON protocol. |
 | [docs/work_notes.md](docs/work_notes.md) | Human work notes, safety reminders, and common failure modes. |

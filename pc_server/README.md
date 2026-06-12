@@ -118,6 +118,10 @@ python fake_pynq_client_selftest.py
 For real PYNQ integration, the board client must connect to the PC's real IPv4
 address, not `127.0.0.1`.
 
+Use [../docs/software_integration_runbook.md](../docs/software_integration_runbook.md)
+for the full PC/PYNQ integration sequence, including PYNQ file deployment,
+dry-run socket smoke, real board client run, and evidence capture.
+
 ## Protocol Direction
 
 For each board-originated `sensor_data`, the final PC service sends exactly two

@@ -13,6 +13,7 @@ Project design notes, hardware references, register maps, wiring notes, and test
 | [handoff_and_integration.md](handoff_and_integration.md) | Handoff migration and Vivado/PYNQ integration plan for teammate modules. |
 | [ir_ac_integration_plan.md](ir_ac_integration_plan.md) | Closed TX-only Gree IR AC integration plan, evidence, protocol decisions, and execution phases. |
 | [software_integration_plan.md](software_integration_plan.md) | Current PC/PYNQ software integration plan after IR hardware demo validation. |
+| [software_integration_runbook.md](software_integration_runbook.md) | Executable PC/PYNQ software integration runbook, including rsync deployment and socket smoke steps. |
 | [ip_packaging_manual.md](ip_packaging_manual.md) | Phase 3 executable Vivado IP packaging checklist for migrated RTL modules. |
 | [protocol.md](protocol.md) | PYNQ-to-PC newline-delimited JSON protocol. |
 | [demo_plan.md](demo_plan.md) | Course demo or presentation flow notes. |

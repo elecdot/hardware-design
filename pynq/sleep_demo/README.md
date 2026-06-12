@@ -14,6 +14,10 @@ Integrated PYNQ demo skeleton for the final sleep-monitor overlay.
 | [board_client_selftest.py](board_client_selftest.py) | PC-runnable loopback self-test for board client plus minimal PC socket service. |
 | [BOARD_RUNBOOK.md](BOARD_RUNBOOK.md) | Step-by-step board deployment and integrated demo runbook. |
 
+For the PC/PYNQ socket integration procedure, including rsync deployment and
+record evidence capture, use
+[../../docs/software_integration_runbook.md](../../docs/software_integration_runbook.md).
+
 Planned software-integration files:
 
 | File | Purpose |
