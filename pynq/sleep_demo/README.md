@@ -10,13 +10,15 @@ Integrated PYNQ demo skeleton for the final sleep-monitor overlay.
 | [display_ui.py](display_ui.py) | ST7789 dashboard drawing helpers with full initial draw and fixed-region updates. |
 | [board_orchestrator.py](board_orchestrator.py) | Reusable top-level board wrapper for sampling, display update, humidifier target execution, IR AC guarded execution, and `control_status` creation. |
 | [board_orchestrator_selftest.py](board_orchestrator_selftest.py) | PC-runnable self-test for orchestrator protocol shape and fake actuator behavior. |
+| [board_client.py](board_client.py) | PYNQ-side socket client that sends `sensor_data`, receives `sleep_result` plus `control_command`, applies the command, and returns `control_status`. |
+| [board_client_selftest.py](board_client_selftest.py) | PC-runnable loopback self-test for board client plus minimal PC socket service. |
 | [BOARD_RUNBOOK.md](BOARD_RUNBOOK.md) | Step-by-step board deployment and integrated demo runbook. |
 
 Planned software-integration files:
 
 | File | Purpose |
 |---|---|
-| `board_client.py` | Socket client that sends `sensor_data`, receives `sleep_result` plus `control_command`, applies the command through the orchestrator, and sends `control_status`. |
+| (none) | The first socket client skeleton is now present; next work is board-side runtime validation. |
 
 Keep [integrated_demo.py](integrated_demo.py) as the local hardware
 smoke/fallback entry point. Do not turn it into the final socket client.
@@ -58,6 +60,22 @@ PC-runnable orchestrator self-test:
 
 ```bash
 python board_orchestrator_selftest.py
+```
+
+PC-runnable board client loopback self-test:
+
+```bash
+python board_client_selftest.py
+```
+
+First board-side socket-client shape:
+
+```bash
+sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6 board_client.py \
+  --host <PC_IPV4> \
+  --port 9000 \
+  --bitfile /home/xilinx/jupyter_notebooks/sleep_monitor/system_v0_2.bit \
+  --samples 30
 ```
 
 ## Socket Integration Direction

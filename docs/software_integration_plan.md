@@ -545,6 +545,25 @@ Initial implementation:
 - PYNQ returns `control_status`.
 - PC dashboard/logs show the complete loop.
 
+### SW-6a: Board Socket Client Skeleton
+
+- Add PYNQ-side socket transport around `SleepMonitorBoard`.
+- Keep the PYNQ runtime dependency-free beyond the standard library and local
+  demo drivers; do not import `pc_server/` on the board.
+- Send one `sensor_data`, wait for matching `sleep_result` and
+  `control_command`, apply the command, update display, and send one
+  `control_status`.
+- Validate message order and `sample_id` before executing commands.
+
+Initial implementation:
+
+- `pynq/sleep_demo/board_client.py` provides the lightweight newline-JSON
+  codec, connected-session runner, reconnecting client loop, and CLI wrapper.
+- The CLI can build the real board through `integrated_demo.bind_drivers()` or
+  run `--dry-run` for transport bring-up.
+- `pynq/sleep_demo/board_client_selftest.py` runs a real localhost TCP loop
+  against `pc_server/socket_service.py` with a fake board object.
+
 ## Open Items For This Phase
 
 - Exact Python module names and file split can be refined immediately before
