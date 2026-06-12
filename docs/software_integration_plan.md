@@ -524,6 +524,18 @@ Initial implementation:
 - Confirm IR rate-limit skip produces a valid `control_status`.
 - Confirm local TFT/stdout control-status summary is concise and nonblocking.
 
+Initial implementation:
+
+- `pynq/sleep_demo/board_orchestrator.py` provides `SleepMonitorBoard`.
+- It reuses the integrated demo's sensor read helpers for local sampling and
+  keeps socket transport out of the class.
+- It implements `apply_control_command()` for no-action, humidifier target
+  state, TX-only Gree IR AC command validation, IR minimum interval, repeated
+  command cooldown, rejected commands, and hardware-error reporting.
+- `pynq/sleep_demo/board_orchestrator_selftest.py` runs on the PC with fake
+  actuator drivers and validates generated `sensor_data`/`control_status`
+  dictionaries against the canonical PC protocol module.
+
 ### SW-6: PYNQ Real Socket Client
 
 - Run the integrated board sensor loop.

@@ -8,13 +8,14 @@ Integrated PYNQ demo skeleton for the final sleep-monitor overlay.
 |---|---|
 | [integrated_demo.py](integrated_demo.py) | Loads one integrated overlay, binds sensor/display/humidifier IPs, samples at a fixed interval, updates TFT, and prints canonical JSON-like records. |
 | [display_ui.py](display_ui.py) | ST7789 dashboard drawing helpers with full initial draw and fixed-region updates. |
+| [board_orchestrator.py](board_orchestrator.py) | Reusable top-level board wrapper for sampling, display update, humidifier target execution, IR AC guarded execution, and `control_status` creation. |
+| [board_orchestrator_selftest.py](board_orchestrator_selftest.py) | PC-runnable self-test for orchestrator protocol shape and fake actuator behavior. |
 | [BOARD_RUNBOOK.md](BOARD_RUNBOOK.md) | Step-by-step board deployment and integrated demo runbook. |
 
 Planned software-integration files:
 
 | File | Purpose |
 |---|---|
-| `board_orchestrator.py` | Reusable top-level hardware wrapper for overlay binding, sampling, display updates, humidifier control, IR AC command execution, and `control_status` creation. |
 | `board_client.py` | Socket client that sends `sensor_data`, receives `sleep_result` plus `control_command`, applies the command through the orchestrator, and sends `control_status`. |
 
 Keep [integrated_demo.py](integrated_demo.py) as the local hardware
@@ -52,6 +53,12 @@ The default IP names are:
 
 Use `--allow-missing` only for bring-up isolation. Final demo should run
 without missing required IPs.
+
+PC-runnable orchestrator self-test:
+
+```bash
+python board_orchestrator_selftest.py
+```
 
 ## Socket Integration Direction
 

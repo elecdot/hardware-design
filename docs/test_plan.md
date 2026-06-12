@@ -45,6 +45,25 @@ board-side integrated demo. Validate it in layers:
 Do not let PC firewall, IP address, or `openpyxl` setup block the lower-risk
 board-side integrated acceptance path.
 
+Current software-integration local self-tests:
+
+```text
+pc_server/protocol_selftest.py
+pc_server/classifier_adapter_selftest.py
+pc_server/comfort_policy_selftest.py
+pc_server/state_storage_selftest.py
+pc_server/service_selftest.py
+pc_server/socket_service_selftest.py
+pc_server/fake_pynq_client_selftest.py
+pynq/sleep_demo/board_orchestrator_selftest.py
+```
+
+The board orchestrator self-test is PC-runnable and uses fake actuator drivers.
+It validates protocol shape, no-action handling, synthetic humidifier target
+application, IR command rejection, IR cooldown skip, and hardware-error status
+format. It is not board evidence; real PYNQ socket-client evidence is still
+required before claiming end-to-end PC/PYNQ operation.
+
 ## Migrated Handoff Module Regression
 
 These modules have source files migrated from `handoff/` into tracked repo
