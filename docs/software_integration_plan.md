@@ -407,14 +407,25 @@ Initial implementation:
   data.
 - `pc_server/comfort_policy_selftest.py` is the dependency-free smoke test.
 
-### SW-2: PYNQ Orchestrator Local Smoke
-
 ### SW-2: PC State And Storage
 
 - Add `AppState`.
 - Add four-record storage support.
 - Confirm dashboard snapshots include sensor, model result, command, status,
   pending manual command, and last commanded state.
+
+Initial implementation:
+
+- `pc_server/state_store.py` provides a thread-safe `AppState` for one active
+  client, latest records, bounded histories, pending one-shot manual command,
+  control mode, and last-commanded actuator state.
+- `pc_server/storage.py` provides the first JSONL storage backend with one
+  validated append-only stream per protocol record type. This is an equivalent
+  first-version record stream; an Excel backend can still be added behind the
+  same boundary later.
+- `pc_server/state_storage_selftest.py` covers snapshot copy isolation, pending
+  manual command normalization, history bounding, control-state tracking, and
+  four-record JSONL validation.
 
 ### SW-3: Dashboard Service Refactor
 

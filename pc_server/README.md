@@ -20,6 +20,9 @@ idea-level reference code, not as final architecture constraints.
 | [protocol_selftest.py](protocol_selftest.py) | Dependency-free SW-0 protocol self-test. |
 | [comfort_policy.py](comfort_policy.py) | Pure first-version comfort policy that emits validated `control_command` messages. |
 | [comfort_policy_selftest.py](comfort_policy_selftest.py) | Dependency-free SW-1 policy self-test. |
+| [state_store.py](state_store.py) | Thread-safe `AppState` for single-client dashboard/service state and pending manual commands. |
+| [storage.py](storage.py) | JSONL four-record storage backend for `sensor_data`, `sleep_result`, `control_command`, and `control_status`. |
+| [state_storage_selftest.py](state_storage_selftest.py) | Dependency-free SW-2 AppState/storage self-test. |
 | [pc_server.py](pc_server.py) | Legacy/minimal socket smoke; not the final acceptance entry. |
 | [fake_pynq_client.py](fake_pynq_client.py) | To be rewritten as the new-protocol PC-only validation client. |
 
@@ -28,8 +31,6 @@ Remaining planned first-version modules:
 | File | Purpose |
 |---|---|
 | `classifier_adapter.py` | Stable wrapper around `sleep_classifier.py` and future model implementations. |
-| `state_store.py` | Thread-safe `AppState` for dashboard/service state. |
-| `storage.py` | Four-record storage for `sensor_data`, `sleep_result`, `control_command`, and `control_status`. |
 | `service.py` | Single-client TCP service that composes protocol, classifier, policy, state, and storage. |
 | `static/` | Dashboard HTML/CSS/JS split out of `dashboard_server.py`. |
 
@@ -64,6 +65,12 @@ Comfort policy self-test:
 
 ```bash
 python comfort_policy_selftest.py
+```
+
+State/storage self-test:
+
+```bash
+python state_storage_selftest.py
 ```
 
 For real PYNQ integration, the board client must connect to the PC's real IPv4
