@@ -397,6 +397,16 @@ Initial implementation:
 - Test manual override.
 - Test cooldown behavior and no-action reasons.
 
+Initial implementation:
+
+- `pc_server/comfort_policy.py` implements the first-version pure policy with
+  no socket/dashboard/storage dependencies.
+- It emits validated `control_command` dictionaries.
+- It covers classifier warmup/no-action, humidity on/off, high-temperature AC
+  command, IR cooldown, manual pending command, manual idle, and missing sensor
+  data.
+- `pc_server/comfort_policy_selftest.py` is the dependency-free smoke test.
+
 ### SW-2: PYNQ Orchestrator Local Smoke
 
 ### SW-2: PC State And Storage
