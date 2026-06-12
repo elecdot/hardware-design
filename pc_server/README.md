@@ -30,7 +30,8 @@ idea-level reference code, not as final architecture constraints.
 | [socket_service.py](socket_service.py) | Minimal sequential TCP loop for the new four-message protocol. |
 | [socket_service_selftest.py](socket_service_selftest.py) | Loopback TCP self-test for `sensor_data -> sleep_result/control_command -> control_status`. |
 | [pc_server.py](pc_server.py) | Legacy/minimal socket smoke; not the final acceptance entry. |
-| [fake_pynq_client.py](fake_pynq_client.py) | To be rewritten as the new-protocol PC-only validation client. |
+| [fake_pynq_client.py](fake_pynq_client.py) | New-protocol PC-only fake PYNQ client. |
+| [fake_pynq_client_selftest.py](fake_pynq_client_selftest.py) | Loopback self-test for fake client plus minimal socket service. |
 
 Remaining planned first-version modules:
 
@@ -63,6 +64,13 @@ Legacy PC-local smoke:
 ```bash
 python pc_server.py
 python fake_pynq_client.py
+```
+
+New-protocol PC-only smoke:
+
+```bash
+python socket_service.py --host 127.0.0.1 --port 9000
+python fake_pynq_client.py --host 127.0.0.1 --port 9000 --samples 5 --interval 1.0
 ```
 
 Protocol self-test:
@@ -99,6 +107,12 @@ Socket loopback self-test:
 
 ```bash
 python socket_service_selftest.py
+```
+
+Fake PYNQ client self-test:
+
+```bash
+python fake_pynq_client_selftest.py
 ```
 
 For real PYNQ integration, the board client must connect to the PC's real IPv4

@@ -505,6 +505,16 @@ Initial implementation:
 - Return `control_status`.
 - Confirm storage/dashboard state records all four message types.
 
+Initial implementation:
+
+- `pc_server/fake_pynq_client.py` now speaks the four-message protocol against
+  `pc_server/socket_service.py`.
+- It validates message order and `sample_id`, then simulates successful PYNQ
+  handling of IR AC and humidifier targets by returning `control_status`.
+- `pc_server/fake_pynq_client_selftest.py` runs the fake client against a real
+  localhost socket service on a temporary port and confirms the PC records
+  `sensor_data`, `sleep_result`, `control_command`, and `control_status`.
+
 ### SW-5: PYNQ Orchestrator Local Smoke
 
 - Run orchestrator without socket first.
