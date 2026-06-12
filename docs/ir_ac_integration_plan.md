@@ -1,19 +1,38 @@
 # IR AC Integration Plan
 
-This document freezes the plan for integrating the Gree IR air-conditioner
-module into the final sleep-monitor system. It is a planning document; do not
-treat the final integrated overlay as verified until the Phase gates below have
-board evidence.
+This document records the plan and closure evidence for integrating the Gree
+IR air-conditioner module into the final sleep-monitor system.
 
 Scope boundary:
 
-- Current implementation scope: TX-only IR hardware platform integration and
+- Completed implementation scope: TX-only IR hardware platform integration and
   board demo validation, through `IR-5`.
-- Deferred software scope: PC/PYNQ socket integration, dashboard refactor,
+- Next software scope: PC/PYNQ socket integration, dashboard refactor,
   classifier/policy integration, and end-to-end control loop. Confirmed
   software decisions are recorded in
-  [software_integration_plan.md](software_integration_plan.md) so that work can
-  be picked up after IR hardware validation.
+  [software_integration_plan.md](software_integration_plan.md).
+
+Closure status:
+
+- Date closed: 2026-06-12.
+- Board evidence date: 2026-06-10.
+- Accepted hardware scope: TX-only `gree_ir_axi_v1_0_0` in the integrated
+  `system_v0_2` overlay.
+- Accepted commands with real lab AC response: `power_on`, `power_off`, and
+  `temp_26`.
+- Known physical limitation: the IR transmitter needed to be within
+  approximately 20 cm of the AC receiver for reliable response in the lab.
+
+Acceptance matrix:
+
+| Phase | Required evidence | Result |
+|---|---|---|
+| IR-0 standalone evidence | Teammate standalone test confirms lab Gree AC responds to the handoff command set | Complete |
+| IR-1 source migration | TX-only RTL, PYNQ helper, and local docs migrated into tracked repo paths | Complete |
+| IR-2 module regression | Icarus regression emits `tb_gree_ir_axi PASS` for preset/start/done/error behavior | Complete |
+| IR-3 IP packaging | `gree_ir_axi_v1_0` packaged under `vivado/ip_repo/ir_ac_axi/` with AXI metadata and `ir_pwm` | Complete |
+| IR-4 integrated overlay | `system_v0_2.bit/.hwh/.tcl` exported; address `0x40005000`; `ir_pwm=T14`; DRC/route/timing pass | Complete |
+| IR-5 board bring-up | PYNQ TX status is `done=true/error=false`; real AC responds to `power_on`, `power_off`, `temp_26` | Complete |
 
 ## Confirmed Decisions
 
@@ -73,11 +92,11 @@ part of the first integrated scope.
   ground and confirm the signal input is 3.3 V-compatible.
 - Do not hot-plug modules while the board is powered.
 
-## Proposed Integrated Hardware Plan
+## Integrated Hardware Result
 
-Add only the TX IP to the next integrated Vivado overlay.
+Only the TX IP is included in the integrated Vivado overlay.
 
-Planned sources:
+Tracked sources:
 
 ```text
 rtl/gree_ir_axi/
@@ -86,27 +105,26 @@ rtl/gree_ir_axi/
   gree_ir_axi_v1_0_S00_AXI.v
 ```
 
-Planned external port:
+External port:
 
 ```text
 ir_pwm
 ```
 
-Planned constraint:
+Integrated constraint:
 
 ```tcl
 set_property -dict { PACKAGE_PIN T14 IOSTANDARD LVCMOS33 } [get_ports ir_pwm]
 ```
 
-Recommended integrated address:
+Integrated address:
 
-| IP instance | Proposed base | Range | Notes |
+| IP instance | Base | Range | Notes |
 |---|---:|---:|---|
 | `gree_ir_axi_v1_0_0` | `0x4000_5000` | 4K | Confirmed by `system_v0_2.hwh` and `system_v0_2.tcl`. |
 
-The 4K range matches the existing integrated overlay style. If Vivado package
-metadata requires a larger range, record the final assigned range before PYNQ
-driver binding.
+The 4K range matches the existing integrated overlay style and is the address
+used by the PYNQ board smoke command.
 
 ## Protocol Plan
 
@@ -217,7 +235,7 @@ PYNQ execution layer hard guards:
 - Different IR command inside the minimum hardware interval is skipped or
   deferred and reported.
 
-## Deferred Software Architecture Summary
+## Software Architecture Handoff
 
 The confirmed software direction is summarized here only to keep the IR
 hardware plan aligned with the final system. The executable software plan is
@@ -312,8 +330,8 @@ Status: complete.
 - Exported matching `system_v0_2.bit`, `system_v0_2.hwh`, and
   `system_v0_2.tcl` into `vivado/gen/`.
 - Known methodology warnings are recorded in [test_plan.md](test_plan.md);
-  they do not block first IR-5 board smoke but should guide debugging if IR TX
-  behaves unexpectedly.
+  they did not block board smoke but should guide debugging if IR TX behaves
+  unexpectedly.
 
 ### IR-5: PYNQ Board Bring-Up
 
@@ -337,9 +355,9 @@ Board evidence captured on 2026-06-10:
 - Important physical limitation: the IR transmitter needed to be within
   approximately 20 cm of the AC receiver for reliable response in the lab.
 
-## Deferred Software Execution
+## Software Integration Handoff
 
-After `IR-5` passes, continue with
+With `IR-5` complete, continue with
 [software_integration_plan.md](software_integration_plan.md). Target final flow:
 
 ```text
@@ -352,7 +370,13 @@ PYNQ sends control_status
 PC dashboard/logs show the full loop
 ```
 
-## Known Open Items
+## Hardware Closure
+
+No open item remains for the TX-only IR AC hardware-integration scope. Do not
+add IR RX or arbitrary raw Gree encoding to this closed scope; treat those as
+new feature requests with their own validation plan.
+
+Software items now move to [software_integration_plan.md](software_integration_plan.md):
 
 - `control_command` and `control_status` are planned but not implemented.
 - The PYNQ top-level orchestrator class is planned but not implemented.

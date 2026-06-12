@@ -44,9 +44,9 @@ Current hardware scope:
 ## Migrated Handoff IP Register Maps
 
 The following register maps are copied from teammate handoff packages after the
-source files were migrated into `rtl/`. They still need local simulation,
-Vivado packaging, integrated BD address assignment, and PYNQ smoke evidence
-before being treated as verified integrated-system registers.
+source files were migrated into `rtl/`. Verification status is tracked per IP
+in [test_plan.md](test_plan.md); do not infer system-level acceptance from this
+register table alone.
 
 ### dht11_axi_v1_0
 
@@ -106,6 +106,11 @@ TX-only AXI-Lite Gree YB0F2 IR AC transmitter migrated from
 `handoff/gree_ir_txrx_hardware_package/`. The first integrated scope exposes
 only the seven verified preset commands and does not include the handoff RX
 capture IP.
+
+Verification status: TX-only integrated hardware scope is closed for
+`system_v0_2`; module regression, IP packaging, integrated BD/build export,
+PYNQ board smoke, and user-confirmed lab AC response are recorded in
+[test_plan.md](test_plan.md).
 
 | Offset | Name | Access | Reset | Description |
 |---:|---|---|---:|---|

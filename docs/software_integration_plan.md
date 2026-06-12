@@ -4,22 +4,29 @@ This document records the confirmed software-integration decisions so future
 work can be picked up after the IR hardware platform integration and IR demo
 test are complete.
 
-This is not the current implementation scope. The current next hardware scope
-remains TX-only IR AC integration. Software integration starts only after the
-IR integrated overlay and board demo evidence are available.
+The IR hardware entry gate is now satisfied. TX-only Gree IR AC integration is
+closed through `IR-5`, including real lab AC response from the integrated
+`system_v0_2` overlay. This software plan is now the next implementation scope.
 
 ## Entry Gate
 
-Do not start this software-integration phase until these are true:
+Status: satisfied as of 2026-06-12.
 
-- The current integrated local board demo remains stable with JY901, DHT11,
+- [x] The current integrated local board demo remains stable with JY901, DHT11,
   UART SpO2, TFT, and humidifier.
-- TX-only Gree IR AC is added to the integrated Vivado overlay.
-- The integrated overlay exports matching `.bit`, `.hwh`, and board-needed
+- [x] TX-only Gree IR AC is added to the integrated Vivado overlay.
+- [x] The integrated overlay exports matching `.bit`, `.hwh`, and board-needed
   metadata into `vivado/gen/`.
-- PYNQ can bind or statically resolve the IR TX IP address.
-- At least one safe IR command, preferably `temp_26`, is sent from the
-  integrated overlay and produces acceptable board/AC evidence.
+- [x] PYNQ can bind or statically resolve the IR TX IP address.
+- [x] Safe IR commands were sent from the integrated overlay and produced
+  acceptable board/AC evidence: `power_on`, `power_off`, and `temp_26`.
+
+Carry-forward hardware constraint for software integration:
+
+- The IR transmitter must be aimed at the lab Gree AC receiver and kept within
+  approximately 20 cm for reliable response. Software should report TX status
+  and command history, but it cannot infer successful AC reception from the
+  AXI `done` bit alone.
 
 ## Confirmed Decisions
 
@@ -271,7 +278,7 @@ report analysis clean.
 - PYNQ applies humidifier and/or IR AC target under safeguards.
 - PC dashboard/logs show the complete loop.
 
-## Deferred Open Items
+## Open Items For This Phase
 
 - Exact Python module names and file split can be refined immediately before
   implementation.

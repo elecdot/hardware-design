@@ -24,16 +24,15 @@ Core goals:
 
 Current workspace status:
 
-- The implemented hardware path is centered on `i2c_mpu9250`, an AXI-Lite I2C
-  IP for JY901/MPU9250 motion data sampling.
-- Behavioral simulation exists for the JY901 burst-read path.
-- Vivado packaging, PL-only debug, and PYNQ overlay projects now exist for the
-  JY901 I2C path, but exported PYNQ artifacts still need matching `.bit` and
-  `.hwh` evidence before being treated as an end-to-end overlay release.
-- A minimal PYNQ-side JY901 demo now exists under `pynq/jy901_demo/`. It uses
-  `Bitstream.download()` plus direct MMIO for the first classroom demo.
-- PC socket/Excel demo code has been migrated under `pc_server/` for the later
-  integration layer. Analysis tools and IR AC remain future work.
+- The current integrated hardware platform is `system_v0_2`, exported under
+  `vivado/gen/` as matching `.bit`, `.hwh`, and `.tcl` artifacts.
+- The integrated board demo path has board evidence for JY901, DHT11, UART
+  SpO2, TFT LCD, humidifier status/control, and TX-only Gree IR AC.
+- TX-only Gree IR AC integration is closed for the hardware scope: source
+  migration, regression, IP packaging, Block Design integration, PYNQ smoke,
+  and real lab AC response are recorded.
+- PC socket/Excel/dashboard code has been migrated under `pc_server/` and is
+  now the next major integration/refactor scope.
 
 ## Hardware Platform
 
@@ -59,17 +58,17 @@ Input sensing modules:
 
 | Module | Data | Planned interface | Status |
 |---|---|---|---|
-| Heart-rate / SpO2 sensor | BPM, SPO2 | UART custom IP | RTL/PYNQ migrated; integration pending |
-| JY901 / MPU9250 IMU | Acceleration, gyro, attitude, temperature | I2C custom IP | RTL, simulation, Vivado packaging, and overlay bring-up in progress |
-| DHT11 | Temperature, humidity | One-Wire custom IP | RTL/PYNQ migrated; integration pending |
+| Heart-rate / SpO2 sensor | BPM, SPO2 | UART custom IP | Integrated local board demo pass; physical RX/TX orientation note recorded |
+| JY901 / MPU9250 IMU | Acceleration, gyro, attitude, temperature | I2C custom IP | Integrated local board demo pass |
+| DHT11 | Temperature, humidity | One-Wire custom IP | Integrated local board demo pass |
 
 Display and assistance modules:
 
 | Module | Purpose | Planned interface | Status |
 |---|---|---|---|
-| 1.3-inch TFT display | Board-side real-time display | SPI custom IP | RTL/PYNQ migrated; integration pending |
-| IR air-conditioner transmitter | Environment assistance | IR custom IP | Planned |
-| Humidifier or indicator | Simple actuator control | GPIO / PWM / relay-style output | RTL/PYNQ migrated; integration pending |
+| 1.3-inch TFT display | Board-side real-time display | SPI custom IP | Integrated local board demo pass |
+| IR air-conditioner transmitter | Environment assistance | IR custom IP | TX-only integrated hardware scope complete; lab Gree AC response confirmed |
+| Humidifier or indicator | Simple actuator control | GPIO / PWM / relay-style output | Integrated local board demo pass |
 | Sleep-aid prompt module | Optional audio or prompt output | PDM / PWM / audio | Planned |
 
 ## System Architecture
@@ -171,8 +170,8 @@ Engineering references:
 | [docs/wiring.md](docs/wiring.md) | Wiring and voltage notes. |
 | [docs/test_plan.md](docs/test_plan.md) | Simulation and board-level test checklist. |
 | [docs/handoff_and_integration.md](docs/handoff_and_integration.md) | Handoff migration and integration plan for teammate modules. |
-| [docs/ir_ac_integration_plan.md](docs/ir_ac_integration_plan.md) | TX-only Gree IR AC hardware integration plan and confirmed protocol decisions. |
-| [docs/software_integration_plan.md](docs/software_integration_plan.md) | Deferred PC/PYNQ software integration plan after IR hardware demo validation. |
+| [docs/ir_ac_integration_plan.md](docs/ir_ac_integration_plan.md) | Closed TX-only Gree IR AC hardware integration record and confirmed protocol decisions. |
+| [docs/software_integration_plan.md](docs/software_integration_plan.md) | Current PC/PYNQ software integration plan after IR hardware demo validation. |
 | [docs/ip_packaging_manual.md](docs/ip_packaging_manual.md) | Phase 3 Vivado IP packaging checklist for migrated RTL modules. |
 | [docs/protocol.md](docs/protocol.md) | PYNQ-to-PC newline-delimited JSON protocol. |
 | [docs/work_notes.md](docs/work_notes.md) | Human work notes, safety reminders, and common failure modes. |
@@ -181,7 +180,7 @@ Engineering references:
 
 Current open work:
 
-- [ ] Resume
+- [ ] Software integration phase:
   [docs/software_integration_plan.md](docs/software_integration_plan.md):
   implement the PYNQ top-level orchestrator, PC policy/service refactor,
   `control_command`, and `control_status` flow.
@@ -196,8 +195,9 @@ SPI TFT LCD, humidifier, and PC socket/Excel demo.
 - [x] Integrated local board demo pass for JY901, DHT11, UART SpO2, TFT LCD,
   humidifier status/control, and display update, with documented metadata
   fallback limitations.
-- [x] TX-only Gree IR AC integration plan and deferred software integration
-  plan documented; teammate standalone test confirmed lab Gree AC response.
+- [x] TX-only Gree IR AC integration plan closed and software integration
+  entry plan documented; teammate standalone test confirmed lab Gree AC
+  response.
 - [x] IR-1 source migration skeleton: TX-only Gree IR AC RTL migrated into
   `rtl/gree_ir_axi/`, PYNQ TX demo skeleton added under `pynq/ir_ac_demo/`,
   and local README/register/wiring docs updated.

@@ -265,11 +265,13 @@ Current status:
   `vivado/ip_repo/ir_ac_axi/`.
 - IR-4 integrated overlay build/export validation is complete for
   `vivado/gen/system_v0_2.bit/.hwh/.tcl`.
+- IR-5 PYNQ board bring-up is complete: the integrated overlay sent
+  `power_on`, `power_off`, and `temp_26`, and the lab Gree AC response was
+  user-confirmed.
 - The handoff RX capture IP remains standalone validation tooling and is not in
   the first integrated source path.
-- Teammate standalone module testing confirmed the lab Gree AC responds to the
-  handoff command set. This is standalone evidence, not integrated overlay
-  evidence.
+- Teammate standalone module testing also confirmed the lab Gree AC responds to
+  the handoff command set.
 
 IR-2 simulation evidence:
 
@@ -358,7 +360,7 @@ Validated integration evidence:
 | Timing | Routed timing summary reports WNS `10.274 ns`, WHS `0.040 ns`, no failing endpoints, and all user specified timing constraints met |
 | Bitstream | `impl_1/runme.log` reports `write_bitstream completed successfully`; `system_v0_2.bit` is non-empty and matches the run output size |
 
-Known limitations before IR-5:
+IR-4 methodology limitations carried into board smoke:
 
 - Methodology report has 19 warnings: 18 `TIMING-18` missing input/output delay
   warnings for low-speed external ports, plus one `LUTAR-1` warning where the
@@ -408,6 +410,14 @@ Scope of this evidence:
   `temp_26` from the integrated overlay.
 - Important physical limitation: the IR transmitter needed to be within
   approximately 20 cm of the AC receiver for reliable response in the lab.
+
+Acceptance conclusion:
+
+- TX-only Gree IR AC hardware integration is accepted and closed for
+  `system_v0_2`.
+- Remaining AC-related work is software integration: command validation,
+  cooldown/rate-limit reporting, PC policy decisions, dashboard controls, and
+  `control_status` logging.
 
 ### DHT11 AXI IP
 

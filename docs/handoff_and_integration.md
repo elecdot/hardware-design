@@ -80,16 +80,16 @@ Accepted acceptance standard:
 - If integrated platform or driver work fails, record the blocking point and
   validate the affected module with the smallest meaningful standalone path.
 
-Demo priority:
+Demo priority and current status:
 
 1. Board-side integrated overlay + PYNQ driver suite + demonstrable local
-   program.
+   program is the accepted hardware/platform baseline.
 2. Add TX-only Gree IR AC into the integrated hardware/software path using
-   [ir_ac_integration_plan.md](ir_ac_integration_plan.md).
+   [ir_ac_integration_plan.md](ir_ac_integration_plan.md). This is complete
+   for the TX-only hardware scope.
 3. Add PC socket/Excel/dashboard flow from `handoff/sleep_socket_project/...`
-   after the board-side integrated demo and IR TX path are stable. This is part
-   of the final system architecture, but it is a later priority than local
-   overlay/driver bring-up.
+   now that the board-side integrated demo and IR TX path are stable. This is
+   the current next phase.
 4. If PC networking or Excel dependencies consume time, defer socket/Excel
    validation rather than blocking the lower-risk board-side acceptance.
 
@@ -230,7 +230,7 @@ The `gree_ir_axi_v1_0_0` address is confirmed by
 
 Status on 2026-06-10:
 
-- IR-4 BD/build evidence is sufficient to prepare PYNQ IR runtime smoke work:
+- IR-4 BD/build evidence was sufficient to prepare PYNQ IR runtime smoke work:
   six custom IP instances are present, address windows are assigned, routed DRC
   has 0 violations, route status has 0 routing errors, timing is met, and
   bitstream generation is logged as successful.
@@ -238,7 +238,7 @@ Status on 2026-06-10:
   `vivado/gen/system_v0_2.bit` and `vivado/gen/system_v0_2.hwh`; copy both,
   plus `system_v0_2.tcl` when using the old PYNQ metadata path, to the PYNQ
   board before runtime smoke.
-- First PYNQ smoke should prefer `Overlay(...).ip_dict` to bind these instance
+- First PYNQ smoke preferred `Overlay(...).ip_dict` to bind these instance
   names: `axi_i2c_jy901_v1_0_0`, `axi_humidifier_v1_0_0`,
   `tft_lcd_spi_axi_v1_0_0`, `dht11_axi_v1_0_0`,
   `axi_uart_spo2_v1_0_0`, and `gree_ir_axi_v1_0_0`. If the board image raises
@@ -247,7 +247,19 @@ Status on 2026-06-10:
   `integrated_demo.py --metadata-source auto` or `static` for first smoke. Then
   rerun with `--metadata-source overlay` after exporting compatible metadata.
 
-Phase 5 first-pass order:
+Status on 2026-06-12:
+
+- Phase 5 is closed for the TX-only Gree IR AC path.
+- Integrated overlay evidence includes PYNQ TX status
+  `done=true/error=false` and user-confirmed lab Gree AC response to
+  `power_on`, `power_off`, and `temp_26`.
+- The IR transmitter required approximately 20 cm or less from the AC receiver
+  for reliable response in the lab.
+- The next active scope is software integration around the existing board
+  drivers, PC service/dashboard, classifier adapter, comfort policy,
+  `control_command`, and `control_status`.
+
+Phase 5 first-pass order used for bring-up:
 
 1. Add an integrated overlay artifact check that refuses to run unless both
    `.bit` and `.hwh` exist and share the same base name.
@@ -263,13 +275,13 @@ Phase 5 first-pass order:
 9. Only after individual smoke checks, run the combined
    `pynq/sleep_demo/integrated_demo.py` path.
 
-### Phase 6: Deferred PC Socket Integration
+### Phase 6: Software Integration
 
 - Use the handoff architecture under `handoff/sleep_socket_project/...` as the
   reference PC demo: TCP socket, newline-delimited JSON, Excel logging, and
   `sleep_result` response.
-- Migrate PC files after the board-side integrated demo is stable enough to
-  provide real sensor values.
+- Refactor PC files now that the board-side integrated demo and IR hardware
+  validation are stable enough to provide real sensor/control evidence.
 - Keep the PC protocol mirrored in [protocol.md](protocol.md).
 - On PYNQ, implement a real client that reuses the integrated driver suite and
   sends `sensor_data` packets. Do not keep fake sensor generation in the final
@@ -388,7 +400,7 @@ suite can:
 - control or display humidifier state through PS-side AXI writes, preferably
   using the DHT11 value read by the PYNQ driver.
 
-Deferred final-system socket extension:
+Software integration extension:
 
 - send a `sensor_data` newline-JSON packet to the PC server;
 - save data to Excel through the PC handoff server;
