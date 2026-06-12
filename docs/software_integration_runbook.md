@@ -41,9 +41,10 @@ sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6 ...
 Network:
 
 - PC and PYNQ are on the same reachable network.
-- PC firewall allows inbound TCP on port `9000` for the selected Python
-  executable.
+- PC firewall allows inbound TCP on the selected service port for Python. This
+  runbook uses `10000` to avoid common Windows conflicts around `9000`.
 - PYNQ connects to the PC's real IPv4 address, not `127.0.0.1`.
+- If another port is used, update every PC and PYNQ command consistently.
 
 ## 1. PC Local Self-Tests
 
@@ -85,14 +86,14 @@ Terminal A:
 
 ```bash
 cd pc_server
-python socket_service.py --host 127.0.0.1 --port 9000 --record-dir records\pc_only_smoke
+python socket_service.py --host 127.0.0.1 --port 10000 --record-dir records\pc_only_smoke
 ```
 
 Terminal B:
 
 ```bash
 cd pc_server
-python fake_pynq_client.py --host 127.0.0.1 --port 9000 --samples 5 --interval 1.0
+python fake_pynq_client.py --host 127.0.0.1 --port 10000 --samples 5 --interval 1.0
 ```
 
 Expected PC-only evidence:
@@ -177,7 +178,7 @@ On the PC:
 
 ```bash
 cd pc_server
-python socket_service.py --host 0.0.0.0 --port 9000 --record-dir records\pynq_integration_smoke
+python socket_service.py --host 0.0.0.0 --port 10000 --record-dir records\pynq_integration_smoke
 ```
 
 Keep this terminal visible. It should show client connect/disconnect status and
@@ -196,7 +197,7 @@ cd /home/xilinx/jupyter_notebooks/sleep_monitor/sleep_demo
 sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6 board_client.py \
   --dry-run \
   --host <PC_IPV4> \
-  --port 9000 \
+  --port 10000 \
   --samples 3 \
   --interval 1.0
 ```
@@ -240,7 +241,7 @@ On PYNQ:
 cd /home/xilinx/jupyter_notebooks/sleep_monitor/sleep_demo
 sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6 board_client.py \
   --host <PC_IPV4> \
-  --port 9000 \
+  --port 10000 \
   --bitfile /home/xilinx/jupyter_notebooks/sleep_monitor/system_v0_2.bit \
   --samples 30 \
   --interval 1.0 \
@@ -280,10 +281,33 @@ human observation.
 
 ## 10. Troubleshooting
 
+PC service fails at `server.bind(...)` with WinError `10013` or `10048`:
+
+- `10013` means Windows denied binding that address/port.
+- `10048` means the address/port is already in use or not yet reusable.
+- Use `10000` as shown in this runbook, or choose another high port such as
+  `10001`, then update both the PC service and PYNQ client commands.
+- Check whether a port is already listening:
+
+```powershell
+netstat -ano | Select-String ':10000'
+```
+
+- Check Windows reserved TCP port ranges:
+
+```powershell
+netsh interface ipv4 show excludedportrange protocol=tcp
+netsh interface ipv6 show excludedportrange protocol=tcp
+```
+
+- If `--host 0.0.0.0` fails but `--host 127.0.0.1` works, local PC-only smoke
+  can still run, but PYNQ integration needs a host binding reachable from the
+  board and a firewall rule for the chosen port.
+
 PC service gets no connection:
 
 - Check PYNQ is using `<PC_IPV4>`, not `127.0.0.1`.
-- Check Windows firewall for TCP `9000`.
+- Check Windows firewall for TCP `10000` or the chosen port.
 - Check both devices are on the same reachable network.
 
 PYNQ times out waiting for responses:
