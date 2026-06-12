@@ -379,6 +379,16 @@ Dashboard labels must distinguish:
 - Add small PC-side encode/decode tests or fake message fixtures for all four
   message types.
 
+Initial implementation:
+
+- `pc_server/protocol.py` provides newline JSON encode/decode, incremental
+  TCP message buffering, validation for `sensor_data`, `sleep_result`,
+  `control_command`, and `control_status`, plus no-action/rejected-status
+  helpers.
+- `pc_server/protocol_selftest.py` is a dependency-free smoke test for round
+  trips, split TCP chunks, no-action commands, and invalid command/status
+  rejection.
+
 ### SW-1: PC Policy Unit Tests
 
 - Test policy outputs for representative sleep states and temperature/humidity

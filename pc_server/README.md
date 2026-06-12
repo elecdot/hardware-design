@@ -16,14 +16,15 @@ idea-level reference code, not as final architecture constraints.
 | [sleep_classifier.py](sleep_classifier.py) | Pure-Python DREAMT GRU classifier that loads `sleep_model.bin` and emits `sleep_result`. |
 | [sleep_model.bin](sleep_model.bin) | Lightweight classifier weights used by `sleep_classifier.py`. |
 | [dashboard_server.py](dashboard_server.py) | Current PC dashboard/service prototype and intended final PC entry after refactor. |
+| [protocol.py](protocol.py) | Canonical newline JSON protocol helpers and validation for four message types. |
+| [protocol_selftest.py](protocol_selftest.py) | Dependency-free SW-0 protocol self-test. |
 | [pc_server.py](pc_server.py) | Legacy/minimal socket smoke; not the final acceptance entry. |
 | [fake_pynq_client.py](fake_pynq_client.py) | To be rewritten as the new-protocol PC-only validation client. |
 
-Planned first-version modules:
+Remaining planned first-version modules:
 
 | File | Purpose |
 |---|---|
-| `protocol.py` | Newline JSON encode/decode and message validation. |
 | `classifier_adapter.py` | Stable wrapper around `sleep_classifier.py` and future model implementations. |
 | `comfort_policy.py` | Sleep/environment/control policy that emits `control_command`. |
 | `state_store.py` | Thread-safe `AppState` for dashboard/service state. |
@@ -50,6 +51,12 @@ Legacy PC-local smoke:
 ```bash
 python pc_server.py
 python fake_pynq_client.py
+```
+
+Protocol self-test:
+
+```bash
+python protocol_selftest.py
 ```
 
 For real PYNQ integration, the board client must connect to the PC's real IPv4
