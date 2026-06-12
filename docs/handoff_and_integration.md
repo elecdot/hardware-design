@@ -32,7 +32,7 @@ locations. Do not treat generated Vivado cache/output directories as source.
 | TFT LCD | `handoff/tft_lcd_handoff_pack_20260601/tft_lcd_handoff_pack_20260601/` | `rtl/tft_lcd_spi_axi/`, `sim/tb_tft_lcd_spi_axi/`, `pynq/tft_lcd_demo/`, `vivado/constraints/tft_lcd_pynq_z1.xdc` | Testbenches include PASS markers; handoff notes say local machine lacked simulator tools. PYNQ/Jupyter code is reported as board-tested. |
 | UART SpO2 | `handoff/uart_spo2_pynq_handoff_20260601_portable/handoff_uart_spo2_pynq_20260601/` | `rtl/axi_uart_spo2/`, `sim/tb_axi_uart_spo2/`, `pynq/spo2_demo/`, `vivado/constraints/spo2_pmodb_pynq_z1.xdc` | PYNQ overlay artifacts and runtime helper exist; no module-level regression test was found in the handoff scan. |
 | Gree IR AC TX/RX | `handoff/gree_ir_txrx_hardware_package/` | First integration targets TX-only: `rtl/gree_ir_axi/`, `sim/tb_gree_ir_axi/`, `pynq/ir_ac_demo/`, integrated XDC `ir_pwm=T14`; RX remains standalone validation tooling. | IR-1 source migration skeleton, IR-2 focused module regression, IR-3 package static validation, IR-4 integrated overlay build, and IR-5 integrated board bring-up are complete. User-confirmed integrated overlay evidence: lab Gree AC responded to `power_on`, `power_off`, and `temp_26`; transmitter needed to be within approximately 20 cm of the AC receiver. Detailed plan: [ir_ac_integration_plan.md](ir_ac_integration_plan.md). |
-| PC socket/Excel demo | `handoff/sleep_socket_project/sleep_socket_project/` | `pc_server/`, optional `pynq/sleep_demo/` client, and [protocol.md](protocol.md) | Handoff records a working PC-side TCP newline-JSON server, fake client, Excel writer, and rule-based classifier demo. |
+| PC socket/Excel demo | `handoff/sleep_socket_project/sleep_socket_project/` | `pc_server/`, optional `pynq/sleep_demo/` client, and [protocol.md](protocol.md) | Handoff records a working historical PC-side TCP newline-JSON server, fake client, Excel writer, and rule-based classifier demo; final software integration now uses the current model-backed classifier path. |
 
 Target paths are planned names. Create or adjust local README files when the
 source is actually migrated.
@@ -483,7 +483,9 @@ Software integration extension:
 - PYNQ must connect to the PC's real IPv4 address.
 - `openpyxl` is required on the PC side.
 - Do not open `sleep_monitor_data.xlsx` while the server is writing it.
-- Current classifier is a rule placeholder, not a trained model.
+- Current `pc_server/sleep_classifier.py` loads `sleep_model.bin` and performs
+  pure-Python DREAMT GRU inference. The old rule-classifier idea remains only
+  historical handoff context.
 
 ## Open Decisions
 

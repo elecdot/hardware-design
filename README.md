@@ -215,10 +215,11 @@ SPI TFT LCD, humidifier, and PC socket/Excel demo.
 
 Further work:
 
-- Integrate the PYNQ board-side socket client with the PC service/dashboard
-  after IR hardware integration passes.
-- Replace or wrap the placeholder sleep classifier with the future neural
-  network classifier through the PC classifier adapter.
+- Implement the PYNQ board-side socket client and top-level orchestrator.
+- Refactor the PC dashboard/service around protocol, classifier adapter,
+  comfort policy, `AppState`, four-record storage, and new-protocol fake client.
+- Wrap the current `sleep_classifier.py` / `sleep_model.bin` implementation
+  through the PC classifier adapter.
 
 Keep README files and engineering docs synchronized whenever protocols,
 register maps, external ports, wiring, or workflow assumptions change.

@@ -1,9 +1,9 @@
 # Protocol
 
 PYNQ-to-PC socket payload format for the PC logging/classification path. This
-path is part of the final system architecture, but it is a later priority than
-the local integrated overlay and driver demo. When socket is included, use this
-newline-delimited JSON protocol.
+path is now the current software-integration scope after the integrated
+`system_v0_2` board demo and TX-only IR AC validation. Use this
+newline-delimited JSON protocol for the first end-to-end PC/PYNQ integration.
 
 Reference handoff:
 
@@ -19,6 +19,22 @@ handoff/sleep_socket_project/sleep_socket_project/
 - Each message is one JSON object encoded as UTF-8 and terminated by `\n`.
 - The newline terminator is required so the receiver can split TCP byte streams
   into complete messages.
+- First version supports one active PYNQ client. A second client should be
+  rejected or closed clearly.
+- For each `sensor_data`, PC sends exactly two response messages in order:
+  `sleep_result`, then `control_command`.
+- PYNQ sends one `control_status` after handling each `control_command`.
+- A no-action policy decision is still sent as a `control_command` with empty
+  `targets` and a clear `reason`.
+
+First-version cycle:
+
+```text
+PYNQ -> PC: sensor_data
+PC -> PYNQ: sleep_result
+PC -> PYNQ: control_command
+PYNQ -> PC: control_status
+```
 
 ## PYNQ To PC: sensor_data
 
@@ -74,8 +90,9 @@ Minimum first-version fields:
 
 ## PC To PYNQ: sleep_result
 
-The PC server replies with one `sleep_result` packet after receiving a
-`sensor_data` packet.
+The PC server sends one `sleep_result` packet after receiving each
+`sensor_data` packet. This message is classification output only; it must not
+encode device-control actions.
 
 ```json
 {
@@ -84,7 +101,7 @@ The PC server replies with one `sleep_result` packet after receiving a
   "sample_id": 1,
   "sleep_state_code": 1,
   "state_valid": 1,
-  "remark": "rule_light_sleep"
+  "remark": "model_dreamt_gru_conf_0.821"
 }
 ```
 
@@ -97,7 +114,10 @@ The PC server replies with one `sleep_result` packet after receiving a
 | `state_valid` | `1` when the PC classifier result is valid. |
 | `remark` | Classifier/debug status text. |
 
-## Planned PC To PYNQ: control_command
+If `state_valid != 1`, automatic policy must not change AC or humidifier state.
+PC still sends a no-action `control_command` after this `sleep_result`.
+
+## PC To PYNQ: control_command
 
 Device actuation uses a separate message from `sleep_result`. The PC policy
 owns automatic AC and humidifier decisions; PYNQ validates and executes the
@@ -112,7 +132,6 @@ desired actuator targets.
   "policy_id": "comfort_v1",
   "targets": {
     "ir_ac": {
-      "enabled": true,
       "command": "temp_26",
       "temperature_setpoint_c": 26
     },
@@ -125,13 +144,59 @@ desired actuator targets.
 }
 ```
 
+No-action example:
+
+```json
+{
+  "type": "control_command",
+  "timestamp": "2026-06-09 21:00:00",
+  "sample_id": 123,
+  "mode": "auto",
+  "policy_id": "comfort_v1",
+  "targets": {},
+  "valid": 1,
+  "reason": "classifier_invalid_model_warmup"
+}
+```
+
+Field rules:
+
+| Field | Meaning |
+|---|---|
+| `type` | Must be `control_command`. |
+| `timestamp` | PC-side command timestamp. |
+| `sample_id` | Matches the triggering `sensor_data` sample. |
+| `mode` | `auto` or `manual`. |
+| `policy_id` | Policy/version identifier, for example `comfort_v1`. |
+| `targets` | Object containing zero or more actuator targets. Empty means no action. |
+| `valid` | `1` when the PC command schema is valid. |
+| `reason` | Short policy/manual reason. Required for no-action and useful for logs. |
+
+Target semantics:
+
+| Target | Fields | Semantics |
+|---|---|---|
+| `ir_ac` | `command`, optional `temperature_setpoint_c` | One-shot IR pulse command. It does not prove or represent real AC state. |
+| `humidifier` | `enabled` | Target state for the local board-controlled humidifier/LED actuator. |
+
 First-version `ir_ac.command` values are limited to:
 
 ```text
 power_on, power_off, temp_24, temp_25, temp_26, temp_27, temp_28
 ```
 
-## Planned PYNQ To PC: control_status
+Manual dashboard controls:
+
+- Dashboard manual buttons use real device semantics.
+- `/api/control` stores a pending manual command; it does not send directly on
+  the socket.
+- The next `sensor_data` causes PC to send
+  `control_command(mode="manual", reason="dashboard_manual")`.
+- Manual AC commands are one-shot and clear after being sent.
+- Desired-state is reserved for future UI work. First version must not
+  automatically replay desired-state commands.
+
+## PYNQ To PC: control_status
 
 PYNQ replies with the actual execution result for accepted, skipped, and
 rejected actuator commands.
@@ -144,14 +209,26 @@ rejected actuator commands.
   "accepted": 1,
   "applied": {
     "ir_ac": {
+      "requested": true,
       "command": "temp_26",
       "sent": true,
       "skipped": false,
-      "skip_reason": null
+      "skip_reason": null,
+      "error": null,
+      "status": {
+        "done": true,
+        "error": false,
+        "raw_status": 2
+      }
     },
     "humidifier": {
+      "requested": true,
       "enabled": true,
-      "applied": true
+      "applied": true,
+      "skipped": false,
+      "skip_reason": null,
+      "error": null,
+      "humidifier_on": true
     }
   },
   "status_code": 0,
@@ -159,17 +236,53 @@ rejected actuator commands.
 }
 ```
 
+Field rules:
+
+| Field | Meaning |
+|---|---|
+| `type` | Must be `control_status`. |
+| `timestamp` | PYNQ-side status timestamp. |
+| `sample_id` | Matches the triggering `control_command`. |
+| `accepted` | `1` if schema and targets were accepted for handling; `0` if rejected. |
+| `applied` | Per-target execution details. |
+| `status_code` | Structured status code. |
+| `remark` | Short execution/debug reason. |
+
+`status_code` values:
+
+| Code | Meaning |
+|---:|---|
+| `0` | No error. |
+| `1` | Rejected invalid command or schema. |
+| `2` | Skipped by guard, cooldown, idle, or no-action policy. |
+| `3` | Hardware execution error. |
+
+For IR AC, `sent=true` means PYNQ sent the IR waveform and the IP completed; it
+does not prove the lab AC received the command. The lab setup required the IR
+transmitter to be within approximately 20 cm of the AC receiver for reliable
+response.
+
 The complete IR AC integration plan is in
 [ir_ac_integration_plan.md](ir_ac_integration_plan.md).
 
 ## PC-Side Storage
 
-The handoff PC server writes `sleep_monitor_data.xlsx` with two sheets:
+First-version storage should preserve raw and derived records separately. Excel
+or equivalent persistent storage should contain at least four record streams:
 
 | Sheet | Purpose |
 |---|---|
 | `sensor_data` | Raw board-side packets. |
 | `sleep_result` | PC classification results. |
+| `control_command` | PC policy/manual desired actuator targets for a sample. |
+| `control_status` | PYNQ accepted/skipped/applied execution result. |
+
+Minimum control storage fields:
+
+| Sheet | Fields |
+|---|---|
+| `control_command` | `timestamp`, `sample_id`, `mode`, `policy_id`, `targets_json`, `valid`, `reason` |
+| `control_status` | `timestamp`, `sample_id`, `accepted`, `applied_json`, `status_code`, `remark` |
 
 PC dependency:
 
@@ -181,13 +294,16 @@ Do not keep the Excel file open while the server writes to it.
 
 ## Validation Steps
 
-1. Run `pc_server.py` on the PC.
-2. Run `fake_pynq_client.py` on the same PC and confirm JSON send/receive,
-   Excel append, and `sleep_result` response.
-3. Replace the fake client with a PYNQ client that sends synthetic data to the
+1. Validate `pc_server/protocol.py` encode/decode for all four message types.
+2. Run the PC dashboard/service with a fake PYNQ client that sends
+   `sensor_data`, receives `sleep_result` plus `control_command`, and returns
+   `control_status`.
+3. Confirm storage/dashboard state records all four message types.
+4. Replace the fake client with a PYNQ client that sends synthetic data to the
    PC's real IPv4 address.
-4. Replace synthetic PYNQ values with values read from the integrated driver
+5. Replace synthetic PYNQ values with values read from the integrated driver
    suite.
 
 Do not claim PC-integrated operation until a real PYNQ client connects to the
-PC server and the PC records at least one board-originated packet.
+PC server and the PC records at least one board-originated packet plus the
+matching `sleep_result`, `control_command`, and `control_status`.
