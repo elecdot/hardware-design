@@ -16,6 +16,7 @@ PC 端可视化服务端。
     http://127.0.0.1:8080
 """
 
+import csv
 import json
 import socket
 import threading
@@ -23,6 +24,7 @@ import traceback
 from datetime import datetime
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from urllib.parse import urlparse
 
 from excel_utils import init_excel, append_sensor_data, append_sleep_result
@@ -32,6 +34,12 @@ from sleep_classifier import classify_sleep_state, get_sleep_state_text
 
 DASHBOARD_HOST = "127.0.0.1"
 DASHBOARD_PORT = 8080
+DASHBOARD_HISTORY_LIMIT = 43200
+DASHBOARD_CHART_POINTS = 360
+DASHBOARD_DEBUG_RECORDS = 80
+SESSION_GAP_SECONDS = 30 * 60
+MAX_COUNTED_SAMPLE_GAP_SECONDS = 30
+DASHBOARD_HISTORY_FILE = Path(__file__).with_name("sleep_classifier_history.csv")
 
 # 手动控制区仍展示设备动作；为了兼容硬件端现有协议，内部映射成 sleep_state_code。
 MANUAL_CONTROL_OPTIONS = {
@@ -61,10 +69,275 @@ data_history = []
 data_sequence = 0
 control_mode = "auto"
 manual_control_key = "fan_low"
+previous_sample_time = None
+previous_sample_id = None
+previous_stage_code = None
+previous_stage_valid = False
+session_summary = {
+    "started_at": None,
+    "last_sample_at": None,
+    "sample_count": 0,
+    "valid_sensor_count": 0,
+    "heart_rate_sum": 0.0,
+    "spo2_sum": 0.0,
+    "temperature_sum": 0.0,
+    "humidity_sum": 0.0,
+    "spo2_low_count": 0,
+    "turnover_count": 0,
+    "stage_seconds": {0: 0.0, 1: 0.0, 2: 0.0},
+}
 
 
 def now_text():
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+
+def parse_datetime(value):
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        if parsed.tzinfo is not None:
+            parsed = parsed.astimezone().replace(tzinfo=None)
+        return parsed
+    except (TypeError, ValueError):
+        return None
+
+
+def finite_float(value):
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return number if number == number and abs(number) != float("inf") else None
+
+
+def new_session_summary():
+    return {
+        "started_at": None,
+        "last_sample_at": None,
+        "sample_count": 0,
+        "valid_sensor_count": 0,
+        "heart_rate_sum": 0.0,
+        "spo2_sum": 0.0,
+        "temperature_sum": 0.0,
+        "humidity_sum": 0.0,
+        "spo2_low_count": 0,
+        "turnover_count": 0,
+        "stage_seconds": {0: 0.0, 1: 0.0, 2: 0.0},
+    }
+
+
+def downsample_history(records, max_points):
+    if len(records) <= max_points:
+        return list(records)
+
+    step = (len(records) - 1) / (max_points - 1)
+    indexes = [round(index * step) for index in range(max_points)]
+    return [records[index] for index in indexes]
+
+
+def build_trend_history(records):
+    compact_records = []
+    for item in downsample_history(records, DASHBOARD_CHART_POINTS):
+        sensor = item.get("sensor_data") or {}
+        result = item.get("model_sleep_result") or {}
+        compact_records.append(
+            {
+                "timestamp": item.get("timestamp"),
+                "sensor_data": {
+                    key: sensor.get(key)
+                    for key in (
+                        "heart_rate_bpm",
+                        "spo2_percent",
+                        "temperature_c",
+                        "humidity_percent",
+                        "accel_x",
+                        "accel_y",
+                        "accel_z",
+                        "turnover_count",
+                    )
+                },
+                "model_sleep_result": {
+                    "sleep_state_code": result.get("sleep_state_code"),
+                    "state_valid": result.get("state_valid"),
+                },
+            }
+        )
+    return compact_records
+
+
+def build_session_summary():
+    summary = dict(session_summary)
+    summary["stage_seconds"] = dict(session_summary["stage_seconds"])
+
+    valid_count = summary.pop("valid_sensor_count")
+    for field, total_field in (
+        ("average_heart_rate", "heart_rate_sum"),
+        ("average_spo2", "spo2_sum"),
+        ("average_temperature", "temperature_sum"),
+        ("average_humidity", "humidity_sum"),
+    ):
+        total = summary.pop(total_field)
+        summary[field] = total / valid_count if valid_count else None
+
+    stage_total = sum(summary["stage_seconds"].values())
+    summary["observed_sleep_seconds"] = stage_total
+    summary["sleep_seconds"] = (
+        summary["stage_seconds"].get(1, 0)
+        + summary["stage_seconds"].get(2, 0)
+    )
+    summary["sleep_ratio"] = (
+        summary["sleep_seconds"] / stage_total if stage_total else None
+    )
+    summary["spo2_low_ratio"] = (
+        summary["spo2_low_count"] / valid_count if valid_count else None
+    )
+    return summary
+
+
+def history_row_to_dashboard_record(row, record_id):
+    def number(name, integer=False):
+        value = finite_float(row.get(name))
+        if value is None:
+            return None
+        return int(value) if integer else value
+
+    sensor = {
+        "type": "sensor_data",
+        "timestamp": row.get("sensor_timestamp"),
+        "sample_id": number("sample_id", integer=True),
+        "heart_rate_bpm": number("heart_rate_bpm"),
+        "spo2_percent": number("spo2_percent"),
+        "accel_x": number("accel_x"),
+        "accel_y": number("accel_y"),
+        "accel_z": number("accel_z"),
+        "turnover_flag": number("turnover_flag", integer=True),
+        "turnover_count": number("turnover_count", integer=True),
+        "temperature_c": number("temperature_c"),
+        "humidity_percent": number("humidity_percent"),
+        "data_valid": number("data_valid", integer=True),
+    }
+    stage_code = number("sleep_state_code", integer=True)
+    result = {
+        "type": "sleep_result",
+        "timestamp": row.get("sensor_timestamp"),
+        "sample_id": sensor["sample_id"],
+        "sleep_state_code": stage_code,
+        "sleep_state_name": get_sleep_state_text(stage_code),
+        "state_valid": number("state_valid", integer=True) or 0,
+        "remark": row.get("result_remark") or "",
+    }
+    return {
+        "id": record_id,
+        "timestamp": sensor["timestamp"],
+        "sample_id": sensor["sample_id"],
+        "sensor_data": sensor,
+        "model_sleep_result": result,
+        "outgoing_sleep_result": result,
+    }
+
+
+def restore_dashboard_history():
+    global latest_sensor, latest_result, latest_outgoing_result
+    global last_update_at, data_history, data_sequence
+    global previous_sample_time, previous_sample_id
+    global previous_stage_code, previous_stage_valid
+    global session_summary
+
+    try:
+        with DASHBOARD_HISTORY_FILE.open("r", encoding="utf-8", newline="") as file:
+            rows = list(csv.DictReader(file))
+    except (OSError, csv.Error):
+        return
+
+    session_rows = []
+    last_time = None
+    last_id = None
+    for row in rows:
+        sample_time = parse_datetime(row.get("sensor_timestamp"))
+        sample_id = finite_float(row.get("sample_id"))
+        starts_new_session = False
+        if last_time is not None and sample_time is not None:
+            gap_seconds = (sample_time - last_time).total_seconds()
+            starts_new_session = gap_seconds < 0 or gap_seconds > SESSION_GAP_SECONDS
+        if (
+            not starts_new_session
+            and sample_id is not None
+            and last_id is not None
+            and sample_id < last_id
+        ):
+            starts_new_session = True
+        if starts_new_session:
+            session_rows = []
+        session_rows.append(row)
+        last_time = sample_time or last_time
+        last_id = sample_id if sample_id is not None else last_id
+
+    if not session_rows:
+        return
+
+    session_summary = new_session_summary()
+    all_records = []
+    previous_time = None
+    previous_code = None
+    previous_valid = False
+
+    for record_id, row in enumerate(session_rows, start=1):
+        record = history_row_to_dashboard_record(row, record_id)
+        sensor = record["sensor_data"]
+        result = record["model_sleep_result"]
+        sample_time = parse_datetime(sensor.get("timestamp"))
+
+        if sample_time and previous_time and previous_valid:
+            gap_seconds = (sample_time - previous_time).total_seconds()
+            if 0 < gap_seconds <= MAX_COUNTED_SAMPLE_GAP_SECONDS:
+                session_summary["stage_seconds"][previous_code] += gap_seconds
+
+        if session_summary["started_at"] is None:
+            session_summary["started_at"] = sensor.get("timestamp")
+        session_summary["last_sample_at"] = sensor.get("timestamp")
+        session_summary["sample_count"] += 1
+
+        heart_rate = finite_float(sensor.get("heart_rate_bpm"))
+        spo2 = finite_float(sensor.get("spo2_percent"))
+        temperature = finite_float(sensor.get("temperature_c"))
+        humidity = finite_float(sensor.get("humidity_percent"))
+        data_valid = int(finite_float(sensor.get("data_valid")) or 0) == 1
+        if data_valid and all(
+            value is not None for value in (heart_rate, spo2, temperature, humidity)
+        ):
+            session_summary["valid_sensor_count"] += 1
+            session_summary["heart_rate_sum"] += heart_rate
+            session_summary["spo2_sum"] += spo2
+            session_summary["temperature_sum"] += temperature
+            session_summary["humidity_sum"] += humidity
+            if spo2 < 95:
+                session_summary["spo2_low_count"] += 1
+
+        turnover_count = finite_float(sensor.get("turnover_count"))
+        if turnover_count is not None:
+            session_summary["turnover_count"] = int(turnover_count)
+
+        stage_code = result.get("sleep_state_code")
+        state_valid = int(finite_float(result.get("state_valid")) or 0) == 1
+        previous_code = stage_code if state_valid and stage_code in {0, 1, 2} else 0
+        previous_valid = True
+        previous_time = sample_time or previous_time
+        all_records.append(record)
+
+    data_history = all_records[-DASHBOARD_HISTORY_LIMIT:]
+    data_sequence = len(all_records)
+    last_record = all_records[-1]
+    latest_sensor = dict(last_record["sensor_data"])
+    latest_result = dict(last_record["model_sleep_result"])
+    latest_outgoing_result = dict(last_record["outgoing_sleep_result"])
+    last_update_at = last_record["timestamp"]
+    previous_sample_time = previous_time
+    previous_sample_id = finite_float(latest_sensor.get("sample_id"))
+    previous_stage_code = previous_code
+    previous_stage_valid = previous_valid
+    print(f"[INFO] Dashboard 已恢复最近会话 {len(all_records)} 条历史记录")
 
 
 def send_json(conn: socket.socket, obj: dict):
@@ -127,7 +400,9 @@ def snapshot_state() -> dict:
             "manual_signal_name": get_sleep_state_text(manual_option["sleep_state_code"]),
             "manual_control_options": MANUAL_CONTROL_OPTIONS,
             "control_history": list(control_history[-8:]),
-            "data_history": list(data_history),
+            "data_history": list(data_history[-DASHBOARD_DEBUG_RECORDS:]),
+            "trend_history": build_trend_history(data_history),
+            "session_summary": build_session_summary(),
             "event_version": event_version,
         }
 
@@ -163,6 +438,9 @@ def update_sensor_state(sensor: dict, result: dict, outgoing_result: dict):
     global latest_sensor, latest_result, latest_outgoing_result
     global last_update_at, last_transmit_at
     global data_history, data_sequence
+    global previous_sample_time, previous_sample_id
+    global previous_stage_code, previous_stage_valid
+    global session_summary
 
     result_with_name = dict(result)
     result_with_name["sleep_state_name"] = get_sleep_state_text(
@@ -176,6 +454,60 @@ def update_sensor_state(sensor: dict, result: dict, outgoing_result: dict):
 
     with state_lock:
         updated_at = now_text()
+        sample_time = parse_datetime(sensor.get("timestamp")) or datetime.now()
+        sample_id = sensor.get("sample_id")
+        numeric_sample_id = finite_float(sample_id)
+        is_new_session = False
+
+        if previous_sample_time is not None:
+            gap_seconds = (sample_time - previous_sample_time).total_seconds()
+            if gap_seconds < 0 or gap_seconds > SESSION_GAP_SECONDS:
+                is_new_session = True
+            elif (
+                numeric_sample_id is not None
+                and previous_sample_id is not None
+                and numeric_sample_id < previous_sample_id
+            ):
+                is_new_session = True
+
+        if is_new_session:
+            data_history = []
+            session_summary = new_session_summary()
+            previous_sample_time = None
+            previous_sample_id = None
+            previous_stage_code = None
+            previous_stage_valid = False
+
+        if previous_sample_time is not None and previous_stage_valid:
+            gap_seconds = (sample_time - previous_sample_time).total_seconds()
+            if 0 < gap_seconds <= MAX_COUNTED_SAMPLE_GAP_SECONDS:
+                session_summary["stage_seconds"][previous_stage_code] += gap_seconds
+
+        if session_summary["started_at"] is None:
+            session_summary["started_at"] = sample_time.isoformat(sep=" ", timespec="seconds")
+        session_summary["last_sample_at"] = sample_time.isoformat(sep=" ", timespec="seconds")
+        session_summary["sample_count"] += 1
+
+        heart_rate = finite_float(sensor.get("heart_rate_bpm"))
+        spo2 = finite_float(sensor.get("spo2_percent"))
+        temperature = finite_float(sensor.get("temperature_c"))
+        humidity = finite_float(sensor.get("humidity_percent"))
+        data_valid = int(finite_float(sensor.get("data_valid")) or 0) == 1
+        if data_valid and all(
+            value is not None for value in (heart_rate, spo2, temperature, humidity)
+        ):
+            session_summary["valid_sensor_count"] += 1
+            session_summary["heart_rate_sum"] += heart_rate
+            session_summary["spo2_sum"] += spo2
+            session_summary["temperature_sum"] += temperature
+            session_summary["humidity_sum"] += humidity
+            if spo2 < 95:
+                session_summary["spo2_low_count"] += 1
+
+        turnover_count = finite_float(sensor.get("turnover_count"))
+        if turnover_count is not None:
+            session_summary["turnover_count"] = int(turnover_count)
+
         latest_sensor = dict(sensor)
         latest_result = result_with_name
         latest_outgoing_result = outgoing_with_name
@@ -191,6 +523,20 @@ def update_sensor_state(sensor: dict, result: dict, outgoing_result: dict):
                 "model_sleep_result": result_with_name,
                 "outgoing_sleep_result": outgoing_with_name,
             }
+        )
+        data_history = data_history[-DASHBOARD_HISTORY_LIMIT:]
+
+        stage_code = result_with_name.get("sleep_state_code")
+        state_valid = (
+            int(finite_float(result_with_name.get("state_valid")) or 0) == 1
+        )
+        previous_stage_code = (
+            stage_code if state_valid and stage_code in {0, 1, 2} else 0
+        )
+        previous_stage_valid = True
+        previous_sample_time = sample_time
+        previous_sample_id = (
+            numeric_sample_id if numeric_sample_id is not None else previous_sample_id
         )
     publish_update()
 
@@ -1049,6 +1395,292 @@ DASHBOARD_HTML = r"""<!doctype html>
       max-height: 360px;
     }
 
+    .analysis-panel {
+      margin-top: 18px;
+    }
+
+    .analysis-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.75fr) minmax(300px, 0.85fr);
+      align-items: stretch;
+    }
+
+    .trend-column {
+      min-width: 0;
+      padding: 18px;
+    }
+
+    .summary-column {
+      min-width: 0;
+      padding: 18px;
+      border-left: 1px solid var(--line);
+      background: linear-gradient(180deg, #fbfdff, #f6fafb);
+    }
+
+    .section-heading {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .section-heading h3 {
+      margin: 0;
+      font-size: 16px;
+    }
+
+    .section-heading span {
+      color: var(--muted);
+      font-size: 12px;
+      text-align: right;
+    }
+
+    .vital-charts {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .chart-card {
+      min-width: 0;
+      padding: 13px 13px 8px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .chart-card.stage-card {
+      margin-top: 12px;
+      padding-bottom: 12px;
+    }
+
+    .chart-title {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 6px;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .chart-title span {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .trend-svg {
+      display: block;
+      width: 100%;
+      height: 150px;
+      overflow: visible;
+    }
+
+    .stage-card .trend-svg {
+      height: 178px;
+    }
+
+    .chart-grid {
+      stroke: #e7edf3;
+      stroke-width: 1;
+    }
+
+    .chart-axis-text {
+      fill: #7b8793;
+      font-size: 10px;
+    }
+
+    .chart-line {
+      fill: none;
+      stroke-width: 2.4;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .chart-empty {
+      fill: #8a96a2;
+      font-size: 13px;
+      text-anchor: middle;
+    }
+
+    .duration-list {
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .duration-track {
+      display: flex;
+      width: 100%;
+      height: 14px;
+      border-radius: 999px;
+      background: #eaf0f5;
+      overflow: hidden;
+    }
+
+    .duration-segment {
+      height: 100%;
+      min-width: 0;
+      transition: width 0.25s ease;
+    }
+
+    .duration-details {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .duration-detail {
+      min-width: 0;
+      text-align: center;
+    }
+
+    .duration-name {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
+    .stage-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex: 0 0 auto;
+    }
+
+    .duration-value {
+      display: block;
+      margin-top: 4px;
+      font-size: 14px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .duration-percent {
+      display: block;
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .score-card {
+      display: grid;
+      grid-template-columns: 104px minmax(0, 1fr);
+      gap: 14px;
+      align-items: center;
+      margin-top: 14px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .score-ring {
+      width: 96px;
+      height: 96px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: conic-gradient(var(--brand) 0deg, var(--brand) 0deg, #e7edf3 0deg);
+      position: relative;
+    }
+
+    .score-ring::before {
+      content: "";
+      position: absolute;
+      inset: 9px;
+      border-radius: 50%;
+      background: #fff;
+    }
+
+    .score-number {
+      position: relative;
+      z-index: 1;
+      font-size: 27px;
+      line-height: 1;
+      font-weight: 850;
+    }
+
+    .score-number small {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .score-label {
+      margin-bottom: 5px;
+      font-size: 18px;
+      font-weight: 800;
+    }
+
+    .score-description {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .summary-metrics {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 9px;
+      margin-top: 12px;
+    }
+
+    .summary-metric {
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.82);
+    }
+
+    .summary-metric span {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      margin-bottom: 4px;
+    }
+
+    .summary-metric strong {
+      font-size: 17px;
+    }
+
+    .advice-box {
+      margin-top: 14px;
+      padding: 14px;
+      border: 1px solid rgba(36, 107, 254, 0.18);
+      border-radius: 8px;
+      background: var(--brand-soft);
+    }
+
+    .advice-title {
+      margin-bottom: 9px;
+      font-size: 14px;
+      font-weight: 850;
+    }
+
+    .advice-list {
+      margin: 0;
+      padding-left: 18px;
+      color: #3f5268;
+      font-size: 12px;
+      line-height: 1.65;
+    }
+
+    .analysis-disclaimer {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.5;
+    }
+
     @media (max-width: 900px) {
       .layout {
         grid-template-columns: 1fr;
@@ -1056,6 +1688,15 @@ DASHBOARD_HTML = r"""<!doctype html>
 
       .control-panel {
         position: static;
+      }
+
+      .analysis-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .summary-column {
+        border-left: 0;
+        border-top: 1px solid var(--line);
       }
     }
 
@@ -1095,6 +1736,15 @@ DASHBOARD_HTML = r"""<!doctype html>
 
       .state-badge {
         width: 86px;
+      }
+
+      .vital-charts {
+        grid-template-columns: 1fr;
+      }
+
+      .trend-column,
+      .summary-column {
+        padding: 14px;
       }
     }
   </style>
@@ -1256,6 +1906,88 @@ DASHBOARD_HTML = r"""<!doctype html>
         </div>
       </aside>
     </section>
+
+    <section class="panel analysis-panel">
+      <div class="panel-head">
+        <h2 class="panel-title">睡眠趋势与分析</h2>
+        <div id="analysisRange" class="panel-note">等待有效睡眠数据</div>
+      </div>
+
+      <div class="analysis-layout">
+        <div class="trend-column">
+          <div class="section-heading">
+            <h3>体征变化曲线</h3>
+            <span>当前会话 · 长时数据自动降采样</span>
+          </div>
+
+          <div class="vital-charts">
+            <article class="chart-card">
+              <div class="chart-title">心率 <span>bpm</span></div>
+              <svg id="heartChart" class="trend-svg" viewBox="0 0 600 170" preserveAspectRatio="none"></svg>
+            </article>
+            <article class="chart-card">
+              <div class="chart-title">血氧饱和度 <span>%</span></div>
+              <svg id="spo2Chart" class="trend-svg" viewBox="0 0 600 170" preserveAspectRatio="none"></svg>
+            </article>
+            <article class="chart-card">
+              <div class="chart-title">环境温度 <span>°C</span></div>
+              <svg id="temperatureChart" class="trend-svg" viewBox="0 0 600 170" preserveAspectRatio="none"></svg>
+            </article>
+            <article class="chart-card">
+              <div class="chart-title">环境湿度 <span>%</span></div>
+              <svg id="humidityChart" class="trend-svg" viewBox="0 0 600 170" preserveAspectRatio="none"></svg>
+            </article>
+            <article class="chart-card">
+              <div class="chart-title">体动强度 <span>三轴合成 g</span></div>
+              <svg id="accelChart" class="trend-svg" viewBox="0 0 600 170" preserveAspectRatio="none"></svg>
+            </article>
+            <article class="chart-card">
+              <div class="chart-title">累计翻身次数 <span>次</span></div>
+              <svg id="turnoverChart" class="trend-svg" viewBox="0 0 600 170" preserveAspectRatio="none"></svg>
+            </article>
+          </div>
+
+          <article class="chart-card stage-card">
+            <div class="chart-title">睡眠阶段变化 <span>未入睡 / 浅睡眠 / 深度睡眠</span></div>
+            <svg id="stageChart" class="trend-svg" viewBox="0 0 600 190" preserveAspectRatio="none"></svg>
+          </article>
+        </div>
+
+        <aside class="summary-column">
+          <div class="section-heading">
+            <h3>睡眠统计与建议</h3>
+            <span>当前会话</span>
+          </div>
+
+          <div id="durationList" class="duration-list"></div>
+
+          <div class="score-card">
+            <div id="scoreRing" class="score-ring">
+              <div id="sleepScore" class="score-number">--<small>分</small></div>
+            </div>
+            <div>
+              <div id="scoreLabel" class="score-label">数据积累中</div>
+              <div id="scoreDescription" class="score-description">持续监测后将结合睡眠结构、心率与血氧给出综合评价。</div>
+            </div>
+          </div>
+
+          <div class="summary-metrics">
+            <div class="summary-metric"><span>平均心率</span><strong id="averageHeart">--</strong></div>
+            <div class="summary-metric"><span>平均血氧</span><strong id="averageSpo2">--</strong></div>
+            <div class="summary-metric"><span>睡眠占比</span><strong id="sleepRatio">--</strong></div>
+            <div class="summary-metric"><span>累计监测</span><strong id="observedTime">--</strong></div>
+          </div>
+
+          <div class="advice-box">
+            <div class="advice-title">个性化睡眠建议</div>
+            <ul id="adviceList" class="advice-list">
+              <li>等待更多有效数据后生成建议。</li>
+            </ul>
+          </div>
+          <div class="analysis-disclaimer">睡眠阶段与评分为算法估算结果，仅用于日常趋势观察，不能替代医疗诊断。</div>
+        </aside>
+      </div>
+    </section>
   </main>
 
   <script>
@@ -1287,6 +2019,298 @@ DASHBOARD_HTML = r"""<!doctype html>
       if (code === 1) return "#246bfe";
       if (code === 2) return "#0f9f9a";
       return "#65717d";
+    }
+
+    function numberOrNull(value) {
+      if (value === null || value === undefined || value === "") return null;
+      const number = Number(value);
+      return Number.isFinite(number) ? number : null;
+    }
+
+    function formatDuration(totalSeconds) {
+      const seconds = Math.max(0, Math.round(Number(totalSeconds) || 0));
+      const hours = Math.floor(seconds / 3600);
+      const minutes = Math.floor((seconds % 3600) / 60);
+      const remainingSeconds = seconds % 60;
+      if (hours) return `${hours}小时${minutes}分`;
+      if (minutes) return `${minutes}分${remainingSeconds}秒`;
+      return `${remainingSeconds}秒`;
+    }
+
+    function formatClock(value) {
+      const date = value ? new Date(String(value).replace(" ", "T")) : null;
+      if (!date || Number.isNaN(date.getTime())) return "--:--";
+      return date.toLocaleTimeString("zh-CN", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false
+      });
+    }
+
+    function chartFrame(minValue, maxValue, color) {
+      const left = 48;
+      const right = 586;
+      const top = 12;
+      const bottom = 142;
+      const lines = [0, 0.5, 1].map((ratio) => {
+        const y = top + (bottom - top) * ratio;
+        const value = maxValue - (maxValue - minValue) * ratio;
+        return `<line class="chart-grid" x1="${left}" y1="${y}" x2="${right}" y2="${y}"></line>
+          <text class="chart-axis-text" x="4" y="${y + 3}">${value.toFixed(value < 10 ? 1 : 0)}</text>`;
+      }).join("");
+      return { left, right, top, bottom, color, markup: lines };
+    }
+
+    function renderLineChart(svgId, history, field, options) {
+      const svg = $(svgId);
+      const points = (history || []).map((item, index) => {
+        const sensor = item.sensor_data || {};
+        const rawValue = typeof field === "function" ? field(sensor) : sensor[field];
+        return { index, value: numberOrNull(rawValue) };
+      }).filter((item) => item.value !== null);
+
+      if (points.length < 2) {
+        svg.innerHTML = `<text class="chart-empty" x="300" y="85">等待更多采样点</text>`;
+        return;
+      }
+
+      const values = points.map((item) => item.value);
+      let minValue = Math.min(...values);
+      let maxValue = Math.max(...values);
+      const minSpan = options.minSpan || 1;
+      if (maxValue - minValue < minSpan) {
+        const center = (maxValue + minValue) / 2;
+        minValue = center - minSpan / 2;
+        maxValue = center + minSpan / 2;
+      } else {
+        const padding = (maxValue - minValue) * 0.12;
+        minValue -= padding;
+        maxValue += padding;
+      }
+      if (options.floor !== undefined) minValue = Math.min(options.floor, minValue);
+      if (options.ceiling !== undefined) maxValue = Math.max(options.ceiling, maxValue);
+      if (maxValue <= minValue) maxValue = minValue + minSpan;
+
+      const frame = chartFrame(minValue, maxValue, options.color);
+      const denominator = Math.max(1, history.length - 1);
+      const path = points.map((point, pointIndex) => {
+        const x = frame.left + (point.index / denominator) * (frame.right - frame.left);
+        const y = frame.bottom - ((point.value - minValue) / (maxValue - minValue)) * (frame.bottom - frame.top);
+        return `${pointIndex ? "L" : "M"} ${x.toFixed(2)} ${y.toFixed(2)}`;
+      }).join(" ");
+      const firstTime = history[0] && history[0].timestamp;
+      const lastTime = history[history.length - 1] && history[history.length - 1].timestamp;
+
+      svg.innerHTML = `${frame.markup}
+        <path class="chart-line" stroke="${options.color}" d="${path}"></path>
+        <text class="chart-axis-text" x="${frame.left}" y="163">${formatClock(firstTime)}</text>
+        <text class="chart-axis-text" x="${frame.right}" y="163" text-anchor="end">${formatClock(lastTime)}</text>`;
+    }
+
+    function renderStageChart(history) {
+      const svg = $("stageChart");
+      const points = (history || []).map((item, index) => {
+        const result = item.model_sleep_result || {};
+        const code = numberOrNull(result.sleep_state_code);
+        const valid = Number(result.state_valid) === 1;
+        return { index, code: valid && [0, 1, 2].includes(code) ? code : 0 };
+      });
+
+      if (!points.length) {
+        svg.innerHTML = `<text class="chart-empty" x="300" y="95">等待睡眠监测数据</text>`;
+        return;
+      }
+
+      const left = 72;
+      const right = 586;
+      const stageY = { 0: 24, 1: 84, 2: 144 };
+      const labels = [
+        { code: 0, text: "未入睡", color: "#d17916" },
+        { code: 1, text: "浅睡眠", color: "#246bfe" },
+        { code: 2, text: "深度睡眠", color: "#0f9f9a" }
+      ];
+      const grid = labels.map((item) => `
+        <line class="chart-grid" x1="${left}" y1="${stageY[item.code]}" x2="${right}" y2="${stageY[item.code]}"></line>
+        <circle cx="7" cy="${stageY[item.code] - 3}" r="4" fill="${item.color}"></circle>
+        <text class="chart-axis-text" x="16" y="${stageY[item.code]}">${item.text}</text>
+      `).join("");
+      const denominator = Math.max(1, history.length - 1);
+      let path = "";
+      points.forEach((point, index) => {
+        const x = points.length === 1
+          ? left
+          : left + (point.index / denominator) * (right - left);
+        const y = stageY[point.code];
+        if (index === 0) {
+          path = `M ${x.toFixed(2)} ${y}`;
+          return;
+        }
+        path += ` H ${x.toFixed(2)} V ${y}`;
+      });
+      if (points.length === 1) {
+        path += ` H ${right}`;
+      }
+
+      svg.innerHTML = `${grid}
+        <path class="chart-line" stroke="#53667a" d="${path}"></path>
+        <text class="chart-axis-text" x="${left}" y="181">${formatClock(history[0].timestamp)}</text>
+        <text class="chart-axis-text" x="${right}" y="181" text-anchor="end">${formatClock(history[history.length - 1].timestamp)}</text>`;
+    }
+
+    function buildSleepEvaluation(summary) {
+      const stageSeconds = summary.stage_seconds || {};
+      const observed = Number(summary.observed_sleep_seconds) || 0;
+      const sleeping = Number(summary.sleep_seconds) || 0;
+      const deep = Number(stageSeconds["2"] ?? stageSeconds[2]) || 0;
+      const sleepRatio = summary.sleep_ratio;
+      const averageHeart = numberOrNull(summary.average_heart_rate);
+      const averageSpo2 = numberOrNull(summary.average_spo2);
+      const lowSpo2Ratio = numberOrNull(summary.spo2_low_ratio);
+
+      if (observed < 30 || summary.sample_count < 15) {
+        return {
+          score: null,
+          label: "数据积累中",
+          description: "至少积累 30 秒有效阶段数据后生成初步趋势评价。",
+          advice: ["保持设备稳定佩戴并继续监测，以获得更完整的睡眠结构。"]
+        };
+      }
+
+      let score = 20;
+      score += Math.min(40, Math.max(0, Number(sleepRatio || 0) * 40));
+      const deepRatio = sleeping ? deep / sleeping : 0;
+      score += Math.min(20, deepRatio / 0.2 * 20);
+
+      if (averageSpo2 !== null) {
+        score += averageSpo2 >= 95 ? 15 : Math.max(0, (averageSpo2 - 88) / 7 * 15);
+      }
+      if (averageHeart !== null) {
+        score += averageHeart >= 45 && averageHeart <= 80 ? 5 : 2;
+      }
+      if (lowSpo2Ratio !== null) score -= Math.min(15, lowSpo2Ratio * 60);
+      score = Math.round(Math.min(100, Math.max(0, score)));
+
+      let label = "睡眠状态一般";
+      let description = "当前睡眠结构仍有改善空间，建议结合整夜趋势持续观察。";
+      if (score >= 85) {
+        label = "睡眠状态良好";
+        description = "当前阶段结构和主要体征整体平稳。";
+      } else if (score >= 70) {
+        label = "睡眠状态尚可";
+        description = "整体表现尚可，个别指标可继续关注。";
+      } else if (score < 55) {
+        label = "建议重点关注";
+        description = "当前睡眠连续性或体征指标存在较明显波动。";
+      }
+
+      const advice = [];
+      if (sleepRatio !== null && sleepRatio < 0.75) {
+        advice.push("未入睡时间占比较高，建议固定入睡时间并减少睡前强光和电子设备使用。");
+      }
+      if (sleeping >= 30 * 60 && deepRatio < 0.12) {
+        advice.push("深睡占比较低，可尝试保持规律运动，并避免临睡前摄入咖啡因。");
+      }
+      if (averageSpo2 !== null && (averageSpo2 < 95 || (lowSpo2Ratio || 0) > 0.05)) {
+        advice.push("监测到血氧偏低趋势，请检查传感器佩戴；若反复出现或伴随不适，建议咨询医生。");
+      }
+      if (averageHeart !== null && averageHeart > 80) {
+        advice.push("睡眠期平均心率偏高，建议避免睡前剧烈运动、酒精和过量进食。");
+      }
+      const averageTemperature = numberOrNull(summary.average_temperature);
+      const averageHumidity = numberOrNull(summary.average_humidity);
+      if (averageTemperature !== null && (averageTemperature < 18 || averageTemperature > 26)) {
+        advice.push("睡眠环境温度偏离舒适区间，可将室温调整到约 18–26°C。");
+      }
+      if (averageHumidity !== null && (averageHumidity < 40 || averageHumidity > 65)) {
+        advice.push("环境湿度不够理想，建议尽量维持在 40%–65%。");
+      }
+      if (!advice.length) {
+        advice.push("当前主要指标较平稳，继续保持规律作息并完成整夜监测。");
+      }
+
+      return { score, label, description, advice };
+    }
+
+    function renderAnalysis(history, summary) {
+      renderLineChart("heartChart", history, "heart_rate_bpm", {
+        color: "#d84a4a", minSpan: 12
+      });
+      renderLineChart("spo2Chart", history, "spo2_percent", {
+        color: "#246bfe", minSpan: 4, floor: 90, ceiling: 100
+      });
+      renderLineChart("temperatureChart", history, "temperature_c", {
+        color: "#d17916", minSpan: 4
+      });
+      renderLineChart("humidityChart", history, "humidity_percent", {
+        color: "#0f9f9a", minSpan: 10
+      });
+      renderLineChart("accelChart", history, (sensor) => {
+        const ax = numberOrNull(sensor.accel_x);
+        const ay = numberOrNull(sensor.accel_y);
+        const az = numberOrNull(sensor.accel_z);
+        if ([ax, ay, az].some((value) => value === null)) return null;
+        return Math.sqrt(ax * ax + ay * ay + az * az);
+      }, {
+        color: "#7c5ce0", minSpan: 0.15, floor: 0
+      });
+      renderLineChart("turnoverChart", history, "turnover_count", {
+        color: "#53667a", minSpan: 2, floor: 0
+      });
+      renderStageChart(history);
+
+      const stageSeconds = summary.stage_seconds || {};
+      const observed = Number(summary.observed_sleep_seconds) || 0;
+      const stages = [
+        { code: 0, name: "未入睡", color: "#d17916" },
+        { code: 1, name: "浅睡眠", color: "#246bfe" },
+        { code: 2, name: "深度睡眠", color: "#0f9f9a" }
+      ].map((stage) => {
+        const seconds = Number(stageSeconds[String(stage.code)] ?? stageSeconds[stage.code]) || 0;
+        const percent = observed ? seconds / observed * 100 : 0;
+        return { ...stage, seconds, percent };
+      });
+      const segments = stages.map((stage) => `
+        <div class="duration-segment"
+          title="${stage.name} ${formatDuration(stage.seconds)}"
+          style="width:${stage.percent.toFixed(2)}%;background:${stage.color}">
+        </div>
+      `).join("");
+      const details = stages.map((stage) => `
+        <div class="duration-detail">
+          <span class="duration-name"><span class="stage-dot" style="background:${stage.color}"></span>${stage.name}</span>
+          <strong class="duration-value">${formatDuration(stage.seconds)}</strong>
+          <span class="duration-percent">${stage.percent.toFixed(1)}%</span>
+        </div>
+      `).join("");
+      $("durationList").innerHTML = `
+        <div class="duration-track">${segments}</div>
+        <div class="duration-details">${details}</div>
+      `;
+
+      const evaluation = buildSleepEvaluation(summary);
+      const score = evaluation.score;
+      $("sleepScore").innerHTML = `${score === null ? "--" : score}<small>分</small>`;
+      $("scoreLabel").textContent = evaluation.label;
+      $("scoreDescription").textContent = evaluation.description;
+      const scoreDegrees = score === null ? 0 : score * 3.6;
+      $("scoreRing").style.background = `conic-gradient(var(--brand) 0deg, var(--brand) ${scoreDegrees}deg, #e7edf3 ${scoreDegrees}deg)`;
+
+      const averageHeart = numberOrNull(summary.average_heart_rate);
+      const averageSpo2 = numberOrNull(summary.average_spo2);
+      $("averageHeart").textContent = averageHeart === null ? "--" : `${averageHeart.toFixed(1)} bpm`;
+      $("averageSpo2").textContent = averageSpo2 === null ? "--" : `${averageSpo2.toFixed(1)}%`;
+      $("sleepRatio").textContent = summary.sleep_ratio === null || summary.sleep_ratio === undefined
+        ? "--"
+        : `${(Number(summary.sleep_ratio) * 100).toFixed(1)}%`;
+      $("observedTime").textContent = formatDuration(observed);
+      $("adviceList").innerHTML = evaluation.advice.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+
+      if (summary.started_at && summary.last_sample_at) {
+        $("analysisRange").textContent = `${formatClock(summary.started_at)} - ${formatClock(summary.last_sample_at)}`;
+      } else {
+        $("analysisRange").textContent = "等待有效睡眠数据";
+      }
     }
 
     function escapeHtml(value) {
@@ -1372,7 +2396,9 @@ DASHBOARD_HTML = r"""<!doctype html>
       $("humidityHint").textContent = classifyHint("humidity", sensor.humidity_percent);
       $("turnoverHint").textContent = classifyHint("turnover", sensor.turnover_count);
       $("accelHint").textContent = accelMagnitude === null ? "等待传感器上传" : `x=${valueOrDash(sensor.accel_x)} y=${valueOrDash(sensor.accel_y)} z=${valueOrDash(sensor.accel_z)}`;
-      renderDebug(data.data_history || []);
+      const dataHistory = data.data_history || [];
+      renderDebug(dataHistory);
+      renderAnalysis(data.trend_history || dataHistory, data.session_summary || {});
 
       document.querySelectorAll(".control-btn").forEach((button) => {
         button.disabled = !manualMode;
@@ -1441,6 +2467,7 @@ DASHBOARD_HTML = r"""<!doctype html>
 
 
 def main():
+    restore_dashboard_history()
     socket_thread = threading.Thread(target=run_socket_server, daemon=True)
     socket_thread.start()
     run_web_server()
