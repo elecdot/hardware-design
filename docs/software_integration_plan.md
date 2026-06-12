@@ -447,6 +447,49 @@ Initial implementation:
   manual command normalization, history bounding, control-state tracking, and
   four-record JSONL validation.
 
+### SW-3a: Service Composition Skeleton
+
+- Add a socket-free PC service core before refactoring the large dashboard
+  prototype.
+- For one validated `sensor_data`, classify it, build exactly one
+  `sleep_result`, build exactly one `control_command`, update `AppState`, and
+  append the three records to storage.
+- Accept one returned `control_status` and record it in both storage and
+  `AppState`.
+- Keep socket accept/read/write and HTTP/SSE dashboard code outside this
+  module.
+
+Initial implementation:
+
+- `pc_server/service.py` provides `SleepMonitorPcService`.
+- It composes `SleepClassifierAdapter`, `comfort_policy`, `AppState`, and
+  optional four-record storage.
+- It consumes pending manual commands as one-shot commands only in manual mode.
+- Policy exceptions are converted into valid no-action
+  `control_command(reason="policy_error:<ExceptionType>")` messages.
+- `pc_server/service_selftest.py` covers automatic policy output, storage
+  writes, state snapshots, `control_status` recording, manual one-shot command,
+  manual idle, auto mode return, and policy-error fallback.
+
+### SW-3b: Minimal Socket Loop
+
+- Add the smallest TCP wrapper around `SleepMonitorPcService`.
+- Decode newline JSON with the canonical protocol buffer.
+- For every incoming `sensor_data`, send exactly two messages in order:
+  `sleep_result`, then `control_command`.
+- Record incoming `control_status`.
+- Keep this loop sequential and single-client for the first version; dashboard
+  HTTP/SSE integration remains a later step.
+
+Initial implementation:
+
+- `pc_server/socket_service.py` provides `handle_client()` and a minimal
+  `serve_forever()` CLI.
+- The CLI persists four record streams through `JsonlRecordStorage`.
+- `pc_server/socket_service_selftest.py` runs a real localhost TCP loop on an
+  OS-assigned port and verifies the new protocol order plus storage/state
+  updates.
+
 ### SW-3: Dashboard Service Refactor
 
 - Keep `dashboard_server.py` as the PC entry point.

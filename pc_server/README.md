@@ -25,6 +25,10 @@ idea-level reference code, not as final architecture constraints.
 | [state_store.py](state_store.py) | Thread-safe `AppState` for single-client dashboard/service state and pending manual commands. |
 | [storage.py](storage.py) | JSONL four-record storage backend for `sensor_data`, `sleep_result`, `control_command`, and `control_status`. |
 | [state_storage_selftest.py](state_storage_selftest.py) | Dependency-free SW-2 AppState/storage self-test. |
+| [service.py](service.py) | Socket-free PC service composition for one `sensor_data` cycle and `control_status` recording. |
+| [service_selftest.py](service_selftest.py) | Dependency-free service composition self-test. |
+| [socket_service.py](socket_service.py) | Minimal sequential TCP loop for the new four-message protocol. |
+| [socket_service_selftest.py](socket_service_selftest.py) | Loopback TCP self-test for `sensor_data -> sleep_result/control_command -> control_status`. |
 | [pc_server.py](pc_server.py) | Legacy/minimal socket smoke; not the final acceptance entry. |
 | [fake_pynq_client.py](fake_pynq_client.py) | To be rewritten as the new-protocol PC-only validation client. |
 
@@ -32,7 +36,6 @@ Remaining planned first-version modules:
 
 | File | Purpose |
 |---|---|
-| `service.py` | Single-client TCP service that composes protocol, classifier, policy, state, and storage. |
 | `static/` | Dashboard HTML/CSS/JS split out of `dashboard_server.py`. |
 
 ## Run Order
@@ -47,6 +50,12 @@ Planned final PC entry:
 
 ```bash
 python dashboard_server.py
+```
+
+Minimal new-protocol socket service:
+
+```bash
+python socket_service.py --host 0.0.0.0 --port 9000
 ```
 
 Legacy PC-local smoke:
@@ -78,6 +87,18 @@ State/storage self-test:
 
 ```bash
 python state_storage_selftest.py
+```
+
+Service composition self-test:
+
+```bash
+python service_selftest.py
+```
+
+Socket loopback self-test:
+
+```bash
+python socket_service_selftest.py
 ```
 
 For real PYNQ integration, the board client must connect to the PC's real IPv4
