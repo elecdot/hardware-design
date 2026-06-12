@@ -18,6 +18,8 @@ idea-level reference code, not as final architecture constraints.
 | [dashboard_server.py](dashboard_server.py) | Current PC dashboard/service prototype and intended final PC entry after refactor. |
 | [protocol.py](protocol.py) | Canonical newline JSON protocol helpers and validation for four message types. |
 | [protocol_selftest.py](protocol_selftest.py) | Dependency-free SW-0 protocol self-test. |
+| [classifier_adapter.py](classifier_adapter.py) | Stable wrapper around `sleep_classifier.py` with validated `sleep_result` output and failure fallback. |
+| [classifier_adapter_selftest.py](classifier_adapter_selftest.py) | Dependency-free classifier adapter self-test using fake classifier functions. |
 | [comfort_policy.py](comfort_policy.py) | Pure first-version comfort policy that emits validated `control_command` messages. |
 | [comfort_policy_selftest.py](comfort_policy_selftest.py) | Dependency-free SW-1 policy self-test. |
 | [state_store.py](state_store.py) | Thread-safe `AppState` for single-client dashboard/service state and pending manual commands. |
@@ -30,7 +32,6 @@ Remaining planned first-version modules:
 
 | File | Purpose |
 |---|---|
-| `classifier_adapter.py` | Stable wrapper around `sleep_classifier.py` and future model implementations. |
 | `service.py` | Single-client TCP service that composes protocol, classifier, policy, state, and storage. |
 | `static/` | Dashboard HTML/CSS/JS split out of `dashboard_server.py`. |
 
@@ -59,6 +60,12 @@ Protocol self-test:
 
 ```bash
 python protocol_selftest.py
+```
+
+Classifier adapter self-test:
+
+```bash
+python classifier_adapter_selftest.py
 ```
 
 Comfort policy self-test:

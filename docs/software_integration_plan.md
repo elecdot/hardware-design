@@ -407,6 +407,26 @@ Initial implementation:
   data.
 - `pc_server/comfort_policy_selftest.py` is the dependency-free smoke test.
 
+### SW-1b: Classifier Adapter Boundary
+
+- Wrap `sleep_classifier.py` behind a stable adapter before wiring it into
+  socket service or dashboard logic.
+- Validate incoming `sensor_data` and outgoing `sleep_result` with the
+  canonical protocol module.
+- On classifier load/runtime/schema errors, return a valid
+  `sleep_result(state_valid=0)` with a clear remark instead of crashing the
+  service loop.
+
+Initial implementation:
+
+- `pc_server/classifier_adapter.py` provides `SleepClassifierAdapter` and
+  `classify_sensor_data()`.
+- The adapter lazy-loads the real `sleep_classifier.classify_sleep_state`
+  only when no test/fake classifier is injected.
+- `pc_server/classifier_adapter_selftest.py` covers valid output, minimal
+  output normalization, invalid classifier output, runtime exceptions, and
+  invalid input sensor packets.
+
 ### SW-2: PC State And Storage
 
 - Add `AppState`.
