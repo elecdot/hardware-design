@@ -79,7 +79,10 @@ sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6 board_client.py \
   --host <PC_IPV4> \
   --port 9000 \
   --bitfile /home/xilinx/jupyter_notebooks/sleep_monitor/system_v0_2.bit \
-  --samples 30
+  --samples 30 \
+  --jy901-retries 1 \
+  --jy901-retry-delay 0.05 \
+  --jy901-max-stale 5.0
 ```
 
 ## Socket Integration Direction
@@ -91,6 +94,8 @@ The mature PYNQ client should:
 - connect to the PC's real IPv4 address;
 - retry connection every 3 seconds if the PC is unavailable;
 - send one `sensor_data` per sample;
+- retry transient JY901 read failures and mark IMU quality separately from
+  HR/SpO2-based `data_valid`;
 - wait up to 2 seconds for the matching `sleep_result` and `control_command`;
 - skip control for that sample on timeout or malformed messages;
 - execute valid commands with local guard/cooldown checks;

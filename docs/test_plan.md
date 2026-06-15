@@ -49,6 +49,7 @@ Current software-integration local self-tests:
 
 ```text
 pc_server/protocol_selftest.py
+pc_server/sleep_classifier_selftest.py
 pc_server/classifier_adapter_selftest.py
 pc_server/comfort_policy_selftest.py
 pc_server/state_storage_selftest.py

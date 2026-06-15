@@ -8,15 +8,18 @@ from comfort_policy import (
 )
 
 
-def sensor(sample_id=1, temperature=26.0, humidity=50.0, valid=1):
+def sensor(sample_id=1, temperature=26.0, humidity=50.0, valid=1, status_code=0):
     return {
         "type": "sensor_data",
         "timestamp": "2026-06-12 21:00:00",
         "sample_id": sample_id,
+        "heart_rate_bpm": 76,
+        "spo2_percent": 98,
         "temperature_c": temperature,
         "humidity_percent": humidity,
         "data_valid": valid,
-        "status_code": 0,
+        "checksum_ok": 1,
+        "status_code": status_code,
     }
 
 
@@ -47,6 +50,15 @@ def main():
     assert command["reason"] == "humidity_low"
     assert_targets(command, {"humidifier": {"enabled": True}})
     assert next_state["last_humidifier_enabled"] is True
+
+    command, _ = decide_control_command(
+        sensor(sample_id=9, humidity=35.0, valid=0, status_code=0x01),
+        result(sample_id=9, code=1),
+        initial_policy_state(),
+        now_s=15.0,
+    )
+    assert command["reason"] == "humidity_low"
+    assert_targets(command, {"humidifier": {"enabled": True}})
 
     command, next_state = decide_control_command(
         sensor(sample_id=2, humidity=70.0),

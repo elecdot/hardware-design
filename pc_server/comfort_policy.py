@@ -161,7 +161,10 @@ def _manual_targets_from_action(action):
 
 
 def _invalid_auto_reason(sensor_data, sleep_result):
-    if _boolish(sensor_data.get("data_valid")) != 1:
+    if (
+        _boolish(sensor_data.get("data_valid")) != 1
+        and not _classifier_inputs_usable(sensor_data)
+    ):
         return "sensor_data_invalid"
     if _boolish(sleep_result.get("state_valid")) != 1:
         remark = str(sleep_result.get("remark", "classifier_invalid"))
@@ -173,6 +176,20 @@ def _invalid_auto_reason(sensor_data, sleep_result):
     if _float(sensor_data.get("humidity_percent")) is None:
         return "missing_humidity"
     return None
+
+
+def _classifier_inputs_usable(sensor_data):
+    if _float(sensor_data.get("heart_rate_bpm")) is None:
+        return False
+    if _float(sensor_data.get("spo2_percent")) is None:
+        return False
+    if _boolish(sensor_data.get("checksum_ok", 1)) != 1:
+        return False
+    try:
+        status_code = int(sensor_data.get("status_code", 0))
+    except (TypeError, ValueError):
+        return False
+    return (status_code & 0x04) == 0
 
 
 def _humidifier_decision(humidity, state):

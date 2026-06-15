@@ -55,6 +55,8 @@ _HISTORY_FIELDS = [
     "temperature_c",
     "humidity_percent",
     "data_valid",
+    "checksum_ok",
+    "status_code",
     "sleep_state_code",
     "state_valid",
     "result_remark",
@@ -156,11 +158,19 @@ def _parse_time(value):
 
 
 def _row_is_valid(row):
-    return (
-        _int(row.get("data_valid"), 0) == 1
-        and _float(row.get("heart_rate_bpm")) is not None
-        and _float(row.get("spo2_percent")) is not None
-    )
+    return _classifier_inputs_usable(row)
+
+
+def _classifier_inputs_usable(row):
+    if _float(row.get("heart_rate_bpm")) is None:
+        return False
+    if _float(row.get("spo2_percent")) is None:
+        return False
+    if _int(row.get("checksum_ok"), 1) != 1:
+        return False
+    if _int(row.get("status_code"), 0) & 0x04:
+        return False
+    return True
 
 
 def _read_history():
@@ -201,6 +211,8 @@ def _new_history_row(data):
         "temperature_c": data.get("temperature_c", ""),
         "humidity_percent": data.get("humidity_percent", ""),
         "data_valid": data.get("data_valid", 0),
+        "checksum_ok": data.get("checksum_ok", 1),
+        "status_code": data.get("status_code", 0),
         "sleep_state_code": "",
         "state_valid": 0,
         "result_remark": "",
@@ -418,9 +430,7 @@ def classify_sleep_state(data: dict) -> dict:
     """
 
     sample_id = data.get("sample_id", -1)
-    if data.get("data_valid") != 1:
-        invalid_result = _result(sample_id, 0, 0, "data_invalid")
-    elif (
+    if (
         _float(data.get("heart_rate_bpm")) is None
         or _float(data.get("spo2_percent")) is None
     ):
@@ -430,6 +440,8 @@ def classify_sleep_state(data: dict) -> dict:
             0,
             "missing_heart_rate_or_spo2",
         )
+    elif not _classifier_inputs_usable(data):
+        invalid_result = _result(sample_id, 0, 0, "data_invalid")
     else:
         invalid_result = None
 

@@ -8,8 +8,12 @@ continues to live in ``integrated_demo.py`` until the socket client is added.
 import time
 
 from integrated_demo import (
+    DEFAULT_JY901_MAX_STALE_S,
+    DEFAULT_JY901_RETRIES,
+    DEFAULT_JY901_RETRY_DELAY_S,
     TurnCounter,
     empty_sample,
+    finalize_sample_validity,
     read_dht11,
     read_jy901,
     read_spo2,
@@ -45,6 +49,9 @@ class SleepMonitorBoard(object):
         drivers=None,
         sensor_timeout_s=0.5,
         dht11_period_s=2.0,
+        jy901_retries=DEFAULT_JY901_RETRIES,
+        jy901_retry_delay_s=DEFAULT_JY901_RETRY_DELAY_S,
+        jy901_max_stale_s=DEFAULT_JY901_MAX_STALE_S,
         turn_threshold_deg=35.0,
         ir_min_interval_s=DEFAULT_IR_MIN_INTERVAL_S,
         ir_repeat_cooldown_s=DEFAULT_IR_REPEAT_COOLDOWN_S,
@@ -54,12 +61,16 @@ class SleepMonitorBoard(object):
         self.drivers = drivers or {}
         self.sensor_timeout_s = float(sensor_timeout_s)
         self.dht11_period_s = float(dht11_period_s)
+        self.jy901_retries = int(jy901_retries)
+        self.jy901_retry_delay_s = float(jy901_retry_delay_s)
+        self.jy901_max_stale_s = float(jy901_max_stale_s)
         self.ir_min_interval_s = float(ir_min_interval_s)
         self.ir_repeat_cooldown_s = float(ir_repeat_cooldown_s)
         self.ir_timeout_s = float(ir_timeout_s)
         self.time_fn = time_fn or time.time
         self.turn_counter = TurnCounter(threshold_deg=turn_threshold_deg)
         self.dht_cache = {}
+        self.jy901_cache = {}
         self.sample_id = 0
         self.display_values = None
         self.last_ir_command = None
@@ -71,10 +82,21 @@ class SleepMonitorBoard(object):
         self.sample_id += 1
         now_s = self.time_fn()
         sample = empty_sample(self.sample_id)
-        read_jy901(self.drivers, sample, self.turn_counter, self.sensor_timeout_s)
+        read_jy901(
+            self.drivers,
+            sample,
+            self.turn_counter,
+            self.sensor_timeout_s,
+            retries=self.jy901_retries,
+            retry_delay_s=self.jy901_retry_delay_s,
+            stale_cache=self.jy901_cache,
+            now_s=now_s,
+            max_stale_s=self.jy901_max_stale_s,
+        )
         read_dht11(self.drivers, sample, self.dht_cache, now_s, self.dht11_period_s)
         read_spo2(self.drivers, sample)
         update_humidifier(self.drivers, sample)
+        finalize_sample_validity(sample)
         return sample
 
     def update_display(self, sample, control_status=None):

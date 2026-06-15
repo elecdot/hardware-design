@@ -61,8 +61,15 @@ The board-side client sends `sensor_data` packets.
   "temperature_c": 26,
   "humidity_percent": 58,
   "data_valid": 1,
+  "imu_valid": 1,
+  "imu_stale": 0,
+  "spo2_valid": 1,
+  "env_valid": 1,
   "status_code": 0,
   "checksum_ok": 1,
+  "jy901_status": "OK",
+  "jy901_attempts": 1,
+  "jy901_stale_s": null,
   "remark": "normal"
 }
 ```
@@ -83,10 +90,22 @@ Minimum first-version fields:
 | `turnover_count` | Cumulative turnover count. |
 | `temperature_c` | DHT11 or available temperature in degrees C. |
 | `humidity_percent` | DHT11 humidity in percent RH. |
-| `data_valid` | `1` when the packet contains usable sensor data. |
+| `data_valid` | `1` when the packet is usable for PC classification. First-version classifier usability is based on valid HR/SpO2; a JY901-only failure should not force this to `0`. |
+| `imu_valid` | Optional quality flag: `1` when the current sample contains a fresh JY901/IMU read. |
+| `imu_stale` | Optional quality flag: `1` when IMU values were carried forward from a recent previous read after a retry failure. |
+| `spo2_valid` | Optional quality flag: `1` when HR/SpO2 fields are present and checksum/sensor flags are acceptable. |
+| `env_valid` | Optional quality flag: `1` when temperature/humidity fields are current or from the DHT11 cache. |
 | `status_code` | Board-side status code; `0` means no known error for the packet. |
 | `checksum_ok` | `1` when parsed sensor payloads passed their own checks. |
+| `jy901_status` | Optional JY901 status label such as `OK`, `ERR`, or `STALE`. |
+| `jy901_attempts` | Optional number of JY901 read attempts made for this sample. |
+| `jy901_stale_s` | Optional age in seconds of reused IMU data when `imu_stale=1`; otherwise `null`. |
 | `remark` | Short debug/status text. |
+
+The board may still set JY901-related bits in `status_code` and preserve
+`remark="jy901:..."` for observability while keeping `data_valid=1` if HR/SpO2
+are valid. PC warm-up and automatic policy must not reset only because the
+JY901 module had a transient read failure.
 
 ## PC To PYNQ: sleep_result
 

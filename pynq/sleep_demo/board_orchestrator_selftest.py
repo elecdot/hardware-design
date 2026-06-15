@@ -32,6 +32,39 @@ class FakeHumidifier(object):
         return {"humidifier_on": self.enabled}
 
 
+class FakeJY901(object):
+    def __init__(self, failures=0):
+        self.failures = int(failures)
+        self.oneshot_calls = 0
+
+    def oneshot(self, timeout=0.5):
+        self.oneshot_calls += 1
+        if self.oneshot_calls <= self.failures:
+            raise RuntimeError("fake jy901 nack")
+
+    def read_raw(self):
+        return {"fake": 1}
+
+    def read_status(self):
+        return 0
+
+
+class FakeSpo2Sample(object):
+    bpm = 76
+    spo2 = 98
+    crc_ok = True
+    sensor_off = False
+    sensor_error = False
+
+
+class FakeSpo2(object):
+    def has_frame(self):
+        return True
+
+    def read_sample(self):
+        return FakeSpo2Sample()
+
+
 class FakeIrAc(object):
     def __init__(self, fail=False):
         self.fail = bool(fail)
@@ -50,6 +83,37 @@ class FakeIrAc(object):
             "raw_status": 2,
             "command": command,
         }
+
+
+def fake_scale_raw(_raw):
+    return {
+        "ax_g": 0.1,
+        "ay_g": 0.2,
+        "az_g": 1.0,
+        "gx_dps": 0.0,
+        "gy_dps": 0.0,
+        "gz_dps": 0.0,
+        "hx_counts": 10,
+        "hy_counts": 11,
+        "hz_counts": 12,
+        "roll_deg": 0.0,
+        "pitch_deg": 0.0,
+    }
+
+
+def fake_status_label(_status):
+    return "OK"
+
+
+def sensor_drivers(jy901, spo2=None):
+    drivers = {
+        "jy901": jy901,
+        "jy901_scale_raw": fake_scale_raw,
+        "jy901_status_label": fake_status_label,
+    }
+    if spo2 is not None:
+        drivers["spo2"] = spo2
+    return drivers
 
 
 def command(sample_id, targets, valid=1, mode="auto", reason="selftest"):
@@ -72,6 +136,39 @@ def check_sample_shape():
     assert sample["sample_id"] == 1
     assert sample["data_valid"] == 0
     assert sample["remark"] == "jy901_missing"
+
+
+def check_jy901_retry_success():
+    jy901 = FakeJY901(failures=1)
+    board = SleepMonitorBoard(
+        drivers=sensor_drivers(jy901, FakeSpo2()),
+        jy901_retries=1,
+        jy901_retry_delay_s=0.0,
+    )
+    sample = board.read_sample()
+    validate_message(sample, expected_type=SENSOR_DATA)
+    assert jy901.oneshot_calls == 2
+    assert sample["data_valid"] == 1
+    assert sample["imu_valid"] == 1
+    assert sample["spo2_valid"] == 1
+    assert sample["jy901_attempts"] == 2
+    assert sample["remark"] == "jy901_retry_ok_2"
+
+
+def check_jy901_failure_keeps_classifier_sample_usable():
+    board = SleepMonitorBoard(
+        drivers=sensor_drivers(FakeJY901(failures=3), FakeSpo2()),
+        jy901_retries=1,
+        jy901_retry_delay_s=0.0,
+    )
+    sample = board.read_sample()
+    validate_message(sample, expected_type=SENSOR_DATA)
+    assert sample["data_valid"] == 1
+    assert sample["imu_valid"] == 0
+    assert sample["spo2_valid"] == 1
+    assert sample["status_code"] & 0x01
+    assert sample["jy901_status"] == "ERR"
+    assert sample["remark"].startswith("jy901:")
 
 
 def check_no_action():
@@ -152,6 +249,8 @@ def check_reject_and_error():
 
 def main():
     check_sample_shape()
+    check_jy901_retry_success()
+    check_jy901_failure_keeps_classifier_sample_usable()
     check_no_action()
     check_humidifier_target()
     check_ir_send_and_cooldowns()

@@ -51,8 +51,9 @@ Network:
 Run from the repository root on the PC:
 
 ```bash
-python -m py_compile pc_server\protocol.py pc_server\protocol_selftest.py pc_server\classifier_adapter.py pc_server\classifier_adapter_selftest.py pc_server\comfort_policy.py pc_server\comfort_policy_selftest.py pc_server\state_store.py pc_server\storage.py pc_server\state_storage_selftest.py pc_server\service.py pc_server\service_selftest.py pc_server\socket_service.py pc_server\socket_service_selftest.py pc_server\fake_pynq_client.py pc_server\fake_pynq_client_selftest.py pynq\sleep_demo\board_orchestrator.py pynq\sleep_demo\board_orchestrator_selftest.py pynq\sleep_demo\board_client.py pynq\sleep_demo\board_client_selftest.py
+python -m py_compile pc_server\protocol.py pc_server\protocol_selftest.py pc_server\sleep_classifier.py pc_server\sleep_classifier_selftest.py pc_server\classifier_adapter.py pc_server\classifier_adapter_selftest.py pc_server\comfort_policy.py pc_server\comfort_policy_selftest.py pc_server\state_store.py pc_server\storage.py pc_server\state_storage_selftest.py pc_server\service.py pc_server\service_selftest.py pc_server\socket_service.py pc_server\socket_service_selftest.py pc_server\fake_pynq_client.py pc_server\fake_pynq_client_selftest.py pynq\sleep_demo\board_orchestrator.py pynq\sleep_demo\board_orchestrator_selftest.py pynq\sleep_demo\board_client.py pynq\sleep_demo\board_client_selftest.py
 python pc_server\protocol_selftest.py
+python pc_server\sleep_classifier_selftest.py
 python pc_server\classifier_adapter_selftest.py
 python pc_server\comfort_policy_selftest.py
 python pc_server\state_storage_selftest.py
@@ -67,6 +68,7 @@ Expected result:
 
 ```text
 protocol_selftest PASS
+sleep_classifier_selftest PASS
 classifier_adapter_selftest PASS
 comfort_policy_selftest PASS
 state_storage_selftest PASS
@@ -221,6 +223,9 @@ sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6 integrated_demo.py \
   --samples 5 \
   --interval 1.0 \
   --metadata-source auto \
+  --jy901-retries 1 \
+  --jy901-retry-delay 0.05 \
+  --jy901-max-stale 5.0 \
   --tft-clkdiv 50 \
   --spo2-frame-len 5
 ```
@@ -228,7 +233,10 @@ sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6 integrated_demo.py \
 Expected overlay evidence:
 
 - Printed records have `type="sensor_data"`.
-- JY901 should usually report `jy901_status="OK"` and `data_valid=1`.
+- JY901 should usually report `jy901_status="OK"` and `imu_valid=1`.
+  Occasional JY901-only failures may report `jy901_status="ERR"` or `STALE`
+  with `status_code` bit `0x01`; they should not force `data_valid=0` when
+  HR/SpO2 are valid.
 - DHT11 temperature/humidity should update at its configured period.
 - HR/SpO2 should become non-null when the UART module is connected correctly.
 - TFT should update if display is enabled.
@@ -246,6 +254,9 @@ sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6 board_client.py \
   --samples 30 \
   --interval 1.0 \
   --metadata-source auto \
+  --jy901-retries 1 \
+  --jy901-retry-delay 0.05 \
+  --jy901-max-stale 5.0 \
   --tft-clkdiv 50 \
   --spo2-frame-len 5
 ```
@@ -260,6 +271,8 @@ Expected real-run evidence:
 - PC sends `sleep_result` and `control_command` for each sample.
 - PYNQ returns one `control_status` for each command.
 - PC record directory has matching JSONL streams.
+- `sleep_result` warm-up should progress across occasional JY901-only
+  `status_code=0x01` samples instead of restarting.
 - PYNQ stdout shows command/status lines and no unhandled exceptions.
 - TFT remains responsive if display is enabled.
 

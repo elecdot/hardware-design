@@ -191,6 +191,9 @@ def build_board(args):
         drivers=drivers,
         sensor_timeout_s=args.sensor_timeout,
         dht11_period_s=args.dht11_period,
+        jy901_retries=args.jy901_retries,
+        jy901_retry_delay_s=args.jy901_retry_delay,
+        jy901_max_stale_s=args.jy901_max_stale,
         turn_threshold_deg=args.turn_threshold_deg,
         ir_min_interval_s=args.ir_min_interval,
         ir_repeat_cooldown_s=args.ir_repeat_cooldown,
@@ -215,6 +218,9 @@ def build_arg_parser():
     parser.add_argument("--metadata-source", choices=("auto", "overlay", "static"), default="auto")
     parser.add_argument("--sensor-timeout", type=float, default=0.5)
     parser.add_argument("--dht11-period", type=float, default=2.0)
+    parser.add_argument("--jy901-retries", type=int, default=1)
+    parser.add_argument("--jy901-retry-delay", type=float, default=0.05)
+    parser.add_argument("--jy901-max-stale", type=float, default=5.0)
     parser.add_argument("--spo2-frame-len", type=int, choices=(5, 7), default=5)
     parser.add_argument("--tft-clkdiv", type=int, default=50)
     parser.add_argument("--jy901-clkdiv", type=int, default=500)

@@ -21,6 +21,9 @@ import time
 
 
 DEFAULT_BITFILE = "/home/xilinx/jupyter_notebooks/sleep_monitor/system_v0_2.bit"
+DEFAULT_JY901_RETRIES = 1
+DEFAULT_JY901_RETRY_DELAY_S = 0.05
+DEFAULT_JY901_MAX_STALE_S = 5.0
 DEFAULT_IP_NAMES = {
     "jy901": "axi_i2c_jy901_v1_0_0",
     "dht11": "dht11_axi_v1_0_0",
@@ -296,48 +299,139 @@ def empty_sample(sample_id):
         "temperature_c": None,
         "humidity_percent": None,
         "data_valid": 0,
+        "imu_valid": 0,
+        "imu_stale": 0,
+        "spo2_valid": 0,
+        "env_valid": 0,
         "status_code": 0,
         "checksum_ok": 1,
         "remark": "init",
         "jy901_status": "NA",
+        "jy901_attempts": 0,
+        "jy901_stale_s": None,
         "humidifier_on": False,
     }
 
 
-def read_jy901(drivers, sample, turn_counter, timeout_s):
+def _set_remark(sample, remark):
+    sample["remark"] = remark
+
+
+def _read_jy901_once(drivers, timeout_s):
+    jy901 = drivers["jy901"]
+    jy901.oneshot(timeout=timeout_s)
+    raw = jy901.read_raw()
+    scaled = drivers["jy901_scale_raw"](raw)
+    status = jy901.read_status()
+    return scaled, drivers["jy901_status_label"](status)
+
+
+def _apply_jy901_reading(sample, scaled, status_label, turn_counter):
+    sample.update(
+        {
+            "accel_x": scaled.get("ax_g"),
+            "accel_y": scaled.get("ay_g"),
+            "accel_z": scaled.get("az_g"),
+            "gyro_x": scaled.get("gx_dps"),
+            "gyro_y": scaled.get("gy_dps"),
+            "gyro_z": scaled.get("gz_dps"),
+            "mag_x": scaled.get("hx_counts"),
+            "mag_y": scaled.get("hy_counts"),
+            "mag_z": scaled.get("hz_counts"),
+            "jy901_status": status_label,
+            "imu_valid": 1,
+            "imu_stale": 0,
+            "jy901_stale_s": None,
+        }
+    )
+    flag, count = turn_counter.update(scaled.get("roll_deg"), scaled.get("pitch_deg"))
+    sample["turnover_flag"] = flag
+    sample["turnover_count"] = count
+
+
+def _cache_jy901_reading(cache, scaled, status_label, now_s):
+    if cache is None:
+        return
+    cache["scaled"] = dict(scaled)
+    cache["status_label"] = status_label
+    cache["at_s"] = float(now_s)
+
+
+def _apply_stale_jy901(sample, cache, turn_counter, now_s, max_stale_s):
+    if cache is None or "scaled" not in cache or "at_s" not in cache:
+        return False
+    age_s = max(0.0, float(now_s) - float(cache["at_s"]))
+    if age_s > float(max_stale_s):
+        return False
+
+    scaled = cache["scaled"]
+    sample.update(
+        {
+            "accel_x": scaled.get("ax_g"),
+            "accel_y": scaled.get("ay_g"),
+            "accel_z": scaled.get("az_g"),
+            "gyro_x": scaled.get("gx_dps"),
+            "gyro_y": scaled.get("gy_dps"),
+            "gyro_z": scaled.get("gz_dps"),
+            "mag_x": scaled.get("hx_counts"),
+            "mag_y": scaled.get("hy_counts"),
+            "mag_z": scaled.get("hz_counts"),
+            "jy901_status": "STALE",
+            "imu_valid": 0,
+            "imu_stale": 1,
+            "jy901_stale_s": round(age_s, 3),
+        }
+    )
+    sample["turnover_flag"] = 0
+    sample["turnover_count"] = turn_counter.count
+    return True
+
+
+def read_jy901(
+    drivers,
+    sample,
+    turn_counter,
+    timeout_s,
+    retries=0,
+    retry_delay_s=DEFAULT_JY901_RETRY_DELAY_S,
+    stale_cache=None,
+    now_s=None,
+    max_stale_s=DEFAULT_JY901_MAX_STALE_S,
+):
     jy901 = drivers.get("jy901")
     if jy901 is None:
-        sample["remark"] = "jy901_missing"
+        sample["turnover_count"] = turn_counter.count
+        _set_remark(sample, "jy901_missing")
         return
 
-    try:
-        jy901.oneshot(timeout=timeout_s)
-        raw = jy901.read_raw()
-        scaled = drivers["jy901_scale_raw"](raw)
-        status = jy901.read_status()
-        sample.update(
-            {
-                "accel_x": scaled.get("ax_g"),
-                "accel_y": scaled.get("ay_g"),
-                "accel_z": scaled.get("az_g"),
-                "gyro_x": scaled.get("gx_dps"),
-                "gyro_y": scaled.get("gy_dps"),
-                "gyro_z": scaled.get("gz_dps"),
-                "mag_x": scaled.get("hx_counts"),
-                "mag_y": scaled.get("hy_counts"),
-                "mag_z": scaled.get("hz_counts"),
-                "jy901_status": drivers["jy901_status_label"](status),
-            }
-        )
-        flag, count = turn_counter.update(scaled.get("roll_deg"), scaled.get("pitch_deg"))
-        sample["turnover_flag"] = flag
-        sample["turnover_count"] = count
-        sample["data_valid"] = 1
-        sample["remark"] = "normal"
-    except Exception as exc:
-        sample["status_code"] |= 0x01
+    if now_s is None:
+        now_s = time.time()
+
+    attempts = max(1, int(retries) + 1)
+    last_error = None
+    for attempt in range(1, attempts + 1):
+        sample["jy901_attempts"] = attempt
+        try:
+            scaled, status_label = _read_jy901_once(drivers, timeout_s)
+            _apply_jy901_reading(sample, scaled, status_label, turn_counter)
+            _cache_jy901_reading(stale_cache, scaled, status_label, now_s)
+            if attempt == 1:
+                _set_remark(sample, "normal")
+            else:
+                _set_remark(sample, "jy901_retry_ok_{0}".format(attempt))
+            return
+        except Exception as exc:
+            last_error = exc
+            if attempt < attempts and float(retry_delay_s) > 0:
+                time.sleep(float(retry_delay_s))
+
+    sample["status_code"] |= 0x01
+    if _apply_stale_jy901(sample, stale_cache, turn_counter, now_s, max_stale_s):
+        _set_remark(sample, "jy901_stale_retry_failed:{0}".format(last_error))
+    else:
         sample["jy901_status"] = "ERR"
-        sample["remark"] = "jy901:{0}".format(exc)
+        sample["turnover_count"] = turn_counter.count
+        _set_remark(sample, "jy901:{0}".format(last_error))
 
 
 def read_dht11(drivers, sample, cache, now, period_s):
@@ -349,6 +443,7 @@ def read_dht11(drivers, sample, cache, now, period_s):
         if cache.get("data") is not None:
             sample["temperature_c"] = cache["data"].get("temperature")
             sample["humidity_percent"] = int(cache["data"].get("humidity"))
+            sample["env_valid"] = 1
         return
 
     cache["last_read"] = now
@@ -358,6 +453,7 @@ def read_dht11(drivers, sample, cache, now, period_s):
             cache["data"] = data
             sample["temperature_c"] = data["temperature"]
             sample["humidity_percent"] = int(data["humidity"])
+            sample["env_valid"] = 1
     except Exception as exc:
         sample["status_code"] |= 0x02
         sample["remark"] = "dht11:{0}".format(exc)
@@ -375,9 +471,34 @@ def read_spo2(drivers, sample):
             sample["checksum_ok"] = 1 if data.crc_ok else 0
             if data.sensor_off or data.sensor_error:
                 sample["status_code"] |= 0x04
+                sample["spo2_valid"] = 0
+            else:
+                sample["spo2_valid"] = 1 if data.crc_ok else 0
     except Exception as exc:
         sample["status_code"] |= 0x04
         sample["remark"] = "spo2:{0}".format(exc)
+
+
+def finalize_sample_validity(sample):
+    has_hr_spo2 = (
+        sample.get("heart_rate_bpm") is not None
+        and sample.get("spo2_percent") is not None
+    )
+    spo2_ok = (
+        has_hr_spo2
+        and int(sample.get("checksum_ok") or 0) == 1
+        and (int(sample.get("status_code") or 0) & 0x04) == 0
+    )
+    sample["spo2_valid"] = 1 if spo2_ok else 0
+    sample["data_valid"] = 1 if spo2_ok else 0
+    if sample.get("remark") == "init":
+        sample["remark"] = "normal" if sample["data_valid"] else "waiting_for_spo2"
+    elif (
+        not sample["data_valid"]
+        and str(sample.get("remark", "")).startswith(("normal", "jy901_retry_ok"))
+    ):
+        sample["remark"] = "waiting_for_spo2"
+    return sample
 
 
 def update_humidifier(drivers, sample):
@@ -399,6 +520,7 @@ def run_demo(args):
     drivers = bind_drivers(args)
     turn_counter = TurnCounter(threshold_deg=args.turn_threshold_deg)
     dht_cache = {}
+    jy901_cache = {}
     display_values = None
 
     if "lcd" in drivers:
@@ -412,10 +534,21 @@ def run_demo(args):
             sample_id += 1
             now = time.time()
             sample = empty_sample(sample_id)
-            read_jy901(drivers, sample, turn_counter, args.sensor_timeout)
+            read_jy901(
+                drivers,
+                sample,
+                turn_counter,
+                args.sensor_timeout,
+                retries=args.jy901_retries,
+                retry_delay_s=args.jy901_retry_delay,
+                stale_cache=jy901_cache,
+                now_s=now,
+                max_stale_s=args.jy901_max_stale,
+            )
             read_dht11(drivers, sample, dht_cache, now, args.dht11_period)
             read_spo2(drivers, sample)
             update_humidifier(drivers, sample)
+            finalize_sample_validity(sample)
 
             if "lcd" in drivers:
                 from display_ui import update_dashboard
@@ -454,6 +587,9 @@ def parse_args(argv=None):
     parser.add_argument("--humidifier-ip", default=DEFAULT_IP_NAMES["humidifier"])
     parser.add_argument("--ir-ac-ip", default=DEFAULT_IP_NAMES["ir_ac"])
     parser.add_argument("--jy901-clkdiv", type=int, default=500)
+    parser.add_argument("--jy901-retries", type=int, default=DEFAULT_JY901_RETRIES)
+    parser.add_argument("--jy901-retry-delay", type=float, default=DEFAULT_JY901_RETRY_DELAY_S)
+    parser.add_argument("--jy901-max-stale", type=float, default=DEFAULT_JY901_MAX_STALE_S)
     parser.add_argument("--tft-clkdiv", type=int, default=50)
     parser.add_argument("--spo2-frame-len", type=int, choices=(5, 7), default=5)
     parser.add_argument("--humidity-low", type=int, default=45)

@@ -20,6 +20,7 @@ idea-level reference code, not as final architecture constraints.
 | [protocol_selftest.py](protocol_selftest.py) | Dependency-free SW-0 protocol self-test. |
 | [classifier_adapter.py](classifier_adapter.py) | Stable wrapper around `sleep_classifier.py` with validated `sleep_result` output and failure fallback. |
 | [classifier_adapter_selftest.py](classifier_adapter_selftest.py) | Dependency-free classifier adapter self-test using fake classifier functions. |
+| [sleep_classifier_selftest.py](sleep_classifier_selftest.py) | Classifier warm-up regression for JY901-only invalid samples and true HR/SpO2 invalid samples. |
 | [comfort_policy.py](comfort_policy.py) | Pure first-version comfort policy that emits validated `control_command` messages. |
 | [comfort_policy_selftest.py](comfort_policy_selftest.py) | Dependency-free SW-1 policy self-test. |
 | [state_store.py](state_store.py) | Thread-safe `AppState` for single-client dashboard/service state and pending manual commands. |
@@ -83,6 +84,12 @@ Classifier adapter self-test:
 
 ```bash
 python classifier_adapter_selftest.py
+```
+
+Classifier warm-up/JY901 robustness self-test:
+
+```bash
+python sleep_classifier_selftest.py
 ```
 
 Comfort policy self-test:
