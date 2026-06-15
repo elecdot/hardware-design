@@ -278,16 +278,34 @@ def _update_state_from_command(state, command, now_s):
     next_state["now_s"] = float(now_s)
 
     targets = command.get("targets") or {}
-    ir_target = targets.get("ir_ac")
-    if ir_target and ir_target.get("command"):
-        command_name = ir_target["command"]
-        next_state["last_ir_command"] = command_name
-        next_state["last_ir_at_s"] = float(now_s)
-        next_state["last_commanded_state"]["ir_ac"] = dict(ir_target)
-
     humidifier = targets.get("humidifier")
     if humidifier and "enabled" in humidifier:
         enabled = bool(humidifier["enabled"])
+        next_state["last_humidifier_enabled"] = enabled
+        next_state["last_commanded_state"]["humidifier"] = {"enabled": enabled}
+
+    return next_state
+
+
+def update_policy_state_from_control_status(policy_state, control_status, now_s=None):
+    """Fold confirmed board execution results back into policy runtime state."""
+    validate_message(control_status, expected_type="control_status")
+
+    next_state = _copy_policy_state(policy_state)
+    now_value = _resolve_now(next_state, now_s)
+    next_state["now_s"] = float(now_value)
+
+    applied = control_status.get("applied") or {}
+    ir_status = applied.get("ir_ac") or {}
+    if _boolish(ir_status.get("sent")) == 1 and ir_status.get("command"):
+        command_name = ir_status["command"]
+        next_state["last_ir_command"] = command_name
+        next_state["last_ir_at_s"] = float(now_value)
+        next_state["last_commanded_state"]["ir_ac"] = _ir_target(command_name)
+
+    humidifier_status = applied.get("humidifier") or {}
+    if _boolish(humidifier_status.get("applied")) == 1 and "enabled" in humidifier_status:
+        enabled = bool(humidifier_status["enabled"])
         next_state["last_humidifier_enabled"] = enabled
         next_state["last_commanded_state"]["humidifier"] = {"enabled": enabled}
 

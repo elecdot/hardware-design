@@ -279,7 +279,9 @@ Field rules:
 For IR AC, `sent=true` means PYNQ sent the IR waveform and the IP completed; it
 does not prove the lab AC received the command. The lab setup required the IR
 transmitter to be within approximately 20 cm of the AC receiver for reliable
-response.
+response. PC-side IR cooldown should be consumed by confirmed `sent=true`
+status, not merely by issuing a `control_command`; skips such as
+`ir_ac_missing` remain retryable after the normal policy checks.
 
 The complete IR AC integration plan is in
 [ir_ac_integration_plan.md](ir_ac_integration_plan.md).

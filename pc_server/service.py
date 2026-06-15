@@ -1,9 +1,14 @@
 """Core PC-side service composition without socket or dashboard code."""
 
+import time
 import traceback
 
 from classifier_adapter import SleepClassifierAdapter
-from comfort_policy import decide_control_command, initial_policy_state
+from comfort_policy import (
+    decide_control_command,
+    initial_policy_state,
+    update_policy_state_from_control_status,
+)
 from protocol import (
     CONTROL_COMMAND,
     CONTROL_STATUS,
@@ -25,12 +30,15 @@ class SleepMonitorPcService(object):
         storage=None,
         policy_decider=None,
         policy_state=None,
+        time_fn=None,
     ):
         self.classifier_adapter = classifier_adapter or SleepClassifierAdapter()
         self.app_state = app_state or AppState()
         self.storage = storage
         self.policy_decider = policy_decider or decide_control_command
         self.policy_state = policy_state or initial_policy_state()
+        self.time_fn = time_fn or time.monotonic
+        self._last_sample_id = None
         self.last_error = None
 
     def process_sensor_data(self, sensor_data, now_s=None):
@@ -40,6 +48,8 @@ class SleepMonitorPcService(object):
         to PYNQ in order: ``sleep_result`` followed by ``control_command``.
         """
         validate_message(sensor_data, expected_type=SENSOR_DATA)
+        now_value = self._resolve_now(now_s)
+        self._maybe_reset_runtime_session(sensor_data, now_value)
         self._append_storage(sensor_data)
 
         sleep_result = self.classifier_adapter.classify(sensor_data)
@@ -48,7 +58,7 @@ class SleepMonitorPcService(object):
         control_command = self._build_control_command(
             sensor_data,
             sleep_result,
-            now_s=now_s,
+            now_s=now_value,
         )
         validate_message(control_command, expected_type=CONTROL_COMMAND)
 
@@ -64,9 +74,14 @@ class SleepMonitorPcService(object):
             "control_command": control_command,
         }
 
-    def process_control_status(self, control_status):
+    def process_control_status(self, control_status, now_s=None):
         """Record one PYNQ execution result."""
         validate_message(control_status, expected_type=CONTROL_STATUS)
+        self.policy_state = update_policy_state_from_control_status(
+            self.policy_state,
+            control_status,
+            now_s=self._resolve_now(now_s),
+        )
         self._append_storage(control_status)
         self.app_state.record_control_status(control_status)
         return control_status
@@ -117,3 +132,25 @@ class SleepMonitorPcService(object):
         if self.storage is None:
             return
         self.storage.append_record(message)
+
+    def _resolve_now(self, now_s):
+        if now_s is not None:
+            return float(now_s)
+        return float(self.time_fn())
+
+    def _maybe_reset_runtime_session(self, sensor_data, now_s):
+        sample_id = _sample_id(sensor_data)
+        if (
+            self._last_sample_id is not None
+            and sample_id == 1
+            and self._last_sample_id != 1
+        ):
+            self.policy_state = initial_policy_state(now_s)
+        self._last_sample_id = sample_id
+
+
+def _sample_id(sensor_data):
+    try:
+        return int(sensor_data.get("sample_id", -1))
+    except (TypeError, ValueError):
+        return -1

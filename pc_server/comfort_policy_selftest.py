@@ -5,6 +5,7 @@ from comfort_policy import (
     MODE_MANUAL,
     decide_control_command,
     initial_policy_state,
+    update_policy_state_from_control_status,
 )
 
 
@@ -36,6 +37,28 @@ def result(sample_id=1, code=1, valid=1, remark="model_dreamt_gru_conf_0.800"):
 
 def assert_targets(command, expected):
     assert command["targets"] == expected, command
+
+
+def ir_status(sample_id=1, command="temp_26", sent=True, skip_reason=None):
+    return {
+        "type": "control_status",
+        "timestamp": "2026-06-12 21:00:02",
+        "sample_id": sample_id,
+        "accepted": 1,
+        "applied": {
+            "ir_ac": {
+                "requested": True,
+                "command": command,
+                "sent": bool(sent),
+                "skipped": not bool(sent),
+                "skip_reason": skip_reason,
+                "error": None,
+                "status": {"done": bool(sent), "error": False, "raw_status": 2},
+            }
+        },
+        "status_code": 0 if sent else 2,
+        "remark": "ir_ac_sent" if sent else skip_reason,
+    }
 
 
 def main():
@@ -78,20 +101,42 @@ def main():
     )
     assert command["targets"]["ir_ac"]["command"] == "temp_25"
     assert command["reason"] == "temperature_high"
-    assert next_state["last_ir_command"] == "temp_25"
+    assert next_state["last_ir_command"] is None
 
-    command, _ = decide_control_command(
+    next_state = update_policy_state_from_control_status(
+        next_state,
+        ir_status(sample_id=3, command="temp_25", sent=False, skip_reason="ir_ac_missing"),
+        now_s=31.0,
+    )
+    assert next_state["last_ir_command"] is None
+
+    command, next_state = decide_control_command(
         sensor(sample_id=4, temperature=29.0, humidity=50.0),
         result(sample_id=4, code=0),
         next_state,
         now_s=35.0,
     )
+    assert command["targets"]["ir_ac"]["command"] == "temp_25"
+    assert command["reason"] == "temperature_high"
+
+    next_state = update_policy_state_from_control_status(
+        next_state,
+        ir_status(sample_id=4, command="temp_25", sent=True),
+        now_s=36.0,
+    )
+
+    command, _ = decide_control_command(
+        sensor(sample_id=5, temperature=29.0, humidity=50.0),
+        result(sample_id=5, code=0),
+        next_state,
+        now_s=42.0,
+    )
     assert command["targets"] == {}
     assert command["reason"] == "cooldown_same_ir_command"
 
     command, _ = decide_control_command(
-        sensor(sample_id=5, temperature=26.0, humidity=50.0),
-        result(sample_id=5, code=1, valid=0, remark="model_warmup_5_of_30"),
+        sensor(sample_id=6, temperature=26.0, humidity=50.0),
+        result(sample_id=6, code=1, valid=0, remark="model_warmup_5_of_30"),
         next_state,
         now_s=100.0,
     )
@@ -107,8 +152,8 @@ def main():
         }
     }
     command, next_state = decide_control_command(
-        sensor(sample_id=6),
-        result(sample_id=6),
+        sensor(sample_id=7),
+        result(sample_id=7),
         next_state,
         mode=MODE_MANUAL,
         pending_manual_command=manual,
@@ -117,11 +162,11 @@ def main():
     assert command["mode"] == MODE_MANUAL
     assert command["reason"] == "dashboard_manual"
     assert command["targets"]["ir_ac"]["command"] == "temp_26"
-    assert next_state["last_ir_command"] == "temp_26"
+    assert next_state["last_ir_command"] == "temp_25"
 
     command, _ = decide_control_command(
-        sensor(sample_id=7),
-        result(sample_id=7),
+        sensor(sample_id=8),
+        result(sample_id=8),
         next_state,
         mode=MODE_MANUAL,
         pending_manual_command=None,
@@ -132,8 +177,8 @@ def main():
     assert command["reason"] == "manual_idle"
 
     command, _ = decide_control_command(
-        sensor(sample_id=8, temperature=None, humidity=50.0),
-        result(sample_id=8, code=1),
+        sensor(sample_id=9, temperature=None, humidity=50.0),
+        result(sample_id=9, code=1),
         next_state,
         mode=MODE_AUTO,
         now_s=140.0,

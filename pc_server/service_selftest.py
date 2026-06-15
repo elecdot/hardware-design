@@ -25,6 +25,39 @@ def failing_policy(*_args, **_kwargs):
     raise RuntimeError("policy exploded")
 
 
+class FakeClock(object):
+    def __init__(self, now_s=0.0):
+        self.now_s = float(now_s)
+
+    def __call__(self):
+        return self.now_s
+
+
+def high_temperature_sensor(sample_id):
+    sample = sample_sensor(sample_id)
+    sample["temperature_c"] = 29.0
+    sample["humidity_percent"] = 50
+    return sample
+
+
+def ir_control_status(sample_id, command="temp_25", sent=True, skip_reason=None):
+    status = sample_control_status(sample_id)
+    status["applied"] = {
+        "ir_ac": {
+            "requested": True,
+            "command": command,
+            "sent": bool(sent),
+            "skipped": not bool(sent),
+            "skip_reason": skip_reason,
+            "error": None,
+            "status": {"done": bool(sent), "error": False, "raw_status": 2},
+        }
+    }
+    status["status_code"] = 0 if sent else 2
+    status["remark"] = "ir_ac_sent" if sent else skip_reason
+    return status
+
+
 def main():
     with tempfile.TemporaryDirectory() as tmpdir:
         storage = JsonlRecordStorage(tmpdir)
@@ -81,6 +114,37 @@ def main():
         service.set_control_mode("auto")
         auto_idle = service.process_sensor_data(sample_sensor(4), now_s=40.0)
         assert auto_idle["control_command"]["mode"] == "auto"
+
+        clock = FakeClock(100.0)
+        runtime_service = SleepMonitorPcService(
+            classifier_adapter=SleepClassifierAdapter(fake_classifier),
+            time_fn=clock,
+        )
+
+        first_ir = runtime_service.process_sensor_data(high_temperature_sensor(10))
+        assert first_ir["control_command"]["targets"]["ir_ac"]["command"] == "temp_25"
+        clock.now_s = 101.0
+        runtime_service.process_control_status(
+            ir_control_status(10, command="temp_25", sent=False, skip_reason="ir_ac_missing")
+        )
+
+        clock.now_s = 102.0
+        retry_ir = runtime_service.process_sensor_data(high_temperature_sensor(11))
+        assert retry_ir["control_command"]["targets"]["ir_ac"]["command"] == "temp_25"
+
+        clock.now_s = 103.0
+        runtime_service.process_control_status(
+            ir_control_status(11, command="temp_25", sent=True)
+        )
+
+        clock.now_s = 104.0
+        cooldown = runtime_service.process_sensor_data(high_temperature_sensor(12))
+        assert cooldown["control_command"]["targets"] == {}
+        assert cooldown["control_command"]["reason"] == "cooldown_ir_min_interval"
+
+        clock.now_s = 105.0
+        new_session = runtime_service.process_sensor_data(high_temperature_sensor(1))
+        assert new_session["control_command"]["targets"]["ir_ac"]["command"] == "temp_25"
 
     failing_service = SleepMonitorPcService(
         classifier_adapter=SleepClassifierAdapter(fake_classifier),

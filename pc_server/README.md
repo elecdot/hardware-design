@@ -151,5 +151,12 @@ one-shot IR actions. Humidifier control is a target state. Desired-state UI can
 be added later, but first version must not automatically replay AC desired
 state.
 
+IR AC cooldown is based on PC-side monotonic runtime and starts only after the
+board returns `control_status.applied.ir_ac.sent=true`. Board-side skips such as
+`ir_ac_missing` or `ir_ac_error` are recorded as failures/skips but do not
+consume the normal IR cooldown. When a new board run starts with `sample_id=1`,
+the service resets policy runtime state so stale cooldowns from a previous
+smoke run do not affect the new run.
+
 See [../docs/protocol.md](../docs/protocol.md) and
 [../docs/software_integration_plan.md](../docs/software_integration_plan.md).

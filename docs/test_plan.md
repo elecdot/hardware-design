@@ -70,6 +70,12 @@ The board client self-test is also PC-runnable. It validates the PYNQ-side
 socket message order against the minimal PC socket service using a fake board.
 It is not board evidence and does not load a bitstream.
 
+`pc_server/service_selftest.py` also covers the PC-side IR cooldown regression:
+the socket/service path uses PC-side monotonic runtime, `ir_ac_missing` does not
+consume normal IR cooldown, confirmed `control_status.applied.ir_ac.sent=true`
+does consume cooldown, and a new board run beginning at `sample_id=1` resets
+policy runtime state.
+
 ## Migrated Handoff Module Regression
 
 These modules have source files migrated from `handoff/` into tracked repo
