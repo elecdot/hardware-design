@@ -4,10 +4,10 @@ dashboard_server.py
 PC 端可视化服务端。
 
 功能：
-1. 保持原有 TCP socket 协议，接收硬件 / fake client 的 sensor_data。
-2. 保存 Excel、推算睡眠状态，并把 sleep_result 回传给硬件。
-3. 同时启动 Web 控制台，实时显示传感器数据和睡眠状态。
-4. Web 控制台可以切换自动/手动模式；手动设备控制会在内部映射为 sleep_result 回传。
+1. 使用当前四消息 TCP 协议接收 PYNQ/fake client 的 sensor_data。
+2. 通过 SleepMonitorPcService 生成 sleep_result 和 control_command。
+3. 记录 control_status，并在 Web 控制台实时显示完整闭环。
+4. Web 控制台可以切换自动/手动模式；手动设备控制只排队真实 control_command targets。
 
 运行：
     python dashboard_server.py
@@ -27,9 +27,16 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 
-from excel_utils import init_excel, append_sensor_data, append_sleep_result
-from protocol_config import SERVER_HOST, SERVER_PORT, MESSAGE_END, SLEEP_STATE_NAME
-from sleep_classifier import classify_sleep_state, get_sleep_state_text
+from protocol import (
+    CONTROL_STATUS,
+    SENSOR_DATA,
+    MessageBuffer,
+    ProtocolError,
+    encode_message,
+)
+from protocol_config import SERVER_HOST, SERVER_PORT, SLEEP_STATE_NAME
+from service import SleepMonitorPcService
+from storage import JsonlRecordStorage, default_record_dir
 
 
 DASHBOARD_HOST = "127.0.0.1"
@@ -41,14 +48,55 @@ SESSION_GAP_SECONDS = 30 * 60
 MAX_COUNTED_SAMPLE_GAP_SECONDS = 30
 DASHBOARD_HISTORY_FILE = Path(__file__).with_name("sleep_classifier_history.csv")
 
-# 手动控制区仍展示设备动作；为了兼容硬件端现有协议，内部映射成 sleep_state_code。
+# 手动控制区只排队真实设备命令；实际发送发生在下一条 sensor_data 周期。
 MANUAL_CONTROL_OPTIONS = {
-    "fan_off": {"label": "关闭风扇", "sleep_state_code": 2},
-    "fan_low": {"label": "风扇低速", "sleep_state_code": 1},
-    "fan_high": {"label": "风扇高速", "sleep_state_code": 0},
-    "warm_on": {"label": "开启保温", "sleep_state_code": 2},
-    "warm_off": {"label": "关闭保温", "sleep_state_code": 0},
-    "night_mode": {"label": "夜间模式", "sleep_state_code": 2},
+    "ac_power_on": {
+        "label": "空调开机",
+        "code": "AC ON",
+        "action": {"target": "ir_ac", "command": "power_on"},
+    },
+    "ac_power_off": {
+        "label": "空调关机",
+        "code": "AC OFF",
+        "action": {"target": "ir_ac", "command": "power_off"},
+    },
+    "ac_temp_24": {
+        "label": "空调 24°C",
+        "code": "AC 24",
+        "action": {
+            "target": "ir_ac",
+            "command": "temp_24",
+            "temperature_setpoint_c": 24,
+        },
+    },
+    "ac_temp_26": {
+        "label": "空调 26°C",
+        "code": "AC 26",
+        "action": {
+            "target": "ir_ac",
+            "command": "temp_26",
+            "temperature_setpoint_c": 26,
+        },
+    },
+    "ac_temp_28": {
+        "label": "空调 28°C",
+        "code": "AC 28",
+        "action": {
+            "target": "ir_ac",
+            "command": "temp_28",
+            "temperature_setpoint_c": 28,
+        },
+    },
+    "humidifier_on": {
+        "label": "加湿器开",
+        "code": "HUM ON",
+        "action": {"target": "humidifier", "enabled": True},
+    },
+    "humidifier_off": {
+        "label": "加湿器关",
+        "code": "HUM OFF",
+        "action": {"target": "humidifier", "enabled": False},
+    },
 }
 
 
@@ -64,11 +112,9 @@ active_addr = None
 last_update_at = None
 last_transmit_at = None
 event_version = 0
-control_history = []
 data_history = []
 data_sequence = 0
-control_mode = "auto"
-manual_control_key = "fan_low"
+manual_control_key = "ac_temp_26"
 previous_sample_time = None
 previous_sample_id = None
 previous_stage_code = None
@@ -87,9 +133,17 @@ session_summary = {
     "stage_seconds": {0: 0.0, 1: 0.0, 2: 0.0},
 }
 
+pc_service = SleepMonitorPcService(
+    storage=JsonlRecordStorage(default_record_dir()),
+)
+
 
 def now_text():
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+
+def get_sleep_state_text(code):
+    return SLEEP_STATE_NAME.get(code, "未知状态")
 
 
 def parse_datetime(value):
@@ -341,38 +395,95 @@ def restore_dashboard_history():
 
 
 def send_json(conn: socket.socket, obj: dict):
-    msg = json.dumps(obj, ensure_ascii=False) + MESSAGE_END
-    conn.sendall(msg.encode("utf-8"))
+    conn.sendall(encode_message(obj).encode("utf-8"))
 
 
-def recv_json_lines(conn: socket.socket):
-    buffer = ""
+def format_client_addr(address):
+    if not address:
+        return None
+    if isinstance(address, dict):
+        host = address.get("host")
+        port = address.get("port")
+        return f"{host}:{port}" if port is not None else str(host)
+    if isinstance(address, tuple):
+        return f"{address[0]}:{address[1]}" if len(address) > 1 else str(address[0])
+    return str(address)
 
-    while True:
-        chunk = conn.recv(4096)
 
-        if not chunk:
-            break
+def describe_targets(targets):
+    targets = targets or {}
+    parts = []
+    ir_ac = targets.get("ir_ac")
+    if ir_ac:
+        parts.append("AC {0}".format(ir_ac.get("command", "--")))
+    humidifier = targets.get("humidifier")
+    if humidifier and "enabled" in humidifier:
+        parts.append("加湿器{0}".format("开" if humidifier.get("enabled") else "关"))
+    return " / ".join(parts) if parts else "无动作"
 
-        buffer += chunk.decode("utf-8")
 
-        while MESSAGE_END in buffer:
-            line, buffer = buffer.split(MESSAGE_END, 1)
-            line = line.strip()
+def build_control_history_from_snapshot(service_state):
+    histories = service_state.get("histories") or {}
+    commands = histories.get("control_command") or []
+    statuses = histories.get("control_status") or []
+    status_by_sample = {item.get("sample_id"): item for item in statuses}
 
-            if not line:
-                continue
-
-            try:
-                yield json.loads(line)
-            except json.JSONDecodeError as e:
-                print("[ERROR] JSON 解析失败:", e)
-                print("[ERROR] 原始数据:", line)
+    records = []
+    for command in commands[-DASHBOARD_DEBUG_RECORDS:]:
+        sample_id = command.get("sample_id")
+        targets = command.get("targets") or {}
+        status = status_by_sample.get(sample_id)
+        send_status = "no_action"
+        status_text = command.get("reason", "no_action")
+        if targets:
+            send_status = "sent"
+            status_text = "等待执行状态"
+        if status:
+            status_code = status.get("status_code")
+            if status_code == 0:
+                send_status = "applied"
+            elif status_code == 2:
+                send_status = "skipped"
+            elif status_code == 3:
+                send_status = "failed"
+            elif status_code == 1:
+                send_status = "rejected"
+            status_text = status.get("remark") or status_text
+        records.append(
+            {
+                "timestamp": command.get("timestamp"),
+                "sample_id": sample_id,
+                "command_name": describe_targets(targets),
+                "command_key": command.get("reason"),
+                "send_status": send_status,
+                "status_text": status_text,
+                "control_command": dict(command),
+                "control_status": dict(status) if status else None,
+            }
+        )
+    pending = service_state.get("pending_manual_command")
+    if pending:
+        records.append(
+            {
+                "timestamp": now_text(),
+                "sample_id": None,
+                "command_name": describe_targets(pending.get("targets")),
+                "command_key": pending.get("reason", "dashboard_manual"),
+                "send_status": "pending",
+                "status_text": "等待下一条 sensor_data 下发",
+                "control_command": None,
+                "control_status": None,
+            }
+        )
+    return records[-8:]
 
 
 def snapshot_state() -> dict:
+    service_state = pc_service.snapshot()
     with state_lock:
         result = dict(latest_result) if latest_result else None
+        if result is None and service_state.get("latest_sleep_result"):
+            result = dict(service_state["latest_sleep_result"])
         if result and "sleep_state_name" not in result:
             code = result.get("sleep_state_code")
             result["sleep_state_name"] = get_sleep_state_text(code)
@@ -382,28 +493,39 @@ def snapshot_state() -> dict:
             code = outgoing_result.get("sleep_state_code")
             outgoing_result["sleep_state_name"] = get_sleep_state_text(code)
 
-        manual_option = MANUAL_CONTROL_OPTIONS[manual_control_key]
+        sensor = dict(latest_sensor) if latest_sensor else None
+        if sensor is None and service_state.get("latest_sensor_data"):
+            sensor = dict(service_state["latest_sensor_data"])
+
+        manual_option = MANUAL_CONTROL_OPTIONS.get(
+            manual_control_key,
+            MANUAL_CONTROL_OPTIONS["ac_temp_26"],
+        )
 
         return {
-            "connected": active_conn is not None,
-            "client_addr": f"{active_addr[0]}:{active_addr[1]}" if active_addr else None,
-            "last_update_at": last_update_at,
-            "last_transmit_at": last_transmit_at,
-            "sensor": dict(latest_sensor) if latest_sensor else None,
+            "connected": bool(service_state.get("connected")),
+            "client_addr": format_client_addr(service_state.get("active_client")),
+            "last_update_at": last_update_at or service_state.get("last_update_at"),
+            "last_transmit_at": service_state.get("last_transmit_at"),
+            "sensor": sensor,
             "result": result,
             "outgoing_result": outgoing_result,
             "sleep_states": SLEEP_STATE_NAME,
-            "control_mode": control_mode,
+            "control_mode": service_state.get("control_mode", "auto"),
             "manual_control_key": manual_control_key,
             "manual_control_label": manual_option["label"],
-            "manual_signal_code": manual_option["sleep_state_code"],
-            "manual_signal_name": get_sleep_state_text(manual_option["sleep_state_code"]),
+            "manual_signal_code": manual_option.get("code"),
+            "manual_signal_name": manual_option["label"],
             "manual_control_options": MANUAL_CONTROL_OPTIONS,
-            "control_history": list(control_history[-8:]),
+            "pending_manual_command": service_state.get("pending_manual_command"),
+            "latest_control_command": service_state.get("latest_control_command"),
+            "latest_control_status": service_state.get("latest_control_status"),
+            "last_commanded_state": service_state.get("last_commanded_state"),
+            "control_history": build_control_history_from_snapshot(service_state),
             "data_history": list(data_history[-DASHBOARD_DEBUG_RECORDS:]),
             "trend_history": build_trend_history(data_history),
             "session_summary": build_session_summary(),
-            "event_version": event_version,
+            "event_version": max(event_version, service_state.get("event_version", 0)),
         }
 
 
@@ -418,6 +540,7 @@ def publish_update():
 def set_active_client(conn: socket.socket, addr):
     global active_conn, active_addr
 
+    pc_service.set_active_client(addr)
     with state_lock:
         active_conn = conn
         active_addr = addr
@@ -431,10 +554,11 @@ def clear_active_client(conn: socket.socket):
         if active_conn is conn:
             active_conn = None
             active_addr = None
+            pc_service.clear_active_client()
     publish_update()
 
 
-def update_sensor_state(sensor: dict, result: dict, outgoing_result: dict):
+def update_sensor_state(sensor: dict, result: dict, outgoing_result: dict, control_command=None):
     global latest_sensor, latest_result, latest_outgoing_result
     global last_update_at, last_transmit_at
     global data_history, data_sequence
@@ -522,6 +646,7 @@ def update_sensor_state(sensor: dict, result: dict, outgoing_result: dict):
                 "sensor_data": dict(sensor),
                 "model_sleep_result": result_with_name,
                 "outgoing_sleep_result": outgoing_with_name,
+                "control_command": dict(control_command) if control_command else None,
             }
         )
         data_history = data_history[-DASHBOARD_HISTORY_LIMIT:]
@@ -541,101 +666,39 @@ def update_sensor_state(sensor: dict, result: dict, outgoing_result: dict):
     publish_update()
 
 
-def build_sleep_result(sample_id: int, sleep_state_code: int, remark: str) -> dict:
-    return {
-        "type": "sleep_result",
-        "timestamp": now_text(),
-        "sample_id": sample_id,
-        "sleep_state_code": sleep_state_code,
-        "state_valid": 1,
-        "remark": remark,
-    }
-
-
-def build_manual_sleep_result(base_result=None) -> dict:
-    with state_lock:
-        selected_key = manual_control_key
-        selected_option = MANUAL_CONTROL_OPTIONS[selected_key]
-
-    sample_id = base_result.get("sample_id", -1) if base_result else -1
-    return build_sleep_result(
-        sample_id,
-        selected_option["sleep_state_code"],
-        f"manual_override_{selected_key}",
-    )
-
-
-def select_outgoing_result(model_result: dict) -> dict:
-    with state_lock:
-        mode = control_mode
-
-    if mode == "manual":
-        return build_manual_sleep_result(model_result)
-
-    outgoing = dict(model_result)
-    outgoing["remark"] = f"auto_{outgoing.get('remark', 'model_result')}"
-    return outgoing
-
-
 def set_control_mode(mode: str) -> dict:
-    global control_mode
-
-    if mode not in {"auto", "manual"}:
-        raise ValueError("unknown_mode")
-
-    with state_lock:
-        control_mode = mode
+    try:
+        pc_service.set_control_mode(mode)
+    except ProtocolError as exc:
+        raise ValueError("unknown_mode") from exc
 
     publish_update()
     return snapshot_state()
 
 
 def send_selected_manual_control(command_key: str) -> dict:
-    global control_history, manual_control_key, latest_outgoing_result, last_transmit_at
+    global manual_control_key
 
     if command_key not in MANUAL_CONTROL_OPTIONS:
         raise ValueError("unknown_command")
 
+    option = MANUAL_CONTROL_OPTIONS[command_key]
+    action = dict(option["action"])
+    action["reason"] = "dashboard_manual"
+
     with state_lock:
         manual_control_key = command_key
-        conn = active_conn
-        mode = control_mode
-        base_result = dict(latest_result) if latest_result else None
+        queued = pc_service.queue_manual_command(action)
 
-    hardware_packet = build_manual_sleep_result(base_result)
-    history_packet = dict(hardware_packet)
-    history_packet["sleep_state_name"] = get_sleep_state_text(
-        hardware_packet["sleep_state_code"]
-    )
-    history_packet["manual_control_key"] = command_key
-    history_packet["command_name"] = MANUAL_CONTROL_OPTIONS[command_key]["label"]
-
-    if mode != "manual":
-        history_packet["send_status"] = "mode_auto"
-    elif conn is None:
-        history_packet["send_status"] = "no_client"
-    else:
-        try:
-            with send_lock:
-                send_json(conn, hardware_packet)
-            history_packet["send_status"] = "sent"
-            print("[MANUAL_SEND]", hardware_packet)
-        except OSError as exc:
-            history_packet["send_status"] = "send_failed"
-            history_packet["error"] = str(exc)
-
-    outgoing_result = {
-        key: hardware_packet[key]
-        for key in ("type", "timestamp", "sample_id", "sleep_state_code", "state_valid", "remark")
-        if key in hardware_packet
+    history_packet = {
+        "timestamp": now_text(),
+        "manual_control_key": command_key,
+        "command_name": option["label"],
+        "command_key": command_key,
+        "targets": queued["targets"],
+        "send_status": "pending",
+        "status_text": "等待下一条 sensor_data 下发",
     }
-
-    with state_lock:
-        latest_outgoing_result = dict(outgoing_result)
-        if history_packet["send_status"] == "sent":
-            last_transmit_at = hardware_packet["timestamp"]
-        control_history.append(history_packet)
-        control_history = control_history[-30:]
 
     publish_update()
     return history_packet
@@ -644,57 +707,92 @@ def send_selected_manual_control(command_key: str) -> dict:
 def handle_client(conn: socket.socket, addr):
     print(f"[INFO] 客户端已连接: {addr}")
     set_active_client(conn, addr)
+    stats = {
+        "received": 0,
+        "sensor_data": 0,
+        "control_status": 0,
+        "sent": 0,
+        "errors": 0,
+    }
+    buffer = MessageBuffer()
 
     try:
-        for data in recv_json_lines(conn):
-            print("[RECV]", data)
+        while True:
+            chunk = conn.recv(4096)
+            if not chunk:
+                break
 
-            if data.get("type") != "sensor_data":
-                print("[WARN] 收到非 sensor_data 类型，已忽略:", data.get("type"))
-                continue
+            for data in buffer.feed(chunk):
+                stats["received"] += 1
+                print("[RECV]", data)
 
-            append_sensor_data(data)
+                message_type = data.get("type")
+                if message_type == SENSOR_DATA:
+                    response = pc_service.process_sensor_data(data)
+                    sleep_result = response["sleep_result"]
+                    control_command = response["control_command"]
 
-            result = classify_sleep_state(data)
-            append_sleep_result(result)
+                    with send_lock:
+                        send_json(conn, sleep_result)
+                        send_json(conn, control_command)
 
-            outgoing_result = select_outgoing_result(result)
+                    update_sensor_state(
+                        data,
+                        sleep_result,
+                        sleep_result,
+                        control_command=control_command,
+                    )
 
-            with send_lock:
-                send_json(conn, outgoing_result)
+                    stats["sensor_data"] += 1
+                    stats["sent"] += 2
 
-            update_sensor_state(data, result, outgoing_result)
-
-            code = outgoing_result.get("sleep_state_code")
-            state_text = get_sleep_state_text(code)
-            print(
-                f"[SEND] sample_id={result.get('sample_id')} "
-                f"state={code}({state_text})"
-            )
+                    code = sleep_result.get("sleep_state_code")
+                    state_text = get_sleep_state_text(code)
+                    print(
+                        f"[SEND] sample_id={sleep_result.get('sample_id')} "
+                        f"state={code}({state_text}) "
+                        f"command={control_command.get('reason')}"
+                    )
+                elif message_type == CONTROL_STATUS:
+                    pc_service.process_control_status(data)
+                    stats["control_status"] += 1
+                    publish_update()
+                    print(
+                        f"[STATUS] sample_id={data.get('sample_id')} "
+                        f"code={data.get('status_code')} remark={data.get('remark')}"
+                    )
+                else:
+                    stats["errors"] += 1
+                    raise ProtocolError(
+                        "unexpected client message type: {0}".format(message_type)
+                    )
 
     except ConnectionResetError:
         print("[WARN] 客户端连接被重置")
+    except ProtocolError as exc:
+        stats["errors"] += 1
+        print("[ERROR] 协议错误:", exc)
     except Exception:
+        stats["errors"] += 1
         print("[ERROR] 服务端处理客户端时发生异常：")
         traceback.print_exc()
     finally:
         clear_active_client(conn)
         conn.close()
-        print(f"[INFO] 客户端已断开: {addr}")
+        print(f"[INFO] 客户端已断开: {addr} stats={stats}")
+    return stats
 
 
 def run_socket_server():
-    init_excel()
-
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server.bind((SERVER_HOST, SERVER_PORT))
-    server.listen(5)
+    server.listen(1)
 
     print("=" * 60)
     print("[INFO] PC socket 服务端启动成功")
     print(f"[INFO] 监听地址: {SERVER_HOST}:{SERVER_PORT}")
-    print("[INFO] 提醒：程序运行时不要打开 sleep_monitor_data.xlsx")
+    print("[INFO] 使用四消息协议: sensor_data -> sleep_result/control_command -> control_status")
     print("=" * 60)
 
     try:
@@ -1772,7 +1870,7 @@ DASHBOARD_HTML = r"""<!doctype html>
         <span class="slider"></span>
       </label>
       <span id="manualLabel" class="mode-label">手动控制</span>
-      <span id="modeHint" class="mode-hint">按模型结果回传硬件</span>
+      <span id="modeHint" class="mode-hint">按睡眠状态和环境自动调节</span>
     </div>
 
     <section class="layout">
@@ -1872,29 +1970,33 @@ DASHBOARD_HTML = r"""<!doctype html>
         </div>
 
         <div class="controls">
-          <button class="control-btn" data-command="fan_off">
-            <span class="btn-main"><span class="icon"><svg viewBox="0 0 24 24"><path d="M12 12 4 7a6 6 0 0 1 8 5Z"/><path d="m12 12 8-5a6 6 0 0 1-8 5Z"/><path d="m12 12 1 9a6 6 0 0 1-1-9Z"/><path d="m12 12-1-9a6 6 0 0 1 1 9Z"/><circle cx="12" cy="12" r="2"/></svg></span><span class="btn-label">关闭风扇</span></span>
-            <span class="btn-code">FAN 0</span>
+          <button class="control-btn" data-command="ac_power_on">
+            <span class="btn-main"><span class="icon"><svg viewBox="0 0 24 24"><path d="M13 2 5 14h6l-1 8 8-12h-6l1-8Z"/></svg></span><span class="btn-label">空调开机</span></span>
+            <span class="btn-code">AC ON</span>
           </button>
-          <button class="control-btn" data-command="fan_low">
-            <span class="btn-main"><span class="icon"><svg viewBox="0 0 24 24"><path d="M12 12 4 7a6 6 0 0 1 8 5Z"/><path d="m12 12 8-5a6 6 0 0 1-8 5Z"/><path d="m12 12 1 9a6 6 0 0 1-1-9Z"/><path d="m12 12-1-9a6 6 0 0 1 1 9Z"/><circle cx="12" cy="12" r="2"/></svg></span><span class="btn-label">风扇低速</span></span>
-            <span class="btn-code">FAN 1</span>
+          <button class="control-btn" data-command="ac_power_off">
+            <span class="btn-main"><span class="icon"><svg viewBox="0 0 24 24"><path d="M18.4 6.6a8 8 0 1 1-12.8 0"/><path d="M12 2v10"/></svg></span><span class="btn-label">空调关机</span></span>
+            <span class="btn-code">AC OFF</span>
           </button>
-          <button class="control-btn" data-command="fan_high">
-            <span class="btn-main"><span class="icon"><svg viewBox="0 0 24 24"><path d="M12 12 4 7a6 6 0 0 1 8 5Z"/><path d="m12 12 8-5a6 6 0 0 1-8 5Z"/><path d="m12 12 1 9a6 6 0 0 1-1-9Z"/><path d="m12 12-1-9a6 6 0 0 1 1 9Z"/><circle cx="12" cy="12" r="2"/></svg></span><span class="btn-label">风扇高速</span></span>
-            <span class="btn-code">FAN 2</span>
+          <button class="control-btn" data-command="ac_temp_24">
+            <span class="btn-main"><span class="icon"><svg viewBox="0 0 24 24"><path d="M14 14.8V5a2 2 0 0 0-4 0v9.8a4 4 0 1 0 4 0Z"/><path d="M12 9v7"/></svg></span><span class="btn-label">空调 24°C</span></span>
+            <span class="btn-code">AC 24</span>
           </button>
-          <button class="control-btn" data-command="warm_on">
-            <span class="btn-main"><span class="icon"><svg viewBox="0 0 24 24"><path d="M8 14a4 4 0 1 0 8 0c0-3-4-8-4-8s-4 5-4 8Z"/><path d="M12 2v4"/></svg></span><span class="btn-label">开启保温</span></span>
-            <span class="btn-code">TEMP +</span>
+          <button class="control-btn" data-command="ac_temp_26">
+            <span class="btn-main"><span class="icon"><svg viewBox="0 0 24 24"><path d="M14 14.8V5a2 2 0 0 0-4 0v9.8a4 4 0 1 0 4 0Z"/><path d="M12 9v7"/></svg></span><span class="btn-label">空调 26°C</span></span>
+            <span class="btn-code">AC 26</span>
           </button>
-          <button class="control-btn" data-command="warm_off">
-            <span class="btn-main"><span class="icon"><svg viewBox="0 0 24 24"><path d="M8 14a4 4 0 1 0 8 0c0-3-4-8-4-8s-4 5-4 8Z"/><path d="M4 4l16 16"/></svg></span><span class="btn-label">关闭保温</span></span>
-            <span class="btn-code">TEMP -</span>
+          <button class="control-btn" data-command="ac_temp_28">
+            <span class="btn-main"><span class="icon"><svg viewBox="0 0 24 24"><path d="M14 14.8V5a2 2 0 0 0-4 0v9.8a4 4 0 1 0 4 0Z"/><path d="M12 9v7"/></svg></span><span class="btn-label">空调 28°C</span></span>
+            <span class="btn-code">AC 28</span>
           </button>
-          <button class="control-btn" data-command="night_mode">
-            <span class="btn-main"><span class="icon"><svg viewBox="0 0 24 24"><path d="M20 14.5A7.5 7.5 0 0 1 9.5 4 8 8 0 1 0 20 14.5Z"/></svg></span><span class="btn-label">夜间模式</span></span>
-            <span class="btn-code">MODE</span>
+          <button class="control-btn" data-command="humidifier_on">
+            <span class="btn-main"><span class="icon"><svg viewBox="0 0 24 24"><path d="M12 3v18"/><path d="M7 8a5 5 0 0 0 10 0"/><path d="M5 14a7 7 0 0 0 14 0"/></svg></span><span class="btn-label">加湿器开</span></span>
+            <span class="btn-code">HUM ON</span>
+          </button>
+          <button class="control-btn" data-command="humidifier_off">
+            <span class="btn-main"><span class="icon"><svg viewBox="0 0 24 24"><path d="M12 3v18"/><path d="M4 4l16 16"/><path d="M5 14a7 7 0 0 0 14 0"/></svg></span><span class="btn-label">加湿器关</span></span>
+            <span class="btn-code">HUM OFF</span>
           </button>
         </div>
 
@@ -2366,8 +2468,8 @@ DASHBOARD_HTML = r"""<!doctype html>
       $("autoLabel").classList.toggle("active", !manualMode);
       $("manualLabel").classList.toggle("active", manualMode);
       $("modeHint").textContent = manualMode
-        ? `手动控制：${data.manual_control_label || "风扇低速"}`
-        : "按实时状态自动调节";
+        ? `手动控制：${data.manual_control_label || "空调 26°C"}`
+        : "按睡眠状态和环境自动调节";
 
       const sensor = data.sensor || {};
       const result = data.result || {};
@@ -2408,12 +2510,13 @@ DASHBOARD_HTML = r"""<!doctype html>
       const history = data.control_history || [];
       $("historyList").innerHTML = history.length
         ? history.slice().reverse().map((item) => {
-            const ok = item.send_status === "sent";
-            const waiting = item.send_status === "no_client";
-            const auto = item.send_status === "mode_auto";
+            const ok = item.send_status === "applied" || item.send_status === "sent";
+            const pending = item.send_status === "pending";
+            const skipped = item.send_status === "skipped" || item.send_status === "no_action";
+            const label = ok ? "已执行" : pending ? "待下发" : skipped ? "跳过/无动作" : "异常";
             return `<div class="history-item">
               <span><strong>${item.command_name || item.command_key}</strong>${item.timestamp || ""}</span>
-              <span class="${ok ? "sent" : "failed"}">${ok ? "已发送" : waiting ? "待连接" : auto ? "自动中" : "未发送"}</span>
+              <span class="${ok ? "sent" : "failed"}">${label}</span>
             </div>`;
           }).join("")
         : `<div class="history-item"><span>暂无控制记录</span><span>--</span></div>`;

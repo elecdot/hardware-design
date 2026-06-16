@@ -497,6 +497,20 @@ Initial implementation:
 - Keep `/api/state`, `/events`, `/api/mode`, and `/api/control`.
 - Make `/api/control` pending-only; it must not directly send on the socket.
 
+Initial implementation:
+
+- `pc_server/dashboard_server.py` now composes `SleepMonitorPcService` for the
+  dashboard entry path.
+- Its socket handler uses the current four-message protocol:
+  `sensor_data -> sleep_result + control_command -> control_status`.
+- `/api/mode` and `/api/control` update service state; manual controls queue
+  real `control_command.targets` for AC and humidifier instead of encoding fake
+  sleep states.
+- `pc_server/dashboard_server_selftest.py` validates pending manual control,
+  dashboard entry socket flow, and `control_status` state visibility.
+- Static HTML/CSS/JS extraction remains a later UI maintenance step, not a
+  blocker for first-version protocol acceptance.
+
 ### SW-4: PC-Only Socket Simulation
 
 - Rewrite fake client for the new protocol.

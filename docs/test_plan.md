@@ -56,6 +56,7 @@ pc_server/state_storage_selftest.py
 pc_server/service_selftest.py
 pc_server/socket_service_selftest.py
 pc_server/fake_pynq_client_selftest.py
+pc_server/dashboard_server_selftest.py
 pynq/sleep_demo/board_orchestrator_selftest.py
 pynq/sleep_demo/board_client_selftest.py
 ```
@@ -75,6 +76,11 @@ the socket/service path uses PC-side monotonic runtime, `ir_ac_missing` does not
 consume normal IR cooldown, confirmed `control_status.applied.ir_ac.sent=true`
 does consume cooldown, and a new board run beginning at `sample_id=1` resets
 policy runtime state.
+
+`pc_server/dashboard_server_selftest.py` covers the dashboard entry bridge:
+manual `/api/control` semantics are pending-only, the next `sensor_data`
+produces a real manual `control_command`, and the returned `control_status`
+appears in dashboard state.
 
 ## Migrated Handoff Module Regression
 

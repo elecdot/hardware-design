@@ -15,7 +15,8 @@ idea-level reference code, not as final architecture constraints.
 | [excel_utils.py](excel_utils.py) | Legacy Excel workbook helper; may become a storage implementation detail. |
 | [sleep_classifier.py](sleep_classifier.py) | Pure-Python DREAMT GRU classifier that loads `sleep_model.bin` and emits `sleep_result`. |
 | [sleep_model.bin](sleep_model.bin) | Lightweight classifier weights used by `sleep_classifier.py`. |
-| [dashboard_server.py](dashboard_server.py) | Current PC dashboard/service prototype and intended final PC entry after refactor. |
+| [dashboard_server.py](dashboard_server.py) | Dashboard PC entry point that composes `SleepMonitorPcService`, Web state/SSE, four-message socket handling, and pending-only manual controls. |
+| [dashboard_server_selftest.py](dashboard_server_selftest.py) | Loopback self-test for dashboard entry, pending manual command, and four-message socket flow. |
 | [protocol.py](protocol.py) | Canonical newline JSON protocol helpers and validation for four message types. |
 | [protocol_selftest.py](protocol_selftest.py) | Dependency-free SW-0 protocol self-test. |
 | [classifier_adapter.py](classifier_adapter.py) | Stable wrapper around `sleep_classifier.py` with validated `sleep_result` output and failure fallback. |
@@ -122,6 +123,12 @@ Fake PYNQ client self-test:
 python fake_pynq_client_selftest.py
 ```
 
+Dashboard entry self-test:
+
+```bash
+python dashboard_server_selftest.py
+```
+
 For real PYNQ integration, the board client must connect to the PC's real IPv4
 address, not `127.0.0.1`.
 
@@ -149,7 +156,8 @@ Manual dashboard controls set a pending real device command and wait for the
 next `sensor_data`; they do not bypass the main socket loop. AC commands are
 one-shot IR actions. Humidifier control is a target state. Desired-state UI can
 be added later, but first version must not automatically replay AC desired
-state.
+state. The dashboard entry uses the same four-message protocol as
+`socket_service.py`.
 
 IR AC cooldown is based on PC-side monotonic runtime and starts only after the
 board returns `control_status.applied.ir_ac.sent=true`. Board-side skips such as
