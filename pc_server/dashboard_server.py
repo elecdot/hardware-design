@@ -440,6 +440,135 @@ def describe_targets(targets):
     return " / ".join(parts) if parts else "无动作"
 
 
+def build_desired_state(service_state):
+    """Build a display-only desired-state snapshot for the dashboard.
+
+    This is intentionally not a control loop. AC state is inferred from the
+    last commanded one-shot IR target and may be wrong if the AC did not receive
+    the IR waveform.
+    """
+
+    last_commanded = service_state.get("last_commanded_state") or {}
+    latest_command = service_state.get("latest_control_command") or {}
+    latest_status = service_state.get("latest_control_status") or {}
+    pending = service_state.get("pending_manual_command")
+
+    ir_target = last_commanded.get("ir_ac") or {}
+    hum_target = last_commanded.get("humidifier") or {}
+
+    return {
+        "ir_ac": _desired_ir_ac(
+            ir_target,
+            _target_source(latest_command, "ir_ac"),
+            _target_status(latest_status, "ir_ac"),
+        ),
+        "humidifier": _desired_humidifier(
+            hum_target,
+            _target_source(latest_command, "humidifier"),
+            _target_status(latest_status, "humidifier"),
+        ),
+        "pending": _desired_pending(pending),
+        "note": "展示型状态：不自动重放 AC desired-state，也不替代 control_status。",
+    }
+
+
+def _desired_ir_ac(target, source, status):
+    command = target.get("command")
+    power = "unknown"
+    temperature = target.get("temperature_setpoint_c")
+
+    if command == "power_off":
+        power = "off"
+        temperature = None
+    elif command in ("power_on", "temp_24", "temp_25", "temp_26", "temp_27", "temp_28"):
+        power = "on"
+        if temperature is None and command and command.startswith("temp_"):
+            try:
+                temperature = int(command.rsplit("_", 1)[-1])
+            except (TypeError, ValueError):
+                temperature = None
+
+    return {
+        "power": power,
+        "temperature_setpoint_c": temperature,
+        "last_command": command,
+        "source": source,
+        "execution": status,
+        "confidence": "assumed_no_feedback" if command else "unknown",
+        "feedback": "ir_one_way",
+    }
+
+
+def _desired_humidifier(target, source, status):
+    enabled = target.get("enabled") if target else None
+    status_entry = status.get("entry") or {}
+    humidifier_on = status_entry.get("humidifier_on")
+    if humidifier_on is not None:
+        enabled = bool(humidifier_on)
+
+    return {
+        "enabled": enabled if enabled is None else bool(enabled),
+        "source": source,
+        "execution": status,
+        "confidence": "local_status" if humidifier_on is not None else "commanded",
+        "feedback": "pynq_local_status" if humidifier_on is not None else "target_only",
+    }
+
+
+def _desired_pending(pending):
+    if not pending:
+        return None
+    return {
+        "targets": pending.get("targets") or {},
+        "reason": pending.get("reason") or "dashboard_manual",
+        "policy_id": pending.get("policy_id") or "comfort_v1",
+        "summary": describe_targets(pending.get("targets")),
+    }
+
+
+def _target_source(command, target_name):
+    targets = command.get("targets") or {}
+    if target_name not in targets:
+        return {}
+    return {
+        "mode": command.get("mode"),
+        "reason": command.get("reason"),
+        "sample_id": command.get("sample_id"),
+        "timestamp": command.get("timestamp"),
+    }
+
+
+def _target_status(status, target_name):
+    applied = status.get("applied") or {}
+    entry = applied.get(target_name)
+    if not entry:
+        return {}
+
+    state = "unknown"
+    if target_name == "ir_ac":
+        if entry.get("sent"):
+            state = "sent"
+        elif entry.get("skipped"):
+            state = "skipped"
+        elif entry.get("error"):
+            state = "error"
+    elif target_name == "humidifier":
+        if entry.get("applied"):
+            state = "applied"
+        elif entry.get("skipped"):
+            state = "skipped"
+        elif entry.get("error"):
+            state = "error"
+
+    return {
+        "state": state,
+        "sample_id": status.get("sample_id"),
+        "status_code": status.get("status_code"),
+        "remark": status.get("remark"),
+        "entry": dict(entry),
+    }
+
+
 def build_control_history_from_snapshot(service_state):
     histories = service_state.get("histories") or {}
     commands = histories.get("control_command") or []
@@ -539,6 +668,7 @@ def snapshot_state() -> dict:
             "latest_control_command": service_state.get("latest_control_command"),
             "latest_control_status": service_state.get("latest_control_status"),
             "last_commanded_state": service_state.get("last_commanded_state"),
+            "desired_state": build_desired_state(service_state),
             "control_history": build_control_history_from_snapshot(service_state),
             "data_history": list(data_history[-DASHBOARD_DEBUG_RECORDS:]),
             "trend_history": build_trend_history(data_history),

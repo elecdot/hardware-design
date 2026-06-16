@@ -159,6 +159,30 @@
           </button>
         </div>
 
+        <div class="desired-panel">
+          <div class="desired-title">Desired State</div>
+          <div class="desired-grid">
+            <div class="desired-item">
+              <span>空调期望</span>
+              <strong id="desiredAcPower">未知</strong>
+            </div>
+            <div class="desired-item">
+              <span>空调设定</span>
+              <strong id="desiredAcTemp">--</strong>
+            </div>
+            <div class="desired-item">
+              <span>加湿器期望</span>
+              <strong id="desiredHumidifier">未知</strong>
+            </div>
+            <div class="desired-item">
+              <span>执行状态</span>
+              <strong id="desiredExec">--</strong>
+            </div>
+          </div>
+          <div id="desiredPending" class="desired-pending">无待下发手动命令</div>
+          <div id="desiredNote" class="desired-note">展示型状态，不自动重放控制命令。</div>
+        </div>
+
         <div class="history">
           <div class="history-title">最近控制指令</div>
           <div id="historyList" class="history-list">

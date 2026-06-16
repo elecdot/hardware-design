@@ -149,10 +149,10 @@ control_status
 
 Manual dashboard controls set a pending real device command and wait for the
 next `sensor_data`; they do not bypass the main socket loop. AC commands are
-one-shot IR actions. Humidifier control is a target state. Desired-state UI can
-be added later, but first version must not automatically replay AC desired
-state. The dashboard entry uses the same four-message protocol as
-`socket_service.py`.
+one-shot IR actions. Humidifier control is a target state. The dashboard
+desired-state panel is display-only and is derived from latest/pending commands
+plus `control_status`; it must not automatically replay AC desired state. The
+dashboard entry uses the same four-message protocol as `socket_service.py`.
 
 IR AC cooldown is based on PC-side monotonic runtime and starts only after the
 board returns `control_status.applied.ir_ac.sent=true`. Board-side skips such as

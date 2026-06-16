@@ -80,7 +80,8 @@ policy runtime state.
 `pc_server/dashboard_server_selftest.py` covers the dashboard entry bridge:
 manual `/api/control` semantics are pending-only, the next `sensor_data`
 produces a real manual `control_command`, and the returned `control_status`
-appears in dashboard state.
+appears in dashboard state. It also checks the display-only desired-state panel
+without adding command replay semantics.
 
 ## Migrated Handoff Module Regression
 

@@ -86,6 +86,7 @@ def main():
             html, html_type = request_text(httpd, "/")
             assert "dashboard.css" in html
             assert "dashboard.js" in html
+            assert "Desired State" in html
             assert html_type.startswith("text/html")
 
             css, css_type = request_text(httpd, "/static/dashboard.css")
@@ -94,6 +95,7 @@ def main():
 
             js, js_type = request_text(httpd, "/static/dashboard.js")
             assert "function render(data)" in js
+            assert "renderDesiredState" in js
             assert js_type.startswith("application/javascript")
 
             mode_body = request_json(httpd, "POST", "/api/mode", {"mode": "manual"})
@@ -111,6 +113,8 @@ def main():
 
             state_body = request_json(httpd, "GET", "/api/state")
             assert state_body["pending_manual_command"]["targets"]["ir_ac"]["command"] == "temp_26"
+            assert state_body["desired_state"]["pending"]["summary"] == "AC temp_26"
+            assert state_body["desired_state"]["ir_ac"]["power"] == "unknown"
         finally:
             httpd.shutdown()
             httpd.server_close()
@@ -167,6 +171,10 @@ def main():
         assert snapshot["latest_control_command"]["mode"] == "manual"
         assert snapshot["latest_control_status"]["type"] == CONTROL_STATUS
         assert snapshot["pending_manual_command"] is None
+        assert snapshot["desired_state"]["pending"] is None
+        assert snapshot["desired_state"]["ir_ac"]["power"] == "on"
+        assert snapshot["desired_state"]["ir_ac"]["temperature_setpoint_c"] == 26
+        assert snapshot["desired_state"]["ir_ac"]["execution"]["state"] == "sent"
 
     print("dashboard_server_selftest PASS")
 

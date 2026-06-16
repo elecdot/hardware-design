@@ -47,7 +47,7 @@ Carry-forward hardware constraint for software integration:
 | Manual scheduling | Dashboard manual clicks set `pending_manual_command`; the command is sent with the next `sensor_data`, not asynchronously from the HTTP handler. |
 | AC semantics | AC commands are one-shot IR pulses. `last_commanded_state` is a PC-side assumption for cooldown/display only, not real AC feedback. |
 | Humidifier semantics | Humidifier uses target-state semantics because PYNQ can write/read the local actuator IP. |
-| Desired-state | Desired-state is reserved for a later feature. First version may show or store it, but must not implement automatic desired-state replay/reconciliation. |
+| Desired-state | Dashboard may show display-only desired state derived from latest/pending commands and `control_status`; it must not implement automatic AC replay/reconciliation. |
 | Client count | First version supports one active PYNQ client only. |
 | Dependencies | Prefer Python standard library plus `openpyxl`; new PC-only dependencies are allowed only when they materially reduce complexity or improve reliability. PYNQ stays Python 3.6/PYNQ-library compatible. |
 
@@ -75,7 +75,7 @@ Carry-forward hardware constraint for software integration:
 - Adding IR RX to the final integrated overlay.
 - Treating PC socket/Excel/dashboard behavior as accepted without a real PYNQ
   board-originated run.
-- Automatic desired-state replay for AC.
+- Automatic desired-state replay/reconciliation for AC.
 - Multi-PYNQ client support.
 - Dashboard immediate-send control bypasses.
 
@@ -364,7 +364,7 @@ Minimum extra storage fields:
 
 Dashboard labels must distinguish:
 
-- desired state: future UI concept, not automatically replayed in first pass;
+- desired state: dashboard display concept, not automatically replayed in first pass;
 - last commanded state: PC inference from recent commands;
 - PYNQ execution status: `control_status`;
 - real AC state: unknown without IR RX or AC feedback.

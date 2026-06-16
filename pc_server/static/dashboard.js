@@ -329,6 +329,53 @@ const $ = (id) => document.getElementById(id);
         .replaceAll("'", "&#39;");
     }
 
+    function renderDesiredState(desired) {
+      desired = desired || {};
+      const irAc = desired.ir_ac || {};
+      const humidifier = desired.humidifier || {};
+      const pending = desired.pending || null;
+
+      const powerLabel = irAc.power === "on"
+        ? "开机"
+        : irAc.power === "off"
+          ? "关机"
+          : "未知";
+      const temp = numberOrNull(irAc.temperature_setpoint_c);
+      const humEnabled = humidifier.enabled;
+      const humLabel = humEnabled === true ? "开启" : humEnabled === false ? "关闭" : "未知";
+
+      $("desiredAcPower").textContent = powerLabel;
+      $("desiredAcTemp").textContent = temp === null ? "--" : `${temp}°C`;
+      $("desiredHumidifier").textContent = humLabel;
+      $("desiredExec").textContent = desiredExecutionText(irAc, humidifier);
+
+      $("desiredPending").textContent = pending
+        ? `待下发：${pending.summary || "手动命令"}`
+        : "无待下发手动命令";
+      $("desiredPending").classList.toggle("active", Boolean(pending));
+      $("desiredNote").textContent = desired.note || "展示型状态，不自动重放控制命令。";
+    }
+
+    function desiredExecutionText(irAc, humidifier) {
+      const parts = [];
+      const irExec = (irAc.execution || {}).state;
+      const humExec = (humidifier.execution || {}).state;
+
+      if (irExec === "sent") parts.push("AC 已发送");
+      else if (irExec === "skipped") parts.push("AC 已跳过");
+      else if (irExec === "error") parts.push("AC 异常");
+
+      if (humExec === "applied") parts.push("HUM 已应用");
+      else if (humExec === "skipped") parts.push("HUM 已跳过");
+      else if (humExec === "error") parts.push("HUM 异常");
+
+      if (parts.length) return parts.join(" / ");
+      if (irAc.last_command || humidifier.enabled === true || humidifier.enabled === false) {
+        return "等待回传";
+      }
+      return "--";
+    }
+
     function renderDebug(history) {
       const records = history || [];
 
@@ -404,6 +451,7 @@ const $ = (id) => document.getElementById(id);
       $("turnoverHint").textContent = classifyHint("turnover", sensor.turnover_count);
       $("accelHint").textContent = accelMagnitude === null ? "等待传感器上传" : `x=${valueOrDash(sensor.accel_x)} y=${valueOrDash(sensor.accel_y)} z=${valueOrDash(sensor.accel_z)}`;
       const dataHistory = data.data_history || [];
+      renderDesiredState(data.desired_state || {});
       renderDebug(dataHistory);
       renderAnalysis(data.trend_history || dataHistory, data.session_summary || {});
 
