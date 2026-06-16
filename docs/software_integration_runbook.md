@@ -54,7 +54,7 @@ Network:
 Run from the repository root on the PC:
 
 ```bash
-python -m py_compile pc_server\protocol.py pc_server\protocol_selftest.py pc_server\sleep_classifier.py pc_server\sleep_classifier_selftest.py pc_server\classifier_adapter.py pc_server\classifier_adapter_selftest.py pc_server\comfort_policy.py pc_server\comfort_policy_selftest.py pc_server\state_store.py pc_server\storage.py pc_server\state_storage_selftest.py pc_server\service.py pc_server\service_selftest.py pc_server\socket_service.py pc_server\socket_service_selftest.py pc_server\fake_pynq_client.py pc_server\fake_pynq_client_selftest.py pc_server\dashboard_server.py pc_server\dashboard_server_selftest.py pynq\sleep_demo\board_orchestrator.py pynq\sleep_demo\board_orchestrator_selftest.py pynq\sleep_demo\board_client.py pynq\sleep_demo\board_client_selftest.py
+python -m py_compile pc_server\protocol.py pc_server\protocol_selftest.py pc_server\sleep_classifier.py pc_server\sleep_classifier_selftest.py pc_server\classifier_adapter.py pc_server\classifier_adapter_selftest.py pc_server\comfort_policy.py pc_server\comfort_policy_selftest.py pc_server\state_store.py pc_server\storage.py pc_server\state_storage_selftest.py pc_server\service.py pc_server\service_selftest.py pc_server\socket_service.py pc_server\socket_service_selftest.py pc_server\fake_pynq_client.py pc_server\fake_pynq_client_selftest.py pc_server\dashboard_server.py pc_server\dashboard_server_selftest.py pynq\sleep_demo\integrated_demo.py pynq\sleep_demo\integrated_demo_selftest.py pynq\sleep_demo\board_orchestrator.py pynq\sleep_demo\board_orchestrator_selftest.py pynq\sleep_demo\board_client.py pynq\sleep_demo\board_client_selftest.py
 python pc_server\protocol_selftest.py
 python pc_server\sleep_classifier_selftest.py
 python pc_server\classifier_adapter_selftest.py
@@ -64,6 +64,7 @@ python pc_server\service_selftest.py
 python pc_server\socket_service_selftest.py
 python pc_server\fake_pynq_client_selftest.py
 python pc_server\dashboard_server_selftest.py
+python pynq\sleep_demo\integrated_demo_selftest.py
 python pynq\sleep_demo\board_orchestrator_selftest.py
 python pynq\sleep_demo\board_client_selftest.py
 ```
@@ -80,6 +81,7 @@ service_selftest PASS
 socket_service_selftest PASS
 fake_pynq_client_selftest PASS
 dashboard_server_selftest PASS
+integrated_demo_selftest PASS
 board_orchestrator_selftest PASS
 board_client_selftest PASS
 ```
@@ -381,6 +383,17 @@ IR command sent but AC does not respond:
 - Confirm the command is one of:
   `power_on`, `power_off`, `temp_24`, `temp_25`, `temp_26`, `temp_27`,
   `temp_28`.
+
+PYNQ returns `control_status.remark=ir_ac_missing`:
+
+- The PC did send an IR command, but the board-side `SleepMonitorBoard` did not
+  have an `ir_ac` driver bound.
+- Redeploy the latest `pynq/` tree to the board and rerun the client; stale
+  board-side Python before the IR driver binding fix will keep reporting this.
+- Run `integrated_demo.py --list-ips` and confirm `gree_ir_axi_v1_0_0` exists
+  at `0x40005000`.
+- Do not use `--allow-missing` for final demo evidence unless isolating a known
+  hardware bring-up issue.
 
 Board timestamps are wrong:
 

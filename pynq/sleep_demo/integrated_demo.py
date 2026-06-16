@@ -228,6 +228,7 @@ def bind_drivers(args):
     from spo2_mmio import AxiUartSpo2
     from tft_lcd import TftLcd
     from humidifier_driver import AxiHumidifier
+    from ir_ac import GreeIrTransmitter
 
     drivers = {
         "overlay": overlay,
@@ -274,6 +275,10 @@ def bind_drivers(args):
                 auto_init=True,
             )
             drivers["lcd"] = lcd
+
+    ir_base, ir_range = overlay_ip_addr(overlay, args.ir_ac_ip, args.allow_missing)
+    if ir_base is not None:
+        drivers["ir_ac"] = GreeIrTransmitter.from_base_addr(ir_base, ir_range)
 
     return drivers
 

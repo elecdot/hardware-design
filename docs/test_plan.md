@@ -62,6 +62,7 @@ pc_server/socket_service_selftest.py
 pc_server/fake_pynq_client_selftest.py
 pc_server/dashboard_server_selftest.py
 pynq/sleep_demo/board_orchestrator_selftest.py
+pynq/sleep_demo/integrated_demo_selftest.py
 pynq/sleep_demo/board_client_selftest.py
 ```
 
@@ -69,6 +70,12 @@ The board orchestrator self-test is PC-runnable and uses fake actuator drivers.
 It validates protocol shape, no-action handling, synthetic humidifier target
 application, IR command rejection, IR cooldown skip, and hardware-error status
 format. It is not board evidence.
+
+The integrated demo self-test is PC-runnable and uses fake driver modules. It
+validates that the static integrated metadata path binds all expected
+sensor/display/actuator drivers, including `ir_ac`, so the socket client can
+execute PC-originated manual IR commands when deployed to PYNQ. It is not board
+evidence and does not load a bitstream.
 
 The board client self-test is also PC-runnable. It validates the PYNQ-side
 socket message order against the minimal PC socket service using a fake board.

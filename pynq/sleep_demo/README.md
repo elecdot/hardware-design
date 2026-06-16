@@ -7,7 +7,8 @@ sleep-monitor overlay.
 
 | File | Purpose |
 |---|---|
-| [integrated_demo.py](integrated_demo.py) | Loads one integrated overlay, binds sensor/display/humidifier IPs, samples at a fixed interval, updates TFT, and prints canonical JSON-like records. |
+| [integrated_demo.py](integrated_demo.py) | Loads one integrated overlay, binds sensor/display/actuator IPs, samples at a fixed interval, updates TFT, and prints canonical JSON-like records. |
+| [integrated_demo_selftest.py](integrated_demo_selftest.py) | PC-runnable self-test that checks static integrated metadata binds all expected drivers, including IR AC. |
 | [display_ui.py](display_ui.py) | ST7789 dashboard drawing helpers with full initial draw and fixed-region updates. |
 | [board_orchestrator.py](board_orchestrator.py) | Reusable top-level board wrapper for sampling, display update, humidifier target execution, IR AC guarded execution, and `control_status` creation. |
 | [board_orchestrator_selftest.py](board_orchestrator_selftest.py) | PC-runnable self-test for orchestrator protocol shape and fake actuator behavior. |
@@ -55,9 +56,10 @@ The default IP names are:
 Use `--allow-missing` only for bring-up isolation. Final demo should run
 without missing required IPs.
 
-PC-runnable orchestrator self-test:
+PC-runnable board-side self-tests:
 
 ```bash
+python integrated_demo_selftest.py
 python board_orchestrator_selftest.py
 ```
 
