@@ -57,6 +57,17 @@ def request_json(server, method, path, body=None):
     return json.loads(raw.decode("utf-8"))
 
 
+def request_text(server, path):
+    host, port = server.server_address
+    conn = HTTPConnection(host, port, timeout=5.0)
+    conn.request("GET", path)
+    response = conn.getresponse()
+    raw = response.read()
+    conn.close()
+    assert response.status == 200, raw
+    return raw.decode("utf-8"), response.getheader("Content-Type")
+
+
 def main():
     with tempfile.TemporaryDirectory() as tmpdir:
         dashboard_server.pc_service = SleepMonitorPcService(
@@ -72,6 +83,19 @@ def main():
         web_thread.daemon = True
         web_thread.start()
         try:
+            html, html_type = request_text(httpd, "/")
+            assert "dashboard.css" in html
+            assert "dashboard.js" in html
+            assert html_type.startswith("text/html")
+
+            css, css_type = request_text(httpd, "/static/dashboard.css")
+            assert ".control-btn" in css
+            assert css_type.startswith("text/css")
+
+            js, js_type = request_text(httpd, "/static/dashboard.js")
+            assert "function render(data)" in js
+            assert js_type.startswith("application/javascript")
+
             mode_body = request_json(httpd, "POST", "/api/mode", {"mode": "manual"})
             assert mode_body["state"]["control_mode"] == "manual"
 

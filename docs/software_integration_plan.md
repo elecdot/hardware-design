@@ -507,9 +507,10 @@ Initial implementation:
   real `control_command.targets` for AC and humidifier instead of encoding fake
   sleep states.
 - `pc_server/dashboard_server_selftest.py` validates pending manual control,
-  dashboard entry socket flow, and `control_status` state visibility.
-- Static HTML/CSS/JS extraction remains a later UI maintenance step, not a
-  blocker for first-version protocol acceptance.
+  dashboard entry socket flow, static asset serving, and `control_status` state
+  visibility.
+- Dashboard HTML/CSS/JS are split into `pc_server/static/dashboard.html`,
+  `dashboard.css`, and `dashboard.js`.
 
 ### SW-4: PC-Only Socket Simulation
 

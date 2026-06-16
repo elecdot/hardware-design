@@ -17,6 +17,7 @@ idea-level reference code, not as final architecture constraints.
 | [sleep_model.bin](sleep_model.bin) | Lightweight classifier weights used by `sleep_classifier.py`. |
 | [dashboard_server.py](dashboard_server.py) | Dashboard PC entry point that composes `SleepMonitorPcService`, Web state/SSE, four-message socket handling, and pending-only manual controls. |
 | [dashboard_server_selftest.py](dashboard_server_selftest.py) | Loopback self-test for dashboard entry, pending manual command, and four-message socket flow. |
+| [static/](static/) | Dashboard HTML, CSS, and JavaScript assets served by `dashboard_server.py`. |
 | [protocol.py](protocol.py) | Canonical newline JSON protocol helpers and validation for four message types. |
 | [protocol_selftest.py](protocol_selftest.py) | Dependency-free SW-0 protocol self-test. |
 | [classifier_adapter.py](classifier_adapter.py) | Stable wrapper around `sleep_classifier.py` with validated `sleep_result` output and failure fallback. |
@@ -34,12 +35,6 @@ idea-level reference code, not as final architecture constraints.
 | [pc_server.py](pc_server.py) | Legacy/minimal socket smoke; not the final acceptance entry. |
 | [fake_pynq_client.py](fake_pynq_client.py) | New-protocol PC-only fake PYNQ client. |
 | [fake_pynq_client_selftest.py](fake_pynq_client_selftest.py) | Loopback self-test for fake client plus minimal socket service. |
-
-Remaining planned first-version modules:
-
-| File | Purpose |
-|---|---|
-| `static/` | Dashboard HTML/CSS/JS split out of `dashboard_server.py`. |
 
 ## Run Order
 
