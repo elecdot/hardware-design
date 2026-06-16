@@ -1,0 +1,17 @@
+sequenceDiagram
+  participant PYNQ as PYNQ board_client
+  participant PC as PC Server
+  participant Store as JSONL records
+
+  PYNQ->>PC: sensor_data
+  PC->>Store: append sensor_data
+  PC->>PC: classify sensor_data
+  PC-->>PYNQ: sleep_result
+  PC->>Store: append sleep_result
+  PC->>PC: comfort_policy(sensor_data, sleep_result)
+  PC-->>PYNQ: control_command
+  PC->>Store: append control_command
+  PYNQ->>PYNQ: validate and execute/skip command
+  PYNQ->>PC: control_status
+  PC->>Store: append control_status
+

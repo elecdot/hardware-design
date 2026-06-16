@@ -1,0 +1,12 @@
+flowchart LR
+  JY[JY901 / MPU9250<br/>9-axis module] <-->|SCL/SDA<br/>open-drain I2C| OD[i2c_open_drain_io]
+
+  subgraph IP["axi_i2c_jy901_v1_0"]
+    OD <--> CORE[i2c_master_core<br/>START/STOP/ACK/NACK/timeout]
+    CORE <--> SAM[jy901_sampler<br/>oneshot / auto / cfg write]
+    SAM <--> REG[axi_lite_regs<br/>CTRL / STATUS / DATA]
+  end
+
+  REG <-->|AXI4-Lite| PS[PYNQ / PS MMIO driver]
+  PS --> APP[turning detection<br/>display / socket payload]
+

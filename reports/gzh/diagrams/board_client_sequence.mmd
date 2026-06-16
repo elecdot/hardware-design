@@ -1,0 +1,16 @@
+sequenceDiagram
+  participant Board as SleepMonitorBoard
+  participant Client as board_client.py
+  participant PC as PC Server
+  participant Act as Humidifier / IR IP
+
+  Board->>Client: sensor_data
+  Client->>PC: send sensor_data
+  PC-->>Client: sleep_result
+  PC-->>Client: control_command
+  Client->>Board: apply_control_command(command)
+  Board->>Board: validate sample_id / targets / cooldown
+  Board->>Act: apply accepted target or skip
+  Board-->>Client: control_status
+  Client->>PC: send control_status
+

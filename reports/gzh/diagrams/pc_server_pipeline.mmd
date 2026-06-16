@@ -1,0 +1,14 @@
+flowchart TD
+  A[sensor_data from PYNQ] --> P[protocol.py<br/>decode and validate]
+  P --> C[classifier_adapter.py<br/>sleep_result]
+  P --> SVC[service.py]
+  C --> SVC
+  SVC --> POL[comfort_policy.py<br/>control_command]
+  SVC --> STATE[state_store.py<br/>latest state and histories]
+  SVC --> STOR[storage.py<br/>four JSONL streams]
+  POL --> OUT[send sleep_result + control_command]
+  OUT --> PYNQ[PYNQ applies or skips command]
+  PYNQ --> STATUS[control_status]
+  STATUS --> P
+  P --> SVC
+

@@ -1,0 +1,20 @@
+sequenceDiagram
+  participant PS as PYNQ MMIO
+  participant AXI as AXI-Lite Regs
+  participant IP as JY901 I2C IP
+  participant JY as JY901
+
+  PS->>AXI: configure DEV_ADDR=0x50, START_REG=0x34, WORD_COUNT=13
+  PS->>AXI: write CTRL.enable + oneshot_start
+  AXI->>IP: start burst read
+  IP->>JY: START + 0xA0
+  JY-->>IP: ACK
+  IP->>JY: register 0x34
+  JY-->>IP: ACK
+  IP->>JY: RESTART + 0xA1
+  JY-->>IP: ACK
+  JY-->>IP: 26 data bytes
+  IP->>JY: NACK + STOP
+  IP->>AXI: latch 13 raw words, data_valid=1, sample_cnt++
+  PS->>AXI: read STATUS and AX_RAW..TEMP_RAW
+

@@ -1,0 +1,30 @@
+flowchart TD
+  subgraph PL["system_v0_2 PL custom IP"]
+    JY[axi_i2c_jy901]
+    DHT[dht11_axi]
+    SPO2[axi_uart_spo2]
+    TFT[tft_lcd_spi_axi]
+    HUM[axi_humidifier]
+    IR[gree_ir_axi]
+  end
+
+  subgraph PYNQ["PYNQ / PS software"]
+    BIND[load overlay<br/>bind IP by metadata or fallback map]
+    ORCH[BoardOrchestrator]
+    SAMPLE[read_sample<br/>sensor_data]
+    DISPLAY[update_display]
+    APPLY[apply_control_command<br/>guards / cooldown]
+    STATUS[control_status]
+    CLIENT[board_client TCP loop]
+  end
+
+  JY --> SAMPLE
+  DHT --> SAMPLE
+  SPO2 --> SAMPLE
+  SAMPLE --> DISPLAY --> TFT
+  BIND --> ORCH --> SAMPLE --> CLIENT
+  CLIENT --> APPLY
+  APPLY --> HUM
+  APPLY --> IR
+  APPLY --> STATUS --> CLIENT
+
