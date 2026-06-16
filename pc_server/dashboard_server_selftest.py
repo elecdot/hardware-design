@@ -86,7 +86,8 @@ def main():
             html, html_type = request_text(httpd, "/")
             assert "dashboard.css" in html
             assert "dashboard.js" in html
-            assert "Desired State" in html
+            assert "期望状态" in html
+            assert "historyToggle" in html
             assert html_type.startswith("text/html")
 
             css, css_type = request_text(httpd, "/static/dashboard.css")
@@ -96,6 +97,8 @@ def main():
             js, js_type = request_text(httpd, "/static/dashboard.js")
             assert "function render(data)" in js
             assert "renderDesiredState" in js
+            assert "function renderControlHistory(history)" in js
+            assert "slice(0, 3)" in js
             assert js_type.startswith("application/javascript")
 
             mode_body = request_json(httpd, "POST", "/api/mode", {"mode": "manual"})

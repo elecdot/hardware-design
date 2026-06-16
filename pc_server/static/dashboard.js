@@ -1,5 +1,6 @@
 const $ = (id) => document.getElementById(id);
     let selectedDebugId = null;
+    let historyExpanded = false;
 
     function valueOrDash(value, digits = null) {
       if (value === null || value === undefined || value === "") return "--";
@@ -353,7 +354,6 @@ const $ = (id) => document.getElementById(id);
         ? `待下发：${pending.summary || "手动命令"}`
         : "无待下发手动命令";
       $("desiredPending").classList.toggle("active", Boolean(pending));
-      $("desiredNote").textContent = desired.note || "展示型状态，不自动重放控制命令。";
     }
 
     function desiredExecutionText(irAc, humidifier) {
@@ -460,9 +460,17 @@ const $ = (id) => document.getElementById(id);
         button.classList.toggle("active", button.dataset.command === data.manual_control_key);
       });
 
-      const history = data.control_history || [];
-      $("historyList").innerHTML = history.length
-        ? history.slice().reverse().map((item) => {
+      renderControlHistory(data.control_history || []);
+    }
+
+    function renderControlHistory(history) {
+      const reversed = history.slice().reverse();
+      const visible = historyExpanded ? reversed : reversed.slice(0, 3);
+      $("historyToggle").hidden = history.length <= 3;
+      $("historyToggle").textContent = historyExpanded ? "收起" : `展开 ${history.length}`;
+      $("historyList").classList.toggle("expanded", historyExpanded);
+      $("historyList").innerHTML = visible.length
+        ? visible.map((item) => {
             const ok = item.send_status === "applied" || item.send_status === "sent";
             const pending = item.send_status === "pending";
             const skipped = item.send_status === "skipped" || item.send_status === "no_action";
@@ -510,6 +518,11 @@ const $ = (id) => document.getElementById(id);
 
     $("debugSwitch").addEventListener("change", (event) => {
       $("debugPanel").classList.toggle("open", event.target.checked);
+    });
+
+    $("historyToggle").addEventListener("click", () => {
+      historyExpanded = !historyExpanded;
+      loadState();
     });
 
     const events = new EventSource("/events");

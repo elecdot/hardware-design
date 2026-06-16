@@ -468,7 +468,6 @@ def build_desired_state(service_state):
             _target_status(latest_status, "humidifier"),
         ),
         "pending": _desired_pending(pending),
-        "note": "展示型状态：不自动重放 AC desired-state，也不替代 control_status。",
     }
 
 

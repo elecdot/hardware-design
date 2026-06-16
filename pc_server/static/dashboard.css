@@ -449,8 +449,7 @@
       overflow-wrap: anywhere;
     }
 
-    .desired-pending,
-    .desired-note {
+    .desired-pending {
       margin-top: 9px;
       color: var(--muted);
       font-size: 12px;
@@ -467,15 +466,46 @@
       padding: 14px 16px 16px;
     }
 
+    .history-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
     .history-title {
       color: var(--muted);
       font-size: 13px;
-      margin-bottom: 10px;
+    }
+
+    .history-toggle {
+      min-width: 46px;
+      min-height: 28px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .history-toggle:hover {
+      border-color: rgba(36, 107, 254, 0.45);
+      color: var(--brand);
     }
 
     .history-list {
       display: grid;
       gap: 8px;
+      max-height: 248px;
+      overflow: auto;
+      padding-right: 2px;
+    }
+
+    .history-list.expanded {
+      max-height: 320px;
     }
 
     .history-item {

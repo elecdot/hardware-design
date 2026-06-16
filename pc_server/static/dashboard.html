@@ -160,7 +160,7 @@
         </div>
 
         <div class="desired-panel">
-          <div class="desired-title">Desired State</div>
+          <div class="desired-title">期望状态</div>
           <div class="desired-grid">
             <div class="desired-item">
               <span>空调期望</span>
@@ -180,11 +180,13 @@
             </div>
           </div>
           <div id="desiredPending" class="desired-pending">无待下发手动命令</div>
-          <div id="desiredNote" class="desired-note">展示型状态，不自动重放控制命令。</div>
         </div>
 
         <div class="history">
-          <div class="history-title">最近控制指令</div>
+          <div class="history-head">
+            <div class="history-title">最近控制指令</div>
+            <button id="historyToggle" class="history-toggle" type="button">展开</button>
+          </div>
           <div id="historyList" class="history-list">
             <div class="history-item"><span>暂无控制记录</span><span>--</span></div>
           </div>
