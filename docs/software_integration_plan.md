@@ -1,12 +1,14 @@
 # Software Integration Plan
 
-This document records the confirmed software-integration decisions so future
-work can be picked up after the IR hardware platform integration and IR demo
-test are complete.
+This document records the confirmed software-integration decisions and the
+first implemented PC/PYNQ integration pass.
 
-The IR hardware entry gate is now satisfied. TX-only Gree IR AC integration is
+The IR hardware entry gate is satisfied. TX-only Gree IR AC integration is
 closed through `IR-5`, including real lab AC response from the integrated
-`system_v0_2` overlay. This software plan is now the next implementation scope.
+`system_v0_2` overlay. The software first pass is implemented for classroom
+demo use: PYNQ board client/orchestrator, PC service, classifier adapter,
+comfort policy, four-record storage, dashboard entry, manual control, and
+display-only desired-state panel.
 
 ## Entry Gate
 
@@ -53,7 +55,7 @@ Carry-forward hardware constraint for software integration:
 
 ## Scope Boundary
 
-### In Scope For This Later Phase
+### Implemented First Pass
 
 - PYNQ top-level class wrapping existing sensor, display, humidifier, and IR
   drivers.
@@ -478,8 +480,9 @@ Initial implementation:
 - For every incoming `sensor_data`, send exactly two messages in order:
   `sleep_result`, then `control_command`.
 - Record incoming `control_status`.
-- Keep this loop sequential and single-client for the first version; dashboard
-  HTTP/SSE integration remains a later step.
+- Keep this loop sequential and single-client for the first version. This
+  minimal service remains useful for socket debugging; dashboard HTTP/SSE
+  integration is covered by the dashboard entry bridge below.
 
 Initial implementation:
 
@@ -581,11 +584,12 @@ Initial implementation:
 
 ## Open Items For This Phase
 
-- Exact Python module names and file split can be refined immediately before
-  implementation.
-- `dashboard_server.py` is the mature PC entry point, but its responsibilities
-  should be decomposed into service/state/policy/storage modules.
-- Current `sleep_classifier.py` is a real pure-Python model implementation
-  backed by `sleep_model.bin`; wrap it with an adapter instead of coupling
-  service/dashboard logic to classifier internals.
 - Board system time must be fixed before timestamp-sensitive logging evidence.
+- A final classroom evidence run should prefer `dashboard_server.py` plus real
+  PYNQ `board_client.py`; existing local self-tests and recorded runs validate
+  the protocol/service/dashboard paths but should not be oversold as new
+  hardware evidence.
+- IR AC reception still requires physical aiming and short distance; software
+  can report TX completion, not real AC state feedback.
+- Desired-state remains dashboard display state only. Do not add automatic AC
+  replay/reconciliation before the class demo.

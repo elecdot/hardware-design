@@ -32,18 +32,22 @@ If an integrated platform or driver issue blocks one module, record the blocking
 condition and validate that module with the smallest standalone overlay/driver
 path before returning to the integrated build.
 
-PC socket/Excel integration is a later-priority final-system layer after the
-board-side integrated demo. Validate it in layers:
+PC/PYNQ software integration is now a first-version final-system layer. Validate
+it in layers:
 
-1. PC-only: run `pc_server.py` and `fake_pynq_client.py` from the socket handoff
-   and confirm JSON send/receive plus Excel writes.
-2. PYNQ synthetic: run a PYNQ client that sends synthetic `sensor_data` to the
-   PC's real IPv4 address and receives `sleep_result`.
-3. Integrated driver: replace synthetic values with values from the integrated
-   PYNQ driver suite.
+1. PC-only: run the local self-tests and fake client against the four-message
+   service.
+2. PYNQ synthetic: run `board_client.py --dry-run` against the PC service.
+3. Integrated driver: run `board_client.py` with `system_v0_2.bit/.hwh` and the
+   integrated PYNQ driver suite.
+4. Dashboard demo: run `dashboard_server.py`, open the Web console, and confirm
+   live sensor data, sleep result, control command, control status, manual
+   control, and desired-state display behavior.
 
-Do not let PC firewall, IP address, or `openpyxl` setup block the lower-risk
-board-side integrated acceptance path.
+Do not let PC firewall, IP address, or optional Excel setup block the lower-risk
+board-side integrated acceptance path. For classroom demo, `dashboard_server.py`
+is the preferred PC entry point; `socket_service.py` remains the smallest
+debugging service.
 
 Current software-integration local self-tests:
 
@@ -64,8 +68,7 @@ pynq/sleep_demo/board_client_selftest.py
 The board orchestrator self-test is PC-runnable and uses fake actuator drivers.
 It validates protocol shape, no-action handling, synthetic humidifier target
 application, IR command rejection, IR cooldown skip, and hardware-error status
-format. It is not board evidence; real PYNQ socket-client evidence is still
-required before claiming end-to-end PC/PYNQ operation.
+format. It is not board evidence.
 
 The board client self-test is also PC-runnable. It validates the PYNQ-side
 socket message order against the minimal PC socket service using a fake board.
@@ -82,6 +85,20 @@ manual `/api/control` semantics are pending-only, the next `sensor_data`
 produces a real manual `control_command`, and the returned `control_status`
 appears in dashboard state. It also checks the display-only desired-state panel
 without adding command replay semantics.
+
+Recorded software-integration runtime evidence:
+
+- A 90-sample real PYNQ socket run produced matching `sensor_data`,
+  `sleep_result`, `control_command`, and `control_status` streams under
+  `pc_server/records/pynq_integration_smoke/`. JY901-only transient failures
+  were handled without restarting classifier warm-up.
+- A dashboard plus fake-client smoke produced 10 complete four-message cycles,
+  loaded `/`, `/static/dashboard.css`, and `/static/dashboard.js` successfully,
+  and disconnected with zero socket-handler errors.
+
+For the formal classroom run, prefer refreshing this evidence with
+`dashboard_server.py` plus the real PYNQ `board_client.py`, because that exact
+pair is the intended presentation path.
 
 ## Migrated Handoff Module Regression
 

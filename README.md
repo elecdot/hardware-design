@@ -31,8 +31,10 @@ Current workspace status:
 - TX-only Gree IR AC integration is closed for the hardware scope: source
   migration, regression, IP packaging, Block Design integration, PYNQ smoke,
   and real lab AC response are recorded.
-- PC socket/Excel/dashboard code has been migrated under `pc_server/` and is
-  now the next major integration/refactor scope.
+- PC/PYNQ software integration now has a classroom-demo-ready first pass:
+  canonical four-message protocol, board-side socket client/orchestrator,
+  PC classifier adapter, comfort policy, JSONL storage, dashboard entry,
+  pending-only manual controls, and a display-only desired-state panel.
 
 ## Hardware Platform
 
@@ -125,10 +127,10 @@ Implemented or active subtrees:
 | [pynq/dht11_demo/](pynq/dht11_demo/) | DHT11 PYNQ driver/demo migrated from handoff. |
 | [pynq/humidifier_demo/](pynq/humidifier_demo/) | Humidifier PYNQ driver/demo migrated from handoff. |
 | [pynq/ir_ac_demo/](pynq/ir_ac_demo/) | TX-only Gree IR AC driver/demo migrated from handoff. |
-| [pynq/sleep_demo/](pynq/sleep_demo/) | Integrated PYNQ demo skeleton for the final overlay. |
+| [pynq/sleep_demo/](pynq/sleep_demo/) | Integrated PYNQ demo, top-level board orchestrator, and socket client. |
 | [pynq/tft_lcd_demo/](pynq/tft_lcd_demo/) | TFT LCD PYNQ driver/demo migrated from handoff. |
 | [pynq/spo2_demo/](pynq/spo2_demo/) | UART SpO2 PYNQ helper migrated from handoff. |
-| [pc_server/](pc_server/) | PC socket/Excel demo migrated from handoff for the deferred PC integration layer. |
+| [pc_server/](pc_server/) | PC socket service, classifier adapter, comfort policy, storage, fake client, and dashboard entry point. |
 | [vivado/constraints/](vivado/constraints/) | Board-level XDC constraints. |
 | [vivado/ip_repo/](vivado/ip_repo/) | Shared packaged custom IP repository for Vivado projects. |
 | [vivado/ip_repo/ir_ac_axi/](vivado/ip_repo/ir_ac_axi/) | Packaged TX-only Gree IR AC AXI IP. |
@@ -179,12 +181,22 @@ Engineering references:
 
 ## Open Loops
 
-Current open work:
+Demo readiness:
 
-- [ ] Software integration phase:
-  [docs/software_integration_plan.md](docs/software_integration_plan.md):
-  implement the PYNQ top-level orchestrator, PC policy/service refactor,
-  `control_command`, and `control_status` flow.
+- [x] Hardware integrated overlay demo path is ready for classroom
+  presentation through `system_v0_2`.
+- [x] PC/PYNQ four-message software integration first pass is implemented and
+  locally self-tested.
+- [x] Dashboard entry point is implemented with real protocol/service state,
+  pending-only manual controls, and bounded control-history UI.
+- [ ] Before formal demo capture, fix PYNQ board time so logs have real
+  timestamps.
+- [ ] Before formal demo capture, rerun one full `dashboard_server.py` plus
+  real PYNQ `board_client.py` session if the lab network and board are
+  available.
+- [ ] Before showing IR AC in class, position the IR transmitter within about
+  20 cm of the lab Gree AC receiver and verify `power_on`, `power_off`, or
+  `temp_26`.
 
 Completed:
 
@@ -213,14 +225,20 @@ SPI TFT LCD, humidifier, and PC socket/Excel demo.
 - [x] IR-5 PYNQ board bring-up: integrated overlay driver smoke sent
   `power_on`, `power_off`, and `temp_26`; the lab Gree AC responded when the
   IR transmitter was within approximately 20 cm of the AC receiver.
+- [x] Software integration first pass: PYNQ `SleepMonitorBoard` and
+  `board_client.py`, PC protocol/classifier/policy/state/storage/service,
+  `control_command` / `control_status`, fake client, dashboard server, and
+  desired-state panel are implemented with self-test coverage.
 
-Further work:
+Further work after classroom demo:
 
-- Implement the PYNQ board-side socket client and top-level orchestrator.
-- Refactor the PC dashboard/service around protocol, classifier adapter,
-  comfort policy, `AppState`, four-record storage, and new-protocol fake client.
-- Wrap the current `sleep_classifier.py` / `sleep_model.bin` implementation
-  through the PC classifier adapter.
+- Capture a fresh dashboard-plus-real-board evidence run for the final report
+  if time allows.
+- Improve overlay metadata export for old PYNQ images so static address-map
+  fallback is no longer needed.
+- Add optional desired-state reconciliation only if future hardware can provide
+  reliable actuator feedback; do not add AC replay before the class demo.
+- Consider optional sleep-aid prompt/audio module as a later extension.
 
 Keep README files and engineering docs synchronized whenever protocols,
 register maps, external ports, wiring, or workflow assumptions change.

@@ -1,6 +1,7 @@
 # sleep_demo
 
-Integrated PYNQ demo skeleton for the final sleep-monitor overlay.
+Integrated PYNQ demo, board orchestrator, and socket client for the final
+sleep-monitor overlay.
 
 ## Files
 
@@ -17,12 +18,6 @@ Integrated PYNQ demo skeleton for the final sleep-monitor overlay.
 For the PC/PYNQ socket integration procedure, including rsync deployment and
 record evidence capture, use
 [../../docs/software_integration_runbook.md](../../docs/software_integration_runbook.md).
-
-Planned software-integration files:
-
-| File | Purpose |
-|---|---|
-| (none) | The first socket client skeleton is now present; next work is board-side runtime validation. |
 
 Keep [integrated_demo.py](integrated_demo.py) as the local hardware
 smoke/fallback entry point. Do not turn it into the final socket client.

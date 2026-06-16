@@ -44,11 +44,14 @@ Install the PC dependency:
 pip install -r requirements.txt
 ```
 
-Planned final PC entry:
+Classroom demo PC entry:
 
 ```bash
 python dashboard_server.py
 ```
+
+This starts the Web dashboard at `http://127.0.0.1:8080` and the PYNQ socket
+listener at `protocol_config.SERVER_PORT`, currently `9000`.
 
 Minimal new-protocol socket service:
 
@@ -56,18 +59,24 @@ Minimal new-protocol socket service:
 python socket_service.py --host 0.0.0.0 --port 9000
 ```
 
-Legacy PC-local smoke:
+Legacy minimal server, not final acceptance evidence:
 
 ```bash
 python pc_server.py
-python fake_pynq_client.py
 ```
 
-New-protocol PC-only smoke:
+New-protocol PC-only socket smoke:
 
 ```bash
 python socket_service.py --host 127.0.0.1 --port 9000
 python fake_pynq_client.py --host 127.0.0.1 --port 9000 --samples 5 --interval 1.0
+```
+
+Dashboard plus fake-client smoke:
+
+```bash
+python dashboard_server.py
+python fake_pynq_client.py --host 127.0.0.1 --port 9000 --samples 10 --interval 1.0
 ```
 
 Protocol self-test:

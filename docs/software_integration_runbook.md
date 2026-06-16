@@ -7,16 +7,17 @@ on local board bring-up.
 
 Current integration scope:
 
-- PC runs the minimal new-protocol socket service.
+- PC runs `dashboard_server.py` for the classroom demo path, or the minimal
+  `socket_service.py` for isolated socket debugging.
 - PYNQ runs the board socket client.
 - PYNQ sends `sensor_data`.
 - PC replies with `sleep_result`, then `control_command`.
 - PYNQ applies or skips the command and returns `control_status`.
-- PC persists four JSONL record streams.
+- PC persists four JSONL record streams and the dashboard visualizes sensor,
+  classifier, policy, command, status, and desired-state display state.
 
-Dashboard HTTP/SSE refactor is still a later step. Do not use legacy
-`pc_server.py` or the current dashboard prototype as acceptance evidence for
-the new protocol loop.
+Do not use legacy `pc_server.py` as acceptance evidence for the new protocol
+loop.
 
 ## Preconditions
 
@@ -41,8 +42,10 @@ sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6 ...
 Network:
 
 - PC and PYNQ are on the same reachable network.
-- PC firewall allows inbound TCP on the selected service port for Python. This
-  runbook uses `10000` to avoid common Windows conflicts around `9000`.
+- PC firewall allows inbound TCP on the selected service port for Python.
+  `dashboard_server.py` uses `protocol_config.SERVER_PORT`, currently `9000`;
+  the minimal `socket_service.py` examples use `10000` to avoid common Windows
+  conflicts around `9000`.
 - PYNQ connects to the PC's real IPv4 address, not `127.0.0.1`.
 - If another port is used, update every PC and PYNQ command consistently.
 
@@ -51,7 +54,7 @@ Network:
 Run from the repository root on the PC:
 
 ```bash
-python -m py_compile pc_server\protocol.py pc_server\protocol_selftest.py pc_server\sleep_classifier.py pc_server\sleep_classifier_selftest.py pc_server\classifier_adapter.py pc_server\classifier_adapter_selftest.py pc_server\comfort_policy.py pc_server\comfort_policy_selftest.py pc_server\state_store.py pc_server\storage.py pc_server\state_storage_selftest.py pc_server\service.py pc_server\service_selftest.py pc_server\socket_service.py pc_server\socket_service_selftest.py pc_server\fake_pynq_client.py pc_server\fake_pynq_client_selftest.py pynq\sleep_demo\board_orchestrator.py pynq\sleep_demo\board_orchestrator_selftest.py pynq\sleep_demo\board_client.py pynq\sleep_demo\board_client_selftest.py
+python -m py_compile pc_server\protocol.py pc_server\protocol_selftest.py pc_server\sleep_classifier.py pc_server\sleep_classifier_selftest.py pc_server\classifier_adapter.py pc_server\classifier_adapter_selftest.py pc_server\comfort_policy.py pc_server\comfort_policy_selftest.py pc_server\state_store.py pc_server\storage.py pc_server\state_storage_selftest.py pc_server\service.py pc_server\service_selftest.py pc_server\socket_service.py pc_server\socket_service_selftest.py pc_server\fake_pynq_client.py pc_server\fake_pynq_client_selftest.py pc_server\dashboard_server.py pc_server\dashboard_server_selftest.py pynq\sleep_demo\board_orchestrator.py pynq\sleep_demo\board_orchestrator_selftest.py pynq\sleep_demo\board_client.py pynq\sleep_demo\board_client_selftest.py
 python pc_server\protocol_selftest.py
 python pc_server\sleep_classifier_selftest.py
 python pc_server\classifier_adapter_selftest.py
@@ -60,6 +63,7 @@ python pc_server\state_storage_selftest.py
 python pc_server\service_selftest.py
 python pc_server\socket_service_selftest.py
 python pc_server\fake_pynq_client_selftest.py
+python pc_server\dashboard_server_selftest.py
 python pynq\sleep_demo\board_orchestrator_selftest.py
 python pynq\sleep_demo\board_client_selftest.py
 ```
@@ -75,6 +79,7 @@ state_storage_selftest PASS
 service_selftest PASS
 socket_service_selftest PASS
 fake_pynq_client_selftest PASS
+dashboard_server_selftest PASS
 board_orchestrator_selftest PASS
 board_client_selftest PASS
 ```
@@ -174,17 +179,32 @@ subdirectories after checking the destination path.
 The PYNQ side should not need `pc_server/`; `board_client.py` intentionally
 uses its own lightweight protocol codec to avoid PC-only imports.
 
-## 5. Start PC Service For PYNQ
+## 5. Start PC Dashboard For PYNQ
 
 On the PC:
 
 ```bash
 cd pc_server
-python socket_service.py --host 0.0.0.0 --port 10000 --record-dir records\pynq_integration_smoke
+python dashboard_server.py
 ```
 
-Keep this terminal visible. It should show client connect/disconnect status and
-must not show tracebacks.
+Open the dashboard:
+
+```text
+http://127.0.0.1:8080
+```
+
+Keep this terminal visible. It should show the Web console, client
+connect/disconnect status, and no tracebacks. The socket port is
+`protocol_config.SERVER_PORT`, currently `9000`; use that same port in the
+PYNQ `board_client.py` command below.
+
+For socket-only debugging without the dashboard, keep the minimal service path:
+
+```bash
+cd pc_server
+python socket_service.py --host 0.0.0.0 --port 10000 --record-dir records\pynq_integration_smoke
+```
 
 ## 6. PYNQ Dry-Run Client
 
@@ -199,7 +219,7 @@ cd /home/xilinx/jupyter_notebooks/sleep_monitor/sleep_demo
 sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6 board_client.py \
   --dry-run \
   --host <PC_IPV4> \
-  --port 10000 \
+  --port 9000 \
   --samples 3 \
   --interval 1.0
 ```
@@ -208,7 +228,9 @@ Expected dry-run evidence:
 
 - PYNQ prints `SEND sensor_data`, `RECV sleep_result`,
   `RECV control_command`, and `SEND control_status`.
-- PC `records/pynq_integration_smoke/` receives all four JSONL files.
+- PC `records/` receives all four JSONL files when using `dashboard_server.py`.
+  If using `socket_service.py --record-dir records\pynq_integration_smoke`,
+  check that directory instead.
 - `sleep_result.state_valid` may be `0` because dry-run samples do not contain
   real HR/SpO2.
 
@@ -249,7 +271,7 @@ On PYNQ:
 cd /home/xilinx/jupyter_notebooks/sleep_monitor/sleep_demo
 sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6 board_client.py \
   --host <PC_IPV4> \
-  --port 10000 \
+  --port 9000 \
   --bitfile /home/xilinx/jupyter_notebooks/sleep_monitor/system_v0_2.bit \
   --samples 30 \
   --interval 1.0 \
@@ -271,6 +293,8 @@ Expected real-run evidence:
 - PC sends `sleep_result` and `control_command` for each sample.
 - PYNQ returns one `control_status` for each command.
 - PC record directory has matching JSONL streams.
+- Dashboard shows live connection, sensor values, sleep result, control
+  history, desired-state display panel, and recent JSON debug records.
 - `sleep_result` warm-up should progress across occasional JY901-only
   `status_code=0x01` samples instead of restarting.
 - PYNQ stdout shows command/status lines and no unhandled exceptions.
@@ -280,7 +304,7 @@ Expected real-run evidence:
 
 For review, keep:
 
-- PC command line used for `socket_service.py`.
+- PC command line used for `dashboard_server.py` or `socket_service.py`.
 - PYNQ command line used for `board_client.py`.
 - First 3 to 5 JSON objects from each JSONL stream:
   `sensor_data`, `sleep_result`, `control_command`, `control_status`.
@@ -298,12 +322,14 @@ PC service fails at `server.bind(...)` with WinError `10013` or `10048`:
 
 - `10013` means Windows denied binding that address/port.
 - `10048` means the address/port is already in use or not yet reusable.
-- Use `10000` as shown in this runbook, or choose another high port such as
-  `10001`, then update both the PC service and PYNQ client commands.
+- For `dashboard_server.py`, either free port `9000` or temporarily change
+  `SERVER_PORT` in `pc_server/protocol_config.py`, then update the PYNQ client
+  `--port` value consistently. For `socket_service.py`, use `10000` as shown
+  above, or choose another high port such as `10001`.
 - Check whether a port is already listening:
 
 ```powershell
-netstat -ano | Select-String ':10000'
+netstat -ano | Select-String ':9000'
 ```
 
 - Check Windows reserved TCP port ranges:
@@ -320,12 +346,13 @@ netsh interface ipv6 show excludedportrange protocol=tcp
 PC service gets no connection:
 
 - Check PYNQ is using `<PC_IPV4>`, not `127.0.0.1`.
-- Check Windows firewall for TCP `10000` or the chosen port.
+- Check Windows firewall for TCP `9000` or the chosen port.
 - Check both devices are on the same reachable network.
 
 PYNQ times out waiting for responses:
 
-- Confirm PC service is `socket_service.py`, not legacy `pc_server.py`.
+- Confirm PC service is `dashboard_server.py` or `socket_service.py`, not
+  legacy `pc_server.py`.
 - Confirm PC stdout has no traceback.
 - Confirm only one active PYNQ client is connected.
 
