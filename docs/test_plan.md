@@ -1,124 +1,71 @@
 # Test Plan
 
-Module and system-level test checklist.
+本文档记录仿真、IP 打包、Vivado 集成、板端 smoke 和 PC/PYNQ 端到端测试计划与证据。
+在没有对应证据前，不要声称模块或系统“已验证”。
 
 ## Final Integrated Overlay Acceptance Target
 
-Final course acceptance targets one complete Vivado overlay hardware platform,
-one matching `.hwh`, one PYNQ driver suite, and one demonstrable board-side
-program. Single-module overlays and direct-MMIO scripts remain validation tools
-for isolating bring-up failures, but they are not the preferred final
-acceptance path.
+当前课堂 demo 目标是 `system_v0_2`：
 
-Minimum integrated acceptance evidence:
+- Vivado 导出匹配的 `system_v0_2.bit`、`system_v0_2.hwh` 和 `system_v0_2.tcl`。
+- 集成 pin plan：PMODA 用于 TFT LCD，Arduino `P16/P15` 用于 JY901 I2C，
+  PMODB `W14/Y14` 用于 UART SpO2，Arduino IO11 `R17` 用于 DHT11，
+  Arduino `ck_io[0]` / `T14` 用于 Gree IR AC TX，板载 LED 用于加湿器状态。
+- PYNQ runtime 能用共享 driver suite 读取/更新：JY901 read/status、DHT11 read、UART SpO2 read、TFT update、humidifier status/control、IR AC TX。
+- PC/PYNQ 四消息软件闭环可运行：`sensor_data -> sleep_result -> control_command -> control_status`。
 
-- Vivado Block Design validates with all selected IP present.
-- The integrated build exports matching `.bit` and `.hwh` artifacts from the
-  same run.
-- The integrated XDC uses the planned pin allocation in [wiring.md](wiring.md):
-  PMODA for TFT LCD, Arduino `P16/P15` for JY901 I2C, PMODB `W14/Y14` for UART
-  SpO2, Arduino IO11 `R17` for DHT11, Arduino `ck_io[0]` / `T14` for Gree IR
-  AC TX, and board LEDs for humidifier indication.
-- PYNQ loads the integrated overlay and binds IPs through exported metadata
-  when available. On older PYNQ images that require same-basename `.tcl`
-  metadata, the first board smoke may use the documented Phase4 static address
-  map fallback; final metadata acceptance should rerun with
-  `--metadata-source overlay` after exporting compatible metadata.
-- The acceptance program demonstrates the stable available paths from the
-  shared driver suite: JY901 read/status, DHT11 read, UART SpO2 read, TFT update,
-  and PS-side humidifier control or status display.
+正式 demo 前建议重新跑：
 
-If an integrated platform or driver issue blocks one module, record the blocking
-condition and validate that module with the smallest standalone overlay/driver
-path before returning to the integrated build.
+1. PC-only self-tests 和 fake client。
+2. PYNQ synthetic：`board_client.py --dry-run` 对接 PC service。
+3. Integrated driver：`board_client.py` 使用 `system_v0_2.bit/.hwh` 和真实 driver。
+4. Dashboard demo：运行 `dashboard_server.py`，打开 Web console，确认四类 record 刷新。
 
-PC/PYNQ software integration is now a first-version final-system layer. Validate
-it in layers:
+## PC/PYNQ Software Evidence
 
-1. PC-only: run the local self-tests and fake client against the four-message
-   service.
-2. PYNQ synthetic: run `board_client.py --dry-run` against the PC service.
-3. Integrated driver: run `board_client.py` with `system_v0_2.bit/.hwh` and the
-   integrated PYNQ driver suite.
-4. Dashboard demo: run `dashboard_server.py`, open the Web console, and confirm
-   live sensor data, sleep result, control command, control status, manual
-   control, and desired-state display behavior.
-
-Do not let PC firewall, IP address, or optional Excel setup block the lower-risk
-board-side integrated acceptance path. For classroom demo, `dashboard_server.py`
-is the preferred PC entry point; `socket_service.py` remains the smallest
-debugging service.
-
-Current software-integration local self-tests:
+已有第一版软件证据：
 
 ```text
-pc_server/protocol_selftest.py
-pc_server/sleep_classifier_selftest.py
-pc_server/classifier_adapter_selftest.py
-pc_server/comfort_policy_selftest.py
-pc_server/state_storage_selftest.py
-pc_server/service_selftest.py
-pc_server/socket_service_selftest.py
-pc_server/fake_pynq_client_selftest.py
-pc_server/dashboard_server_selftest.py
-pynq/sleep_demo/board_orchestrator_selftest.py
-pynq/sleep_demo/integrated_demo_selftest.py
-pynq/sleep_demo/board_client_selftest.py
+protocol_selftest PASS
+classifier_adapter_selftest PASS
+sleep_classifier_selftest PASS
+comfort_policy_selftest PASS
+state_storage_selftest PASS
+service_selftest PASS
+socket_service_selftest PASS
+fake_pynq_client_selftest PASS
+dashboard_server_selftest PASS
 ```
 
-The board orchestrator self-test is PC-runnable and uses fake actuator drivers.
-It validates protocol shape, no-action handling, synthetic humidifier target
-application, IR command rejection, IR cooldown skip, and hardware-error status
-format. It is not board evidence.
+`pc_server/service_selftest.py` 覆盖 PC-side IR cooldown regression：
 
-The integrated demo self-test is PC-runnable and uses fake driver modules. It
-validates that the static integrated metadata path binds all expected
-sensor/display/actuator drivers, including `ir_ac`, so the socket client can
-execute PC-originated manual IR commands when deployed to PYNQ. It is not board
-evidence and does not load a bitstream.
+- cooldown 只在 board 返回 `control_status.applied.ir_ac.sent=true` 后消耗；
+- `ir_ac_missing` 或 `ir_ac_error` 不消耗正常 IR cooldown；
+- 新 board run 从 `sample_id=1` 开始时重置 policy runtime state。
 
-The board client self-test is also PC-runnable. It validates the PYNQ-side
-socket message order against the minimal PC socket service using a fake board.
-It is not board evidence and does not load a bitstream.
+`pc_server/dashboard_server_selftest.py` 覆盖 dashboard entry bridge：
 
-`pc_server/service_selftest.py` also covers the PC-side IR cooldown regression:
-the socket/service path uses PC-side monotonic runtime, `ir_ac_missing` does not
-consume normal IR cooldown, confirmed `control_status.applied.ir_ac.sent=true`
-does consume cooldown, and a new board run beginning at `sample_id=1` resets
-policy runtime state.
+- static asset serving；
+- pending manual command；
+- `sensor_data -> sleep_result/control_command -> control_status` 四消息 flow。
 
-`pc_server/dashboard_server_selftest.py` covers the dashboard entry bridge:
-manual `/api/control` semantics are pending-only, the next `sensor_data`
-produces a real manual `control_command`, and the returned `control_status`
-appears in dashboard state. It also checks the display-only desired-state panel
-without adding command replay semantics.
+已有真实 PYNQ socket evidence：
 
-Recorded software-integration runtime evidence:
+- 90-sample board run 记录在 `pc_server/records/pynq_integration_smoke/`。
+- PC 记录了 board-originated `sensor_data`。
+- PC 为每个 sample 发送 `sleep_result` 和 `control_command`。
+- PYNQ 返回 `control_status`。
+- JY901-only transient failure 不应强制 HR/SpO2 主 `data_valid` 失效。
 
-- A 90-sample real PYNQ socket run produced matching `sensor_data`,
-  `sleep_result`, `control_command`, and `control_status` streams under
-  `pc_server/records/pynq_integration_smoke/`. JY901-only transient failures
-  were handled without restarting classifier warm-up.
-- A dashboard plus fake-client smoke produced 10 complete four-message cycles,
-  loaded `/`, `/static/dashboard.css`, and `/static/dashboard.js` successfully,
-  and disconnected with zero socket-handler errors.
-
-For the formal classroom run, prefer refreshing this evidence with
-`dashboard_server.py` plus the real PYNQ `board_client.py`, because that exact
-pair is the intended presentation path.
+正式报告截图前，优先刷新一次 `dashboard_server.py` 加真实 PYNQ `board_client.py` 的运行证据。
 
 ## Migrated Handoff Module Regression
 
-These modules have source files migrated from `handoff/` into tracked repo
-directories. Their handoff evidence is useful context, but local repo
-simulation or board evidence is still required before claiming they work in the
-integrated overlay.
-
 ### Phase2 Smoke Results
 
-Date: 2026-06-02. Tool: Icarus Verilog (`iverilog` + `vvp`).
+Date：2026-06-02。Tool：Icarus Verilog (`iverilog` + `vvp`)。
 
-The following focused simulations compile and run locally:
+已观察 PASS：
 
 ```text
 tb_humidifier_core PASS
@@ -129,82 +76,51 @@ tb_dht11_onewire_smoke PASS data_valid=37001900
 tb_spo2_frame_parser PASS
 ```
 
-Scope of this evidence:
+覆盖：
 
-- Humidifier core threshold/manual behavior and AXI register path.
-- TFT SPI byte transmitter and AXI wrapper byte-send path.
-- DHT11 one-wire valid-frame decode for 55% RH and 25 C using an Icarus `IOBUF`
-  stub.
-- SpO2 frame parser decode for known 5-byte and 7-byte frames.
-
-This is not Vivado synthesis, IP packaging, integrated BD validation, or board
-evidence.
+- Humidifier core threshold/manual behavior 和 AXI register path。
+- TFT SPI byte transmitter 和 AXI wrapper byte-send path。
+- DHT11 one-wire valid-frame decode：55% RH、25 C，Icarus `IOBUF` stub。
+- SpO2 frame parser：已知 5-byte 和 7-byte frame。
 
 ### Phase3 IP Packaging Static Validation
 
-Date: 2026-06-03.
-
-Scope:
-
-- User completed Vivado IP packaging and checked package ports/parameters in
-  Vivado.
-- Local repo validation checked package files, IP-XACT metadata, source file
-  sets, AXI interface metadata, parameter defaults, and accidental generated
-  artifact inclusion.
-- Vivado CLI is not available in the current shell `PATH`, so this section is
-  not a Vivado batch catalog-validation log and is not BD validation,
-  synthesis, implementation, bitstream export, or board evidence.
-
-Validated packaged IP directories:
+已检查 reusable package：
 
 | IP package | Package files | AXI metadata | Parameters | External ports |
 |---|---|---|---|---|
-| `vivado/ip_repo/axi_humidifier/` | `component.xml`, `xgui/`, `src/` present; source files match `rtl/axi_humidifier/` | `aximm/aximm_rtl`, `s00_axi`, `s00_axi_aclk`, `s00_axi_aresetn`, 4096-byte memory range | `C_S00_AXI_DATA_WIDTH=32`, `C_S00_AXI_ADDR_WIDTH=5`, `CLK_FREQ_HZ=100000000` | `humidity_hw_valid`, `humidity_hw[7:0]`, `humidifier_led`, `humidifier_leds[3:0]` |
-| `vivado/ip_repo/tft_lcd_spi_axi/` | `component.xml`, `xgui/`, `src/` present; source files match `rtl/tft_lcd_spi_axi/` | `aximm/aximm_rtl`, `s00_axi`, `s00_axi_aclk`, `s00_axi_aresetn`, 4096-byte memory range | `C_S00_AXI_DATA_WIDTH=32`, `C_S00_AXI_ADDR_WIDTH=5` | `lcd_scl`, `lcd_sda`, `lcd_res`, `lcd_dc`, `lcd_blk` |
-| `vivado/ip_repo/dht11_axi/` | `component.xml`, `xgui/`, `src/` present; source files match `rtl/dht11_axi/` | `aximm/aximm_rtl`, `s00_axi`, `s00_axi_aclk`, `s00_axi_aresetn`, 4096-byte memory range | `C_S00_AXI_DATA_WIDTH=32`, `C_S00_AXI_ADDR_WIDTH=4` | RTL/IP port is `dht11`; integrated XDC expects BD external port `dht11_0` |
-| `vivado/ip_repo/axi_uart_spo2/` | `component.xml`, `xgui/`, `src/` present; source files match `rtl/axi_uart_spo2/` | `aximm/aximm_rtl`, `s00_axi`, `s00_axi_aclk`, `s00_axi_aresetn`, 4096-byte memory range | `C_BPS=9600`, `C_SYS_CLK_FRE=100000000`, `C_S00_AXI_DATA_WIDTH=32`, `C_S00_AXI_ADDR_WIDTH=5` | `uart_rxd`, `uart_txd`, `irq` |
+| `vivado/ip_repo/axi_humidifier/` | `component.xml`, `xgui/`, `src/` 存在；source 匹配 `rtl/axi_humidifier/` | `aximm/aximm_rtl`, `s00_axi`, `s00_axi_aclk`, `s00_axi_aresetn`, 4096-byte range | `C_S00_AXI_DATA_WIDTH=32`, `C_S00_AXI_ADDR_WIDTH=5`, `CLK_FREQ_HZ=100000000` | `humidity_hw_valid`, `humidity_hw[7:0]`, `humidifier_led`, `humidifier_leds[3:0]` |
+| `vivado/ip_repo/tft_lcd_spi_axi/` | `component.xml`, `xgui/`, `src/` 存在；source 匹配 `rtl/tft_lcd_spi_axi/` | `aximm/aximm_rtl`, `s00_axi`, `s00_axi_aclk`, `s00_axi_aresetn`, 4096-byte range | `C_S00_AXI_DATA_WIDTH=32`, `C_S00_AXI_ADDR_WIDTH=5` | `lcd_scl`, `lcd_sda`, `lcd_res`, `lcd_dc`, `lcd_blk` |
+| `vivado/ip_repo/dht11_axi/` | `component.xml`, `xgui/`, `src/` 存在；source 匹配 `rtl/dht11_axi/` | `aximm/aximm_rtl`, `s00_axi`, `s00_axi_aclk`, `s00_axi_aresetn`, 4096-byte range | `C_S00_AXI_DATA_WIDTH=32`, `C_S00_AXI_ADDR_WIDTH=4` | RTL/IP port 为 `dht11`；集成 XDC 期望 BD external port `dht11_0` |
+| `vivado/ip_repo/axi_uart_spo2/` | `component.xml`, `xgui/`, `src/` 存在；source 匹配 `rtl/axi_uart_spo2/` | `aximm/aximm_rtl`, `s00_axi`, `s00_axi_aclk`, `s00_axi_aresetn`, 4096-byte range | `C_BPS=9600`, `C_SYS_CLK_FRE=100000000`, `C_S00_AXI_DATA_WIDTH=32`, `C_S00_AXI_ADDR_WIDTH=5` | `uart_rxd`, `uart_txd`, `irq` |
 
-Additional checks:
+说明：
 
-- No `top_spi_lcd_test`, testbench, journal, log, run, cache, hardware, or
-  `ip_user_files` artifacts were found under the four new package directories.
-- The old root-level JY901 IP package remains present in `vivado/ip_repo/` and
-  is separate from the four new subdirectory packages.
-- DHT11 package source includes the Vivado `IOBUF` primitive in
-  `dht11_onewire.v`; this is expected for Vivado packaging. Icarus simulations
-  still require their local stub.
+- 旧 root-level JY901 IP package 仍存在于 `vivado/ip_repo/`，由现有 JY901 overlay/debug flow 使用。
+- DHT11 package source 包含 Vivado `IOBUF` primitive。
+- board-level XDC 不应被包含在 reusable IP synthesis file set 中。
 
-Conclusion:
+## Phase4 Integrated Block Design Validation
 
-- Phase 3 static package validation is complete for the four migrated IP
-  packages.
-- The package set can enter Phase 4 Block Design integration, with the remaining
-  validation gates being Vivado catalog refresh, BD instantiation, BD validation,
-  synthesis/implementation, exported `.bit/.hwh`, and board/PYNQ smoke tests.
+原始集成工程：`vivado/project/system_v0_1/system_v0_1.xpr`。
 
-### Phase4 Integrated Block Design Validation
-
-Date: 2026-06-03. Project:
-`vivado/project/system_v0_1/system_v0_1.xpr`.
-
-Scope:
-
-- User completed the integrated Vivado Block Design and build flow.
-- Local validation inspected the Vivado project, BD file, XPR constraints,
-  routed reports, IO placement report, and run logs.
-- This is not board/PYNQ runtime evidence.
-
-Validated BD content:
+`system_v0_1` address map：
 
 | IP instance | Address | Range | Notes |
 |---|---:|---:|---|
 | `axi_i2c_jy901_v1_0_0` | `0x4000_0000` | 4K | External `i2c_scl/i2c_sda` |
-| `axi_humidifier_v1_0_0` | `0x4000_1000` | 4K | `humidity_hw_valid` and `humidity_hw[7:0]` tied from `xlconstant`; external `humidifier_leds[3:0]` |
+| `axi_humidifier_v1_0_0` | `0x4000_1000` | 4K | `humidity_hw_valid` 和 `humidity_hw[7:0]` 由 `xlconstant` 绑定；external `humidifier_leds[3:0]` |
 | `tft_lcd_spi_axi_v1_0_0` | `0x4000_2000` | 4K | External `lcd_scl/lcd_sda/lcd_res/lcd_dc/lcd_blk` |
-| `dht11_axi_v1_0_0` | `0x4000_3000` | 4K | IP port `dht11` exported as top-level `dht11_0` |
-| `axi_uart_spo2_v1_0_0` | `0x4000_4000` | 4K | External `uart_rxd/uart_txd`; polling-first path |
+| `dht11_axi_v1_0_0` | `0x4000_3000` | 4K | IP port `dht11` 导出为 top-level `dht11_0` |
+| `axi_uart_spo2_v1_0_0` | `0x4000_4000` | 4K | External `uart_rxd/uart_txd`；polling-first path |
 
-Validated constraints and IO placement:
+`system_v0_2` 进一步加入 IR AC：
+
+| IP instance | Address | Range | Notes |
+|---|---:|---:|---|
+| `gree_ir_axi_v1_0_0` | `0x4000_5000` | 4K | External `ir_pwm` on `T14` |
+
+重要 pin placement evidence：
 
 | Signal | Package pin | Evidence |
 |---|---|---|
@@ -219,127 +135,54 @@ Validated constraints and IO placement:
 | `uart_rxd` | `Y14` | `system_v0_1_wrapper_io_placed.rpt` |
 | `dht11_0` | `R17` | `system_v0_1_wrapper_io_placed.rpt` |
 | `humidifier_leds[3:0]` | `R14/P14/N16/M14` | `system_v0_1_wrapper_io_placed.rpt` |
+| `ir_pwm` | `T14` | `system_v0_1_wrapper_io_placed.rpt` for `system_v0_2` |
 
-Build evidence:
+导出 artifact：
 
-- `system_v0_1.xpr` references only
-  `vivado/constraints/integrated/sleep_monitor_pynq_z1.xdc` as the project
-  target constraints file.
-- `ip_upgrade.log` reports successful update of the JY901 custom IP instance.
-- `synth_1/__synthesis_is_complete__` exists.
-- Routed DRC report has `Violations found: 0`.
-- Route status report has `# of nets with routing errors: 0`.
-- Routed timing summary reports 0 setup, 0 hold, and 0 pulse-width failing
-  endpoints. Worst setup slack is 10.575 ns and worst hold slack is 0.034 ns.
-- `impl_1/runme.log` reports `write_bitstream completed successfully`.
+```text
+vivado/gen/system_v0_1.bit
+vivado/gen/system_v0_1.hwh
+vivado/gen/system_v0_2.bit
+vivado/gen/system_v0_2.hwh
+vivado/gen/system_v0_2.tcl
+```
 
-Known limitations before Phase 5:
+## Phase5 Integrated Board Runtime Smoke
 
-- Methodology report has 17 `TIMING-18` warnings for missing input/output
-  delays on external low-speed peripheral ports. These are recorded as
-  non-blocking for first board smoke, but the XDC is not a complete external
-  timing model.
-- A matching local integrated artifact pair exists at
-  `vivado/gen/system_v0_1.bit` and `vivado/gen/system_v0_1.hwh`. These files
-  are ignored by Git; copy them to the PYNQ board together before driver
-  binding.
-- Board-side smoke on the recorded PYNQ Python 3.6 image may require
-  same-basename `.tcl` metadata. `pynq/sleep_demo/integrated_demo.py` now has an
-  `auto` metadata mode that falls back to the Phase4 static address map when
-  `system_v0_1.tcl` is absent or when the old PYNQ Tcl parser returns an empty
-  `ip_dict`.
+本地板端 smoke 使用 `pynq/sleep_demo/integrated_demo.py`、集成 bit/hwh 和 static address-map fallback。
 
-Conclusion:
-
-- Phase 4 integrated BD/build validation is sufficient to prepare Phase 5 PYNQ
-  runtime smoke planning.
-- Phase 5 cannot claim an integrated overlay runtime pass until a matching
-  integrated `.bit/.hwh` pair is copied to the board and PYNQ loads it
-  successfully.
-
-### Phase5 Integrated Board Runtime Smoke
-
-Date: 2026-06-09. Evidence source: user-confirmed PYNQ-Z1 board run with
-`pynq/sleep_demo/integrated_demo.py`, integrated
-`vivado/gen/system_v0_1.bit`, matching `.hwh`, and static address-map fallback
-because the board's PYNQ Tcl parser returned an empty `ip_dict`.
-
-Command shape:
+典型命令：
 
 ```bash
 sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6 integrated_demo.py \
-  --bitfile /home/xilinx/jupyter_notebooks/sleep_monitor/system_v0_1.bit \
+  --bitfile /home/xilinx/jupyter_notebooks/sleep_monitor/system_v0_2.bit \
   --samples 30 \
   --interval 1.0 \
-  --sensor-timeout 0.5 \
-  --dht11-period 2.0 \
+  --metadata-source auto \
   --tft-clkdiv 50 \
   --spo2-frame-len 5
 ```
 
-Observed pass evidence:
+已观察：
 
-- Display smoke passed by human observation: TFT initialized correctly and
-  updated during the demo.
-- JY901 returned valid samples with `jy901_status="OK"` and `data_valid=1`.
-- DHT11 returned temperature/humidity values, for example approximately
-  `26.0 C` and `22..24% RH` during the recorded run.
-- UART SpO2 returned valid 5-byte/polling samples after correcting the physical
-  RX/TX orientation: `heart_rate_bpm=86..87`, `spo2_percent=99`,
-  `checksum_ok=1`, and `status_code=0`.
-- PS-side humidifier control/status participated in the loop and reported
-  `humidifier_on=true` under low humidity.
-- The integrated loop produced JSON-compatible `sensor_data` records without
-  module exceptions in the provided sample.
+- JY901 返回有效 sample，`jy901_status="OK"` 且 `data_valid=1`。
+- DHT11 返回温湿度值，例如约 `27 C`、`15-16% RH`。
+- UART SpO2 在修正 RX/TX 物理方向后返回有效 5-byte/polling sample。
+- TFT 初始化并更新 dashboard。
+- 加湿器 status/control 路径参与循环。
+- 翻身 count 在共享日志中保持 `0`；JY901 数据有效，但尚未做专门翻身动作验证。
 
-Important wiring note:
+## Gree IR AC TX
 
-- The SpO2 module's RX/TX labels were confirmed with the responsible teammate
-  to require crossed signal wiring for this board setup. If HR/SpO2 stay `NA`,
-  swap the UART signal wires before changing the RTL, register map, or parser.
-
-Known remaining limitations:
-
-- Board system time was still incorrect in the captured log
-  (`2017-08-16 ...`). Correct board time before PC socket/Excel logging or any
-  timestamp-based acceptance capture.
-- Turnover count remained `0` in the shared logs. JY901 data was valid, but
-  turnover trigger behavior should be validated separately with a deliberate
-  roll/pitch motion test or temporary angle debug output.
-- Strict `Overlay.ip_dict` metadata parsing is still not accepted on the old
-  board image; the current integrated board smoke uses the documented static
-  address-map fallback.
-
-### Gree IR AC TX
-
-Source:
+相关路径：
 
 - [../rtl/gree_ir_axi/](../rtl/gree_ir_axi/)
+- [../sim/tb_gree_ir_axi/](../sim/tb_gree_ir_axi/)
 - [../pynq/ir_ac_demo/](../pynq/ir_ac_demo/)
-- Handoff source:
-  `../handoff/gree_ir_txrx_hardware_package/`
+- `vivado/ip_repo/ir_ac_axi/`
+- `vivado/gen/system_v0_2.bit/.hwh/.tcl`
 
-Current status:
-
-- IR-1 source migration skeleton is complete for TX-only scope.
-- IR-2 focused module regression passes locally with Icarus Verilog.
-- IR-3 packaged IP static validation is complete for
-  `vivado/ip_repo/ir_ac_axi/`.
-- IR-4 integrated overlay build/export validation is complete for
-  `vivado/gen/system_v0_2.bit/.hwh/.tcl`.
-- IR-5 PYNQ board bring-up is complete: the integrated overlay sent
-  `power_on`, `power_off`, and `temp_26`, and the lab Gree AC response was
-  user-confirmed.
-- The handoff RX capture IP remains standalone validation tooling and is not in
-  the first integrated source path.
-- Teammate standalone module testing also confirmed the lab Gree AC responds to
-  the handoff command set.
-
-IR-2 simulation evidence:
-
-Date: 2026-06-10. Tool: Icarus Verilog (`iverilog` + `vvp`).
-
-Command:
+模块回归：
 
 ```powershell
 iverilog -g2012 -o E:\tmp\tb_gree_ir_axi.vvp `
@@ -350,105 +193,41 @@ iverilog -g2012 -o E:\tmp\tb_gree_ir_axi.vvp `
 vvp E:\tmp\tb_gree_ir_axi.vvp
 ```
 
-Observed PASS marker:
+观察 PASS：
 
 ```text
 tb_gree_ir_axi PASS
 ```
 
-Scope of this evidence:
-
-- Reset defaults for `PRESET`, `CMD_LOW`, `CMD_HIGH`, and `STATUS`.
-- All seven committed preset IDs and command-shadow register values.
-- Normal `CONTROL.start` to `STATUS.done` behavior.
-- Write-1-to-clear behavior for `STATUS.done` and `STATUS.error`.
-- Repeated start while busy latches `STATUS.error`.
-- `CONTROL.soft_reset` clears active/latch status.
-
-The testbench shortens internal ROM durations through simulation-only
-hierarchical assignment. This is not Vivado synthesis, IP packaging, integrated
-BD validation, or board evidence.
-
-IR-3 IP packaging static validation:
-
-Date: 2026-06-10. Package project:
-`vivado/project/ir_axi_package/ir_axi_package.xpr`. Packaged IP:
-`vivado/ip_repo/ir_ac_axi/`.
-
-Scope:
-
-- User completed packaging in Vivado.
-- Local validation inspected `component.xml`, `xgui/`, copied `src/` files,
-  AXI4-Lite metadata, 4096-byte memory map, parameter defaults, and external
-  port metadata.
-- Vivado CLI is not available in the current shell `PATH`, so this is not a
-  Vivado batch catalog-validation or `ipx::check_integrity` log.
-- This is not BD validation, synthesis, implementation, bitstream export, or
-  board evidence.
-
-Validated package facts:
+IP packaging evidence：
 
 | Item | Evidence |
 |---|---|
 | VLNV | `xilinx.com:user:gree_ir_axi_v1_0:1.0` |
-| Packaged files | `component.xml`, `xgui/gree_ir_axi_v1_0_v1_0.tcl`, and `src/` RTL files present |
-| Source ownership | Packaged HDL SHA256 values match `rtl/gree_ir_axi/` for `gree_ir_core.v`, `gree_ir_axi_v1_0_S00_AXI.v`, and `gree_ir_axi_v1_0.v` |
-| AXI metadata | `s00_axi` `aximm/aximm_rtl` slave, associated `s00_axi_aclk`, associated active-low `s00_axi_aresetn` |
-| Memory map | `reg0` base `0x0`, range `4096`, width `32` |
+| Packaged files | `component.xml`, `xgui/gree_ir_axi_v1_0_v1_0.tcl`, `src/` RTL files present |
+| Source ownership | Packaged HDL SHA256 匹配 `rtl/gree_ir_axi/` 中 `gree_ir_core.v`、`gree_ir_axi_v1_0_S00_AXI.v` 和 `gree_ir_axi_v1_0.v` |
+| AXI metadata | `s00_axi` `aximm/aximm_rtl` slave，关联 `s00_axi_aclk` 和 active-low `s00_axi_aresetn` |
+| Memory map | `reg0` base `0x0`，range `4096`，width `32` |
 | Parameters | `C_S00_AXI_DATA_WIDTH=32`, `C_S00_AXI_ADDR_WIDTH=5`, `CORE_CLK_FREQ=100000000`, `CORE_CLK_1US=100`, `CORE_CARRIER_HZ=38000` |
-| External port | `ir_pwm` output is present; no board pin constraint is embedded in the IP package |
-| Project metadata | `ir_axi_package.xpr` references tracked RTL and `vivado/ip_repo/ir_ac_axi/component.xml`; `IPRepoPath` is aligned to `../../ip_repo/ir_ac_axi` |
+| External port | `ir_pwm` output 存在；IP package 内未嵌入 board pin constraint |
 
-IR-4 integrated overlay validation:
-
-Date: 2026-06-10. Project:
-`vivado/project/system_v0_1/system_v0_1.xpr`. Exported artifacts:
-`vivado/gen/system_v0_2.bit`, `vivado/gen/system_v0_2.hwh`, and
-`vivado/gen/system_v0_2.tcl`.
-
-Validated integration evidence:
+集成 overlay evidence：
 
 | Item | Evidence |
 |---|---|
-| BD Tcl IP catalog | `system_v0_2.tcl` includes `xilinx.com:user:gree_ir_axi_v1_0:1.0` |
-| New IP instance | `gree_ir_axi_v1_0_0` exists in `.hwh` with VLNV `xilinx.com:user:gree_ir_axi_v1_0:1.0` |
-| Address map | `.hwh` memory range is `0x40005000..0x40005FFF`; Tcl assigns `0x40005000` range `0x1000` |
-| AXI connection | Tcl connects `gree_ir_axi_v1_0_0/s00_axi` to `ps7_0_axi_periph/M05_AXI` |
-| Clock/reset | Tcl connects IR IP to `processing_system7_0/FCLK_CLK0` and `rst_ps7_0_50M/peripheral_aresetn` |
-| External port | `.hwh` and wrapper expose output `ir_pwm` connected to `gree_ir_axi_v1_0_0/ir_pwm` |
-| IO placement | `system_v0_1_wrapper_io_placed.rpt` places `ir_pwm` on `T14`, `LVCMOS33`, drive `8`, slew `SLOW` |
-| DRC | Routed DRC reports `Violations found: 0` |
-| Route | Route status reports `# of nets with routing errors: 0` |
-| Timing | Routed timing summary reports WNS `10.274 ns`, WHS `0.040 ns`, no failing endpoints, and all user specified timing constraints met |
-| Bitstream | `impl_1/runme.log` reports `write_bitstream completed successfully`; `system_v0_2.bit` is non-empty and matches the run output size |
+| BD Tcl IP catalog | `system_v0_2.tcl` 包含 `xilinx.com:user:gree_ir_axi_v1_0:1.0` |
+| New IP instance | `.hwh` 中存在 `gree_ir_axi_v1_0_0`，VLNV 为 `xilinx.com:user:gree_ir_axi_v1_0:1.0` |
+| Address map | `.hwh` range `0x40005000..0x40005FFF`；Tcl 分配 `0x40005000` range `0x1000` |
+| AXI connection | Tcl 将 `gree_ir_axi_v1_0_0/s00_axi` 连接到 `ps7_0_axi_periph/M05_AXI` |
+| Clock/reset | Tcl 将 IR IP 连接到 `processing_system7_0/FCLK_CLK0` 和 `rst_ps7_0_50M/peripheral_aresetn` |
+| External port | `.hwh` 和 wrapper 暴露 output `ir_pwm` 并连接到 `gree_ir_axi_v1_0_0/ir_pwm` |
+| IO placement | `ir_pwm` 放在 `T14`，`LVCMOS33`，drive `8`，slew `SLOW` |
+| DRC/route/timing | routed DRC 0 violations，route errors 0，timing met |
+| Bitstream | `write_bitstream completed successfully`，`system_v0_2.bit` 非空 |
 
-IR-4 methodology limitations carried into board smoke:
-
-- Methodology report has 19 warnings: 18 `TIMING-18` missing input/output delay
-  warnings for low-speed external ports, plus one `LUTAR-1` warning where the
-  IR core's locally generated soft-reset path drives asynchronous clear pins.
-  The build still routes, meets timing, and writes a bitstream. If IR TX shows
-  unstable behavior on board, prioritize replacing the IR core soft reset with
-  a synchronous reset implementation.
-- This section is pre-board static evidence only; IR-5 board evidence is
-  recorded below.
-
-IR-5 board checks:
-
-- PYNQ board smoke sends verified presets, records TX
-  `done=true/error=false`, and confirms lab Gree AC response from the
-  integrated overlay.
-
-IR-5 PYNQ board smoke:
-
-Date: 2026-06-10. Overlay artifact:
-`/home/xilinx/jupyter_notebooks/sleep_monitor/system_v0_2.bit`. IP base:
-`0x40005000`.
-
-Command:
+板端 smoke：
 
 ```bash
-cd /home/xilinx/jupyter_notebooks/sleep_monitor/ir_ac_demo
 sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6 demo_ir_ac.py \
   --bitfile /home/xilinx/jupyter_notebooks/sleep_monitor/system_v0_2.bit \
   --base-addr 0x40005000 \
@@ -456,303 +235,148 @@ sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6 demo_ir_ac.py \
   --timeout 15.0
 ```
 
-Observed status:
+关键字段：
 
 | Phase | Key fields |
 |---|---|
 | Before | `busy=false`, `done=false`, `error=false`, `preset=1`, `command=power_on`, `raw_status=0` |
 | After | `busy=false`, `done=true`, `error=false`, `preset=5`, `command=temp_26`, `raw_status=2` |
 
-Scope of this evidence:
+结论：TX-only Gree IR AC 硬件集成对 `system_v0_2` 已接受并关闭。
 
-- Confirms PYNQ MMIO binding to the integrated IR IP at `0x40005000`.
-- Confirms `temp_26` maps to preset `5` and updates the command shadow.
-- Confirms one TX transaction completed without the IP error bit.
-- User confirmed real lab AC response to `power_on`, `power_off`, and
-  `temp_26` from the integrated overlay.
-- Important physical limitation: the IR transmitter needed to be within
-  approximately 20 cm of the AC receiver for reliable response in the lab.
-
-Acceptance conclusion:
-
-- TX-only Gree IR AC hardware integration is accepted and closed for
-  `system_v0_2`.
-- Remaining AC-related work is software integration: command validation,
-  cooldown/rate-limit reporting, PC policy decisions, dashboard controls, and
-  `control_status` logging.
+## 单模块后续测试项
 
 ### DHT11 AXI IP
 
-Source:
+目标：
 
-- [../rtl/dht11_axi/](../rtl/dht11_axi/)
-- [../sim/tb_dht11_axi/](../sim/tb_dht11_axi/)
-- [../pynq/dht11_demo/](../pynq/dht11_demo/)
-
-Expected first checks:
-
-- DHT11 frame simulation emits explicit PASS/FAIL.
-- `DHT11_DATA` decodes humidity and temperature bytes in the documented order.
-- Board test reads nonzero data at intervals of at least 1 to 2 seconds.
-- Integrated overlay uses Arduino IO11 `R17` with 3.3 V logic and pullup.
+- DHT11 frame simulation 输出显式 PASS/FAIL。
+- `DHT11_DATA` 按文档顺序解码 humidity 和 temperature byte。
+- 板端读数在 1 到 2 秒间隔下稳定更新。
 
 ### AXI Humidifier IP
 
-Source:
+目标：
 
-- [../rtl/axi_humidifier/](../rtl/axi_humidifier/)
-- [../sim/tb_axi_humidifier/](../sim/tb_axi_humidifier/)
-- [../pynq/humidifier_demo/](../pynq/humidifier_demo/)
-
-Expected handoff PASS markers to reproduce:
-
-```text
-tb_humidifier_core PASS
-tb_axi_humidifier PASS
-```
-
-First integrated demo path:
-
-- PYNQ reads DHT11 humidity.
-- PYNQ writes humidifier `SW_HUM`.
-- Board LEDs reflect humidifier state.
-- [../pynq/sleep_demo/integrated_demo.py](../pynq/sleep_demo/integrated_demo.py)
-  prints `temperature_c`, `humidity_percent`, and `humidifier_on` from the
-  integrated overlay run.
+- 复现 `tb_humidifier_core PASS` 和 `tb_axi_humidifier PASS`。
+- PYNQ 读取 DHT11 湿度并写 `SW_HUM`。
+- `pynq/sleep_demo/integrated_demo.py` 中 LED/status 反映 humidifier path。
 
 ### TFT LCD SPI AXI IP
 
-Source:
+目标：
 
-- [../rtl/tft_lcd_spi_axi/](../rtl/tft_lcd_spi_axi/)
-- [../sim/tb_tft_lcd_spi_axi/](../sim/tb_tft_lcd_spi_axi/)
-- [../pynq/tft_lcd_demo/](../pynq/tft_lcd_demo/)
-
-Expected first checks:
-
-- SPI byte transmitter and AXI wrapper simulations emit PASS/FAIL.
-- Board test initializes ST7789 with `CLKDIV=50`.
-- Initial UI draws full `SLEEP MONITOR` dashboard once.
-- Runtime loop updates only numeric/status regions at 1 Hz, then up to 2 Hz if
-  stable.
+- SPI byte transmitter 和 AXI wrapper 仿真输出 PASS/FAIL。
+- PYNQ driver 能绘制 dashboard 并更新固定区域。
+- `CLKDIV=50` 是首个集成 display target。
 
 ### UART SpO2 AXI IP
 
-Source:
+目标：
 
-- [../rtl/axi_uart_spo2/](../rtl/axi_uart_spo2/)
-- [../sim/tb_axi_uart_spo2/](../sim/tb_axi_uart_spo2/)
-- [../pynq/spo2_demo/](../pynq/spo2_demo/)
-
-Expected first checks:
-
-- Add a byte-stream/frame-parser simulation for 5-byte mode.
-- Verify 9600 baud timing at the integrated AXI clock.
-- Keep the PYNQ helper Python 3.6-compatible; `Spo2Sample` is intentionally a
-  plain class instead of a `dataclass`.
-- Board test confirms BPM/SpO2 update from the physical module.
+- 验证 100 MHz AXI clock 下 9600 baud timing。
+- 板测确认物理模块 BPM/SpO2 更新。
+- RX/TX 接线方向按已确认的交叉方式处理。
 
 ## I2C JY901 / MPU9250 AXI IP
 
 ### Behavioral simulation
 
-Location: [../sim/tb_i2c_mpu9250/](../sim/tb_i2c_mpu9250/).
-
-Files:
+覆盖文件：
 
 - [../rtl/i2c_mpu9250/i2c_master_core.v](../rtl/i2c_mpu9250/i2c_master_core.v)
 - [../rtl/i2c_mpu9250/jy901_sampler.v](../rtl/i2c_mpu9250/jy901_sampler.v)
 - [../sim/tb_i2c_mpu9250/jy901_i2c_slave_model.v](../sim/tb_i2c_mpu9250/jy901_i2c_slave_model.v)
 - [../sim/tb_i2c_mpu9250/tb_jy901_sampler.v](../sim/tb_i2c_mpu9250/tb_jy901_sampler.v)
 
-Command when `just` and Icarus Verilog are installed:
+命令：
 
 ```powershell
-cd sim/tb_i2c_mpu9250
+cd sim\tb_i2c_mpu9250
 just sampler
 ```
 
-Generated artifacts are written under `sim/tb_i2c_mpu9250/build/`.
+验收：
 
-Expected checks:
-
-- I2C transaction is `START, 0xA0, 0x34, RESTART, 0xA1, 26 data bytes, NACK, STOP`.
-- `ack_error == 0`.
-- `timeout == 0`.
-- `data_valid == 1`.
-- `sample_cnt == 1`.
-- `AX_RAW == 0x1234`, `AY_RAW == 0x5678`, `TEMP_RAW == 0x0D0C` for the included slave model.
-
-### Error-path simulation
-
-The same testbench then runs an address-error case:
-
-- set `dev_addr = 0x51`;
-- expect `ack_error == 1`;
-- expect `ERROR_CODE == 0x01`.
+- I2C transaction 为 `START, 0xA0, 0x34, RESTART, 0xA1, 26 data bytes, NACK, STOP`。
+- `data_valid=1`，`sample_cnt` 增加。
+- address NACK path 设置 `ERROR_CODE=0x01`。
 
 ### AXI top-level simulation
 
-Location: [../sim/tb_i2c_mpu9250/](../sim/tb_i2c_mpu9250/).
-
-Files:
-
-- [../rtl/i2c_mpu9250/i2c_open_drain_io.v](../rtl/i2c_mpu9250/i2c_open_drain_io.v)
-- [../rtl/i2c_mpu9250/i2c_master_core.v](../rtl/i2c_mpu9250/i2c_master_core.v)
-- [../rtl/i2c_mpu9250/jy901_sampler.v](../rtl/i2c_mpu9250/jy901_sampler.v)
-- [../rtl/i2c_mpu9250/axi_lite_regs.v](../rtl/i2c_mpu9250/axi_lite_regs.v)
-- [../rtl/i2c_mpu9250/axi_i2c_jy901_v1_0.v](../rtl/i2c_mpu9250/axi_i2c_jy901_v1_0.v)
-- [../sim/tb_i2c_mpu9250/jy901_i2c_slave_model.v](../sim/tb_i2c_mpu9250/jy901_i2c_slave_model.v)
-- [../sim/tb_i2c_mpu9250/tb_axi_i2c_jy901_top.v](../sim/tb_i2c_mpu9250/tb_axi_i2c_jy901_top.v)
-
-Command:
+命令：
 
 ```powershell
-cd sim/tb_i2c_mpu9250
+cd sim\tb_i2c_mpu9250
 just axi
 ```
 
-Expected checks:
+验收：
 
-- AXI reads `VERSION == 0x4A593101`.
-- AXI reads reset `DEV_ADDR == 0x50`.
-- AXI writes `I2C_CLKDIV`, `START_REG`, `WORD_COUNT`, `DEV_ADDR`, and `CTRL`.
-- AXI polls `STATUS.done`.
-- Normal path returns `STATUS.data_valid == 1`, `STATUS.ack_error == 0`, and `STATUS.timeout == 0`.
-- AXI reads `AX_RAW == 0x1234`, `AY_RAW == 0x5678`, `TEMP_RAW == 0x0D0C`, and `SAMPLE_CNT == 1`.
-- `clear_done` and `clear_error` clear sticky done/error flags.
-- `WORD_COUNT` boundary cases `1`, `0`, and `20` complete without error. Hardware treats `0` as one word and clamps values above 13 words.
-- `auto_mode` increments `SAMPLE_CNT` across periodic transactions.
-- `cfg_write_start` sends a config write and sets `STATUS.cfg_done`.
-- Address NACK path returns `STATUS.ack_error == 1` and `ERROR_CODE == 0x01`.
-- Register-address NACK returns `ERROR_CODE == 0x02`.
-- Read-address NACK returns `ERROR_CODE == 0x03`.
-- Config low-byte NACK returns `ERROR_CODE == 0x04`.
-- Config high-byte NACK returns `ERROR_CODE == 0x05`.
-- `soft_reset` clears sampled data and status flags.
+- AXI reads `VERSION == 0x4A593101`。
+- AXI reads reset `DEV_ADDR == 0x50`。
+- AXI writes `I2C_CLKDIV`、`START_REG`、`WORD_COUNT`、`DEV_ADDR` 和 `CTRL`。
+- AXI polls `STATUS.done`。
+- AXI reads `AX_RAW == 0x1234`、`AY_RAW == 0x5678`、`TEMP_RAW == 0x0D0C`、`SAMPLE_CNT == 1`。
+- clear_done/clear_error、WORD_COUNT boundary、auto_mode、cfg_write、NACK 和 soft_reset path 均通过。
 
 ### Timeout simulation
 
-Location: [../sim/tb_i2c_mpu9250/](../sim/tb_i2c_mpu9250/).
-
-Files:
-
-- [../rtl/i2c_mpu9250/i2c_master_core.v](../rtl/i2c_mpu9250/i2c_master_core.v)
-- [../sim/tb_i2c_mpu9250/tb_i2c_master_timeout.v](../sim/tb_i2c_mpu9250/tb_i2c_master_timeout.v)
-
-Command:
-
 ```powershell
-cd sim/tb_i2c_mpu9250
+cd sim\tb_i2c_mpu9250
 just timeout
 ```
 
-Expected checks:
-
-- `i2c_master_core` is instantiated with a reduced `TIMEOUT_CYCLES`.
-- The transaction times out before the first I2C phase completes.
-- `timeout == 1`.
-- `ack_error == 0`.
-- `ERROR_CODE == 0x10`.
+验收：transaction 在第一个 I2C phase 完成前 timeout，并设置 timeout/error status。
 
 ### Single-module board test
 
-Minimum first board test:
+步骤：
 
-1. Wire JY901 VCC to 3.3 V, GND to GND, SCL/SDA to the constrained PYNQ-Z1 pins.
-2. Confirm SCL/SDA pull up to 3.3 V, not 5 V.
-3. Program the bitstream and set:
-   - `DEV_ADDR = 0x50`
-   - `START_REG = 0x34`
-   - `WORD_COUNT = 1`
-   - `I2C_CLKDIV = 250`
-4. Write `CTRL = enable | oneshot_start`.
-5. Read `STATUS`, `ERROR_CODE`, `AX_RAW`, and `SAMPLE_CNT`.
-
-Passing criteria:
-
-- `STATUS.done == 1`;
-- `STATUS.ack_error == 0`;
-- `SAMPLE_CNT` increments;
-- logic analyzer or ILA shows `0xA0 0x34 0xA1`.
+1. JY901 VCC 接 3.3 V，GND 接 GND，SCL/SDA 接受约束的 PYNQ-Z1 引脚。
+2. 确认 SCL/SDA 上拉到 3.3 V，不是 5 V。
+3. 烧录 bitstream，设置 `DEV_ADDR=0x50`、`START_REG=0x34`、`WORD_COUNT=13`、`I2C_CLKDIV=250`。
+4. 写 `CTRL = enable | oneshot_start`。
+5. 读 `STATUS`、`ERROR_CODE`、`AX_RAW` 和 `SAMPLE_CNT`。
 
 ### PYNQ AXI driver demo
 
-Location: [../pynq/jy901_demo/](../pynq/jy901_demo/).
+板端环境：
 
-Use this when demonstrating the minimal PS-side path to an assessor. The v1
-demo intentionally uses bitstream download and direct MMIO instead of `.hwh`
-overlay discovery because this matches the current smoke-tested board flow.
+- Jupyter kernel 使用 `/opt/python3.6/bin/python3.6`。
+- SSH CLI 默认 `/usr/bin/python3` 不是 PYNQ demo 环境。
+- legacy `python` 可能是 2.7.10，不使用。
 
-Board runtime:
-
-- Jupyter kernel uses `/opt/python3.6/bin/python3.6` as root with PYNQ
-  packages under `/opt/python3.6/lib/python3.6/site-packages`;
-- SSH CLI default `/usr/bin/python3` is version 3.4.3+ and does not match the
-  complete Jupyter/PYNQ environment;
-- legacy CLI `python` may report 2.7.10 but is not the demo target;
-- Linux 4.6.0-xilinx on PYNQ-Z1.
-
-Command on the board:
+命令：
 
 ```bash
-cd /home/xilinx/jupyter_notebooks/jy901_test/jy901_demo
 sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6 demo_cli.py --duration 10
 ```
 
-Default demo parameters:
+验收：
 
-- bitstream `/home/xilinx/jupyter_notebooks/jy901_test/jy901_axi_package.bit`;
-- base address `0x43C00000`;
-- address range `0x10000`;
-- `I2C_CLKDIV = 500`;
-- `DEV_ADDR = 0x50`, `START_REG = 0x34`, `WORD_COUNT = 13`.
-
-Passing criteria:
-
-- `VERSION == 0x4A593101`;
-- initial oneshot increments `SAMPLE_CNT`;
-- no `ack_error` or `timeout`;
-- repeated table rows show increasing `SAMPLE_CNT`;
-- raw/scaled values change when the physical JY901 is moved.
-
-Do not mark this as a PC-integrated or end-to-end pass; v1 does not send data
-to a PC server or run a sleep-stage model.
+- `VERSION=0x4A593101`。
+- `SAMPLE_CNT` 持续增加。
+- 无 `ACK_ERR/TIMEOUT`。
+- 移动实物 JY901 时 raw/scaled 值变化。
 
 ### PL-only hardware debug top
 
-Optional direct Vivado bring-up top: [../rtl/i2c_mpu9250/jy901_hw_debug_top.v](../rtl/i2c_mpu9250/jy901_hw_debug_top.v).
+当目标是在依赖 AXI/PYNQ 软件前测试 sampler/I2C path 时使用。
 
-Use this when the goal is to test the sampler/I2C path before relying on AXI/PYNQ software. The top fixes:
+要点：
 
-- `enable = 1`;
-- `auto_mode = 1`;
-- `DEV_ADDR = 0x50`;
-- `START_REG = 0x34`;
-- `WORD_COUNT = 13`;
-- one debug oneshot after reset release;
-- sample period to roughly 0.5 s using its `CLK_HZ` parameter.
+- 顶层：`jy901_hw_debug_top`。
+- 使用 [../vivado/constraints/jy901_debug.xdc](../vivado/constraints/jy901_debug.xdc)。
+- ILA 观察 SCL/SDA、state、step、tx_byte、rx_data、ack_error、timeout、data_valid、sample_cnt。
+- 至少一个 raw data word 应在改变 JY901 姿态时变化。
 
-Vivado integration requirements:
+若 `core_sda_in_dbg == 1` 出现在 ACK 状态附近，重点检查 debug 接线、pullup、模块供电、PMODA pin selection 或实际 JY901 I2C address。
 
-- include `jy901_hw_debug_top.v`, `i2c_open_drain_io.v`, `jy901_sampler.v`, and `i2c_master_core.v`;
-- apply [../vivado/constraints/jy901_debug.xdc](../vivado/constraints/jy901_debug.xdc) for the debug top clock, reset, LEDs, and PMODA I2C pins;
-- do not also apply another XDC that maps `i2c_scl` or `i2c_sda` to different pins in the same build;
-- confirm `CLK_HZ` matches the actual fabric clock used by the project.
-- arm ILA first, then toggle SW0 from reset asserted to released if triggering on the reset-release debug oneshot.
+## 证据规则
 
-Passing criteria:
-
-- ILA shows `ack_error == 0` and `timeout == 0`;
-- `sample_cnt` increments over repeated auto samples;
-- `data_valid == 1` after the first successful sample;
-- ILA or logic analyzer shows `START, 0xA0, 0x34, RESTART, 0xA1`;
-- at least one raw data word changes when the physical JY901 orientation changes.
-
-If `ERROR_CODE == 0x01`, the master reached the write-address ACK bit and saw
-SDA high. In ILA, check `core_tx_byte_dbg == 0xA0`, `core_step_dbg == 0`, and
-`core_sda_in_dbg == 1` near the ACK state. If these are true, debug wiring,
-pullups, module power, PMODA pin selection, or the actual JY901 I2C address
-before changing RTL timing.
-
-Do not mark this as a hardware pass until ILA, logic analyzer, or user-confirmed board evidence is available.
+- 仿真通过：必须有明确 PASS marker。
+- 板级通过：必须有实际板端输出、截图、日志或用户确认测量。
+- 集成通过：必须说明 bit/hwh、IP 地址、端口、XDC 和运行命令。
+- 端到端通过：必须保存四类 message record。
+- 硬件执行器：不要把软件状态误当成真实物理反馈。

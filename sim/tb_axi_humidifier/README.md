@@ -1,24 +1,24 @@
 # tb_axi_humidifier
 
-Behavioral simulation material for the AXI humidifier controller.
+AXI 加湿器控制器的行为仿真材料。
 
-## Files
+## 文件
 
-| File | Purpose |
+| 文件 | 用途 |
 |---|---|
-| [tb_humidifier_core.v](tb_humidifier_core.v) | Core behavior testbench. |
-| [tb_axi_humidifier.v](tb_axi_humidifier.v) | AXI register path testbench. |
+| [tb_humidifier_core.v](tb_humidifier_core.v) | 核心行为 testbench。 |
+| [tb_axi_humidifier.v](tb_axi_humidifier.v) | AXI 寄存器路径 testbench。 |
 
-Expected handoff PASS markers:
+交接包预期 PASS 标记：
 
 ```text
 tb_humidifier_core PASS
 tb_axi_humidifier PASS
 ```
 
-## Run
+## 运行
 
-From this directory:
+在本目录下执行：
 
 ```powershell
 iverilog -g2012 -o build/tb_humidifier_core.vvp tb_humidifier_core.v ../../rtl/axi_humidifier/humidifier_core.v

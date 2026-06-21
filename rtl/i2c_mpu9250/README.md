@@ -1,40 +1,48 @@
 # i2c_mpu9250
 
-AXI-Lite custom IP that reads JY901/MPU9250 motion data over an open-drain I2C bus and exposes raw samples to the PS.
+AXI-Lite 自定义 IP，通过 open-drain I2C 总线读取 JY901/MPU9250 运动数据，并向 PS 暴露原始采样。
 
-## Files
+## 文件
 
-| File | Purpose |
+| 文件 | 用途 |
 |---|---|
-| [axi_i2c_jy901_v1_0.v](axi_i2c_jy901_v1_0.v) | Top-level AXI IP wrapper with external `i2c_scl` and `i2c_sda` ports. |
-| [axi_lite_regs.v](axi_lite_regs.v) | AXI4-Lite register bank and software-visible register defaults. |
-| [jy901_hw_debug_top.v](jy901_hw_debug_top.v) | Non-AXI Vivado hardware-debug top for direct auto-sampling and ILA bring-up. |
-| [jy901_sampler.v](jy901_sampler.v) | Sampling scheduler for oneshot, auto sampling, and config-write transactions. |
-| [i2c_master_core.v](i2c_master_core.v) | Bit-level I2C master state machine for burst reads and 16-bit config writes. |
-| [i2c_open_drain_io.v](i2c_open_drain_io.v) | Open-drain style SCL/SDA tri-state adapter. |
+| [axi_i2c_jy901_v1_0.v](axi_i2c_jy901_v1_0.v) | 带外部 `i2c_scl` 和 `i2c_sda` 端口的顶层 AXI IP wrapper。 |
+| [axi_lite_regs.v](axi_lite_regs.v) | AXI4-Lite 寄存器组和软件可见寄存器默认值。 |
+| [jy901_hw_debug_top.v](jy901_hw_debug_top.v) | 非 AXI 的 Vivado 硬件调试顶层，用于直接 auto-sampling 和 ILA bring-up。 |
+| [jy901_sampler.v](jy901_sampler.v) | oneshot、auto sampling 和 config-write transaction 的采样调度器。 |
+| [i2c_master_core.v](i2c_master_core.v) | 用于 burst read 和 16-bit config write 的 bit-level I2C master 状态机。 |
+| [i2c_open_drain_io.v](i2c_open_drain_io.v) | open-drain 风格 SCL/SDA 三态适配器。 |
 
-## Quick Facts
+## 快速事实
 
-- Target clock assumption: 100 MHz AXI clock unless configured otherwise.
-- Default JY901 7-bit I2C address: `0x50`; do not use read byte `0xA1` as the register value.
-- Default sample window: 13 little-endian 16-bit words from JY901 register `0x34`.
-- Default `I2C_CLKDIV`: `250`, giving about 100 kHz SCL from a 100 MHz clock.
-- SCL/SDA must be pulled up to 3.3 V, not 5 V.
+- 目标时钟假设：除非另有配置，否则为 100 MHz AXI clock。
+- 默认 JY901 7-bit I2C 地址：`0x50`；不要把读字节 `0xA1` 当成寄存器值使用。
+- 默认采样窗口：从 JY901 register `0x34` 开始读取 13 个 little-endian 16-bit word。
+- 默认 `I2C_CLKDIV`：`250`，在 100 MHz 时钟下得到约 100 kHz SCL。
+- SCL/SDA 必须上拉到 3.3 V，不能上拉到 5 V。
 
-## Related Files
+## 相关文件
 
-| Path | Purpose |
+| 路径 | 用途 |
 |---|---|
-| [../../docs/i2c_axi_mpu9250.md](../../docs/i2c_axi_mpu9250.md) | Full design note and rationale. |
-| [../../docs/register_map.md](../../docs/register_map.md) | Software-visible register map. |
-| [../../docs/wiring.md](../../docs/wiring.md) | PYNQ-Z1 wiring and voltage constraints. |
-| [../../sim/tb_i2c_mpu9250/](../../sim/tb_i2c_mpu9250/) | Behavioral simulation for the sampler/core path. |
-| [../../vivado/constraints/axi_i2c_jy901_package.xdc](../../vivado/constraints/axi_i2c_jy901_package.xdc) | Current AXI/PYNQ overlay pin constraints for PMODA `Y17/Y16`. |
-| [../../vivado/constraints/i2c_jy901_pynq_z1.xdc](../../vivado/constraints/i2c_jy901_pynq_z1.xdc) | Alternate Arduino-header pin constraints for `P16/P15`. |
-| [../../vivado/constraints/jy901_debug.xdc](../../vivado/constraints/jy901_debug.xdc) | Full constraints for the PL-only hardware debug top. |
+| [../../docs/i2c_axi_mpu9250.md](../../docs/i2c_axi_mpu9250.md) | 完整设计说明和依据。 |
+| [../../docs/register_map.md](../../docs/register_map.md) | 软件可见寄存器映射。 |
+| [../../docs/wiring.md](../../docs/wiring.md) | PYNQ-Z1 接线和电压约束。 |
+| [../../sim/tb_i2c_mpu9250/](../../sim/tb_i2c_mpu9250/) | sampler/core 路径的行为仿真。 |
+| [../../vivado/constraints/axi_i2c_jy901_package.xdc](../../vivado/constraints/axi_i2c_jy901_package.xdc) | 当前 AXI/PYNQ overlay 的 PMODA `Y17/Y16` 引脚约束。 |
+| [../../vivado/constraints/i2c_jy901_pynq_z1.xdc](../../vivado/constraints/i2c_jy901_pynq_z1.xdc) | `P16/P15` 的备用 Arduino 排针引脚约束。 |
+| [../../vivado/constraints/jy901_debug.xdc](../../vivado/constraints/jy901_debug.xdc) | PL-only 硬件调试顶层的完整约束。 |
 
-Before changing register offsets or status bits, update [../../docs/register_map.md](../../docs/register_map.md) in the same change.
+修改寄存器 offset 或 status bit 之前，必须在同一个变更中更新 [../../docs/register_map.md](../../docs/register_map.md)。
 
-## Hardware Debug Top
+## 硬件调试顶层
 
-[jy901_hw_debug_top.v](jy901_hw_debug_top.v) is an optional non-AXI Vivado bring-up top. It directly instantiates `jy901_sampler` with fixed `DEV_ADDR=0x50`, `START_REG=0x34`, and `WORD_COUNT=13`, marks first-level I2C/status/data signals for ILA, and maps `i2c_busy`, `done`, `data_valid`, and `ack_error | timeout` to `led[3:0]`. It also exposes core-level debug probes such as `core_state_dbg`, `core_step_dbg`, `core_tx_byte_dbg`, and `core_sda_in_dbg` so hardware NACKs can be diagnosed from ILA. It synchronizes the SW0 reset input, launches one debug oneshot after reset release, and then continues auto-sampling at `SAMPLE_PERIOD_CYCLES` intervals. It is for PL-only hardware debug, not a replacement for the AXI/PYNQ wrapper. Use [../../vivado/constraints/jy901_debug.xdc](../../vivado/constraints/jy901_debug.xdc) for its 125 MHz clock, SW0 reset, LEDs, and PMODA I2C pinout, and keep `CLK_HZ` matched to the actual fabric clock.
+[jy901_hw_debug_top.v](jy901_hw_debug_top.v) 是可选的非 AXI Vivado bring-up 顶层。
+它用固定 `DEV_ADDR=0x50`、`START_REG=0x34` 和 `WORD_COUNT=13` 直接例化 `jy901_sampler`，
+为 ILA 标记一层 I2C/status/data 信号，并把 `i2c_busy`、`done`、`data_valid`
+以及 `ack_error | timeout` 映射到 `led[3:0]`。它还暴露 `core_state_dbg`、
+`core_step_dbg`、`core_tx_byte_dbg` 和 `core_sda_in_dbg` 等 core-level debug probe，
+便于从 ILA 诊断硬件 NACK。它会同步 SW0 reset 输入，在 reset 释放后发起一次 debug oneshot，
+随后按 `SAMPLE_PERIOD_CYCLES` 间隔继续 auto-sampling。该文件用于 PL-only 硬件调试，
+不是 AXI/PYNQ wrapper 的替代品。使用 [../../vivado/constraints/jy901_debug.xdc](../../vivado/constraints/jy901_debug.xdc)
+约束其 125 MHz 时钟、SW0 reset、LED 和 PMODA I2C pinout，并保持 `CLK_HZ` 与实际 fabric clock 匹配。

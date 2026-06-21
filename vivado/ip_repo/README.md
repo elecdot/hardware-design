@@ -1,31 +1,25 @@
 # ip_repo
 
-Shared Vivado IP repository for packaged reusable custom AXI IP.
+可复用自定义 AXI IP 的共享 Vivado IP 仓库。
 
-## Convention
+## 约定
 
-- Keep authoritative RTL source under [../../rtl/](../../rtl/).
-- Package reusable custom IP into subdirectories here, for example
-  `vivado/ip_repo/axi_i2c_jy901/`.
-- Configure Vivado projects under [../project/](../project/) to reference this
-  shared directory with `ip_repo_paths` and `update_ip_catalog`.
-- Do not maintain one packaged IP copy per Vivado project unless it is a
-  documented temporary experiment.
+- 权威 RTL 源码保存在 [../../rtl/](../../rtl/) 下。
+- 将可复用自定义 IP 打包到这里的子目录中，例如 `vivado/ip_repo/axi_i2c_jy901/`。
+- [../project/](../project/) 下的 Vivado 工程应通过 `ip_repo_paths` 和 `update_ip_catalog` 引用这个共享目录。
+- 除非是有文档说明的临时实验，否则不要为每个 Vivado 工程维护一份已打包 IP 副本。
 
-## Git Tracking
+## Git 跟踪
 
-Track the packaged IP files needed to rediscover and reuse the IP, such as
-`component.xml`, `xgui/`, and required HDL or data files emitted by the packager.
-Do not treat Vivado-generated cache, run directories, hardware exports,
-`ip_user_files`, simulation output, journals, or logs as design source.
+跟踪重新发现和复用 IP 所需的已打包 IP 文件，例如 `component.xml`、`xgui/`，
+以及 packager 生成的必需 HDL 或数据文件。不要把 Vivado 生成的 cache、run directory、hardware export、
+`ip_user_files`、仿真输出、journal 或 log 当作设计源文件。
 
-Board-level XDC files must not be included in reusable IP synthesis file sets.
-The root-level JY901 package is reused by both the old PMODA overlay and the
-integrated overlay; pin constraints belong in the consuming Vivado project, not
-inside the packaged IP.
+板级 XDC 文件不得包含在可复用 IP 的 synthesis file set 中。根级 JY901 package 同时被旧 PMODA overlay
+和集成 overlay 复用；引脚约束属于消费该 IP 的 Vivado 工程，不应放在已打包 IP 内部。
 
-## Packaged IP
+## 已打包 IP
 
-| Path | IP |
+| 路径 | IP |
 |---|---|
-| [ir_ac_axi/](ir_ac_axi/) | `xilinx.com:user:gree_ir_axi_v1_0:1.0`, TX-only Gree IR AC AXI IP. |
+| [ir_ac_axi/](ir_ac_axi/) | `xilinx.com:user:gree_ir_axi_v1_0:1.0`，TX-only Gree IR AC AXI IP。 |

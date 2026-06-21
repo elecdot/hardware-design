@@ -1,440 +1,251 @@
 # IP Packaging Manual
 
-Executable Phase 3 checklist for packaging the migrated RTL modules as reusable
-Vivado custom IP.
+本文档是迁移 RTL 模块的 Vivado IP 打包执行手册。目标是把可复用 AXI-Lite IP 放入
+`vivado/ip_repo/`，并让后续 Block Design 能稳定重新发现、连接和验证这些 IP。
 
-Scope of this phase:
+## 入口条件
 
-- Package reusable AXI-Lite IP under `vivado/ip_repo/`.
-- Keep authoritative RTL under `rtl/`.
-- Prove that each IP is rediscoverable from the shared Vivado IP catalog.
-- Stop before final Block Design address assignment, bitstream export, PYNQ
-  overlay binding, or board-level claims.
+1. 从干净或已明确审查的工作区开始。
+2. 确认 [test_plan.md](test_plan.md) 中已有 Phase 2 smoke 证据。
+3. 确认目标 part 为 PYNQ-Z1 / `xc7z020clg400-1`。
+4. 除非 IP 参数另有说明，AXI/system clock 使用 100 MHz。
+5. 不要把板级 pin 约束放入可复用 IP package。
+6. 不要把 Vivado 生成的 HDL 副本当作源码编辑；如需修 RTL，回到 `rtl/<ip>/` 修改。
 
-This manual is intentionally conservative. Phase 2 only proved local Icarus
-Verilog smoke behavior for selected paths; it did not prove Vivado synthesis,
-Block Design integration, or hardware behavior.
-
-## Entry Criteria
-
-Before packaging a module:
-
-1. Start from a clean or intentionally reviewed working tree.
-2. Confirm Phase 2 smoke evidence in [test_plan.md](test_plan.md).
-3. Confirm the target part is PYNQ-Z1 / `xc7z020clg400-1`.
-4. Use a 100 MHz AXI/system clock unless the IP parameter says otherwise.
-5. Do not include board pin constraints inside reusable IP packages.
-6. Do not edit Vivado-generated HDL copies as source. If an RTL fix is needed,
-   edit the tracked file under `rtl/<ip>/`.
-
-Recommended packaging order:
+优先打包顺序：
 
 1. `axi_humidifier_v1_0`
 2. `tft_lcd_spi_axi_v1_0`
 3. `dht11_axi_v1_0`
 4. `axi_uart_spo2_v1_0`
 
-The first two have stronger Phase 2 AXI wrapper simulation evidence. DHT11 and
-SpO2 are still packageable, but their AXI wrapper behavior needs more
-validation after packaging.
-
-## Repository Conventions
-
-Use these paths:
+## 仓库约定
 
 | Purpose | Path |
 |---|---|
-| Authoritative RTL | `rtl/<ip>/` |
-| Temporary packaging project | `vivado/project/<ip>_package/` |
-| Shared packaged IP output | `vivado/ip_repo/<ip>/` |
-| Final integrated constraints | `vivado/constraints/integrated/` |
-| Temporary build/export outputs | `vivado/gen/` |
+| 权威 RTL | `rtl/<ip>/` |
+| 临时打包工程 | `vivado/project/<ip>_package/` |
+| 共享已打包 IP 输出 | `vivado/ip_repo/<ip>/` |
+| 最终集成约束 | `vivado/constraints/integrated/` |
+| 临时 build/export 输出 | `vivado/gen/` |
 
-Track these packaged IP files:
+通常需要跟踪：
 
 - `vivado/ip_repo/<ip>/component.xml`
 - `vivado/ip_repo/<ip>/xgui/*.tcl`
-- HDL/data files copied by the packager if the package depends on them
+- packager 复制或引用的必要 RTL/source 文件
 
-Do not track Vivado cache/run artifacts:
+通常不要跟踪：
 
-- `.Xil/`
-- `*.jou`, `*.log`
-- `*.runs/`, `*.cache/`, `*.hw/`, `*.ip_user_files/`
-- temporary simulation/build/export output
+- Vivado cache、run directory、journal、log
+- `ip_user_files/`
+- 仿真产物和机器相关路径 dump
+- 板级 XDC，除非它属于消费该 IP 的顶层工程
 
-## IP Inventory
+## IP 清单
 
-| IP | Top Module | RTL Files To Add | External Ports | Parameters | Phase 2 Evidence |
+| IP | Top Module | 需要添加的 RTL 文件 | 外部端口 | 参数 | Phase 2 证据 |
 |---|---|---|---|---|---|
 | Humidifier | `axi_humidifier_v1_0` | `axi_humidifier_v1_0.v`, `axi_humidifier_v1_0_S00_AXI.v`, `humidifier_core.v` | `humidity_hw_valid`, `humidity_hw[7:0]`, `humidifier_led`, `humidifier_leds[3:0]` | `C_S00_AXI_DATA_WIDTH=32`, `C_S00_AXI_ADDR_WIDTH=5`, `CLK_FREQ_HZ=100000000` | `tb_humidifier_core PASS`, `tb_axi_humidifier PASS` |
 | TFT LCD SPI | `tft_lcd_spi_axi_v1_0` | `tft_lcd_spi_axi_v1_0.v`, `tft_lcd_spi_axi_v1_0_S00_AXI.v`, `spi_lcd_master.v` | `lcd_scl`, `lcd_sda`, `lcd_res`, `lcd_dc`, `lcd_blk` | `C_S00_AXI_DATA_WIDTH=32`, `C_S00_AXI_ADDR_WIDTH=5` | `tb_spi_lcd_master PASS`, `tb_tft_lcd_spi_axi PASS` |
-| DHT11 | `dht11_axi_v1_0` | `dht11_axi_v1_0.v`, `dht11_axi_v1_0_S00_AXI.v`, `dht11_onewire.v` | `dht11` in RTL; integrated BD external port should be named or mapped to `dht11_0` for the current XDC | `C_S00_AXI_DATA_WIDTH=32`, `C_S00_AXI_ADDR_WIDTH=4` | `tb_dht11_onewire_smoke PASS`; AXI top elaborates |
-| UART SpO2 | `axi_uart_spo2_v1_0` | `axi_uart_spo2_v1_0.v`, `axi_uart_spo2_v1_0_S00_AXI.v`, `uart_rx.v`, `uart_tx.v`, `spo2_frame_parser.v` | `uart_rxd`, `uart_txd`, `irq` | `C_BPS=9600`, `C_SYS_CLK_FRE=100000000`, `C_S00_AXI_DATA_WIDTH=32`, `C_S00_AXI_ADDR_WIDTH=5` | `tb_spo2_frame_parser PASS`; AXI top elaborates |
+| DHT11 | `dht11_axi_v1_0` | `dht11_axi_v1_0.v`, `dht11_axi_v1_0_S00_AXI.v`, `dht11_onewire.v` | RTL 中为 `dht11`；当前 XDC 期望集成 BD 外部端口名为 `dht11_0` 或显式映射到该名 | `C_S00_AXI_DATA_WIDTH=32`, `C_S00_AXI_ADDR_WIDTH=4` | `tb_dht11_onewire_smoke PASS`；AXI top 可 elaboration |
+| UART SpO2 | `axi_uart_spo2_v1_0` | `axi_uart_spo2_v1_0.v`, `axi_uart_spo2_v1_0_S00_AXI.v`, `uart_rx.v`, `uart_tx.v`, `spo2_frame_parser.v` | `uart_rxd`, `uart_txd`, `irq` | `C_BPS=9600`, `C_SYS_CLK_FRE=100000000`, `C_S00_AXI_DATA_WIDTH=32`, `C_S00_AXI_ADDR_WIDTH=5` | `tb_spo2_frame_parser PASS`；AXI top 可 elaboration |
 
-Do not include `rtl/tft_lcd_spi_axi/top_spi_lcd_test.v` in the TFT package. It
-is a standalone PL test top, not the reusable AXI IP.
+## GUI 打包流程
 
-## GUI Packaging Flow
-
-Repeat this section once per IP.
-
-### 1. Create A Temporary RTL Project
-
-In Vivado:
+### 1. 创建临时 RTL 工程
 
 1. `File -> Project -> New`
-2. Project name: `<ip>_package`
-3. Project location: `vivado/project/`
-4. Project type: `RTL Project`
-5. Add sources from the matching `rtl/<ip>/` directory.
-6. Do not add constraints.
-7. Select part `xc7z020clg400-1`.
-8. Finish project creation.
+2. Project name：`<ip>_package`
+3. Project location：`vivado/project/`
+4. Project type：`RTL Project`
+5. 从对应 `rtl/<ip>/` 目录添加源码。
+6. 不添加 constraints。
+7. 选择 part `xc7z020clg400-1`。
+8. 完成工程创建。
+9. 在 `Sources` 中右键顶层模块，选择 `Set as Top`，确认顶层与上表一致。
 
-Set the top module explicitly:
-
-1. In `Sources`, right-click the top module.
-2. Select `Set as Top`.
-3. Confirm the top module matches the inventory table above.
-
-### 2. Elaborate Before Packaging
-
-Run:
+### 2. 打包前先 elaboration
 
 1. `Flow Navigator -> RTL Analysis -> Open Elaborated Design`
-2. Fix any missing module, parameter, or primitive errors before continuing.
-3. Check the top-level ports are exactly the ports expected for the IP.
+2. 继续前修复所有缺失 module、parameter 或 primitive error。
+3. 检查顶层端口是否正好是该 IP 预期端口。
+4. 确认没有把 testbench 或 standalone demo top 误设为顶层。
 
-Expected special cases:
-
-- DHT11 may rely on Vivado primitive inference for the bidirectional inout path.
-  Do not package the Icarus simulation `IOBUF` stub.
-- TFT should expose only write-side LCD pins. There is no `CS` or `MISO` in the
-  current RTL.
-- Humidifier has optional direct PL humidity inputs. In the first integrated
-  PS-controlled path, tie `humidity_hw_valid` low in BD and write `SW_HUM` from
-  PYNQ.
-- SpO2 should expose `irq`; the first BD may leave it unconnected if PYNQ polls
-  status registers.
-
-### 3. Start IP Packager
-
-Use:
+### 3. 启动 IP Packager
 
 1. `Tools -> Create and Package New IP`
-2. Select `Package your current project`
-3. IP location: `vivado/ip_repo/<ip>/`
-4. Continue into the IP Packager view.
+2. 选择 `Package your current project`
+3. IP location：`vivado/ip_repo/<ip>/`
+4. 进入 IP Packager view。
 
-Set identification metadata:
+建议 metadata：
 
 | Field | Value |
 |---|---|
 | Vendor | `xilinx.com` |
 | Library | `user` |
-| Name | top module name, for example `axi_humidifier_v1_0` |
+| Name | 顶层模块名，例如 `axi_humidifier_v1_0` |
 | Version | `1.0` |
-| Display name | human-readable module name |
-| Description | one-line role and interface summary |
+| Display name | 人可读模块名 |
+| Description | 一句话说明角色和接口 |
 
-Keep the IP name stable. Changing it later changes BD cell names, PYNQ
-`Overlay.ip_dict` keys, and packaging diffs.
+保持 Name 稳定；它会影响 VLNV、`Overlay.ip_dict` key 和打包 diff。
 
-### 4. Check File Groups
+### 4. 检查 File Groups
 
-In `Package IP -> File Groups`:
+1. 确认清单中所有必需 RTL 文件都已包含。
+2. 确认 testbench 不在 synthesis file group 中。
+3. 确认 standalone demo top 不在 synthesis file group 中。
+4. 如果 packager 复制源码到 package，检查复制文件与 `rtl/<ip>/` 中权威源码一致。
 
-1. Confirm all required RTL files from the inventory table are included.
-2. Confirm testbenches are not included in synthesis file groups.
-3. Confirm standalone demo tops are not included.
-4. If the packager copied sources into the package, check that the copied file
-   list matches the inventory.
+### 5. 检查 Ports And Interfaces
 
-### 5. Check Ports And Interfaces
+1. 确认 Vivado 从 `s00_axi_*` 推断出一个 AXI4-Lite slave interface。
+2. Interface mode 应为 slave。
+3. Interface type 应为 AXI4-Lite，不是带 burst transaction 的 full AXI memory-mapped。
+4. 将 AXI interface 关联到 `s00_axi_aclk`。
+5. 将 reset 关联到 `s00_axi_aresetn`，active low。
+6. 物理外设端口保持为普通 external port。
 
-In `Package IP -> Ports and Interfaces`:
+如果 AXI interface 未自动推断：
 
-1. Confirm Vivado inferred one AXI4-Lite slave interface from `s00_axi_*`.
-2. Interface mode should be slave.
-3. Interface type should be AXI4-Lite, not full AXI memory-mapped with burst
-   expectations.
-4. Associate the AXI interface with `s00_axi_aclk`.
-5. Associate reset with `s00_axi_aresetn`, active low.
-6. Leave physical peripheral ports as plain external ports.
+1. 检查顶层是否存在全部 AXI signal。
+2. 检查 `C_S00_AXI_DATA_WIDTH` 和 `C_S00_AXI_ADDR_WIDTH` 是否作为参数可见。
+3. 手动使用 `Infer Bus Interface` 并选择 AXI memory mapped slave。
+4. 重新运行 `Package IP -> Review and Package -> Check Integrity`。
 
-Typical AXI interface naming can be `S00_AXI`, `s00_axi`, or a Vivado-generated
-variant. The exact name is less important than correct protocol type, clock
-association, reset association, and address map.
+### 6. 检查 Addressing And Memory
 
-If AXI is not inferred:
+1. 确认 AXI-Lite slave 有一个 memory map。
+2. 使用保守 aperture，例如 `4K` 或 `64K`。
+3. 不要在这里分配最终集成 base address；base address 由消费该 IP 的 BD 工程分配。
 
-1. Check that all AXI signals exist at the top level.
-2. Check `C_S00_AXI_DATA_WIDTH` and `C_S00_AXI_ADDR_WIDTH` are visible
-   parameters.
-3. Use `Infer Bus Interface` manually and select AXI memory mapped slave.
-4. Re-run `Package IP -> Review and Package -> Check Integrity`.
-
-### 6. Check Addressing And Memory
-
-In `Package IP -> Addressing and Memory`:
-
-1. Confirm there is one memory map for the AXI-Lite slave.
-2. Use a conservative aperture such as `4K` or `64K`.
-3. Do not assign final integrated base addresses here.
-
-Final base addresses belong to the integrated Block Design address editor and
-the PYNQ driver binding layer.
-
-Expected register footprint:
+已用寄存器范围：
 
 | IP | Address Width | Used Register Range |
-|---|---:|---:|
+|---|---:|---|
 | DHT11 | 4 | `0x00` to `0x0C` |
 | Humidifier | 5 | `0x00` to `0x18` |
 | TFT LCD SPI | 5 | `0x00` to `0x0C` |
 | UART SpO2 | 5 | `0x00` to `0x1C` |
 
-### 7. Check Parameters
+### 7. 检查 Parameters
 
-Expose only parameters that are meaningful at integration time:
-
-- Always keep `C_S00_AXI_DATA_WIDTH`.
-- Always keep `C_S00_AXI_ADDR_WIDTH`.
-- Humidifier: keep `CLK_FREQ_HZ`.
-- UART SpO2: keep `C_BPS` and `C_SYS_CLK_FRE`.
-- TFT: keep the AXI parameters; runtime SPI divider is register-controlled.
-- DHT11: keep the AXI parameters. Timing parameters are currently internal to
-  `dht11_onewire.v`; do not invent new top-level package parameters during
-  packaging.
-
-For final integrated use, keep clock-related defaults aligned with 100 MHz.
+- 确认 AXI data/address width 参数存在且默认值正确。
+- 确认时钟相关参数与 100 MHz 假设一致。
+- 对 UART SpO2 保持 `C_BPS=9600` 和 `C_SYS_CLK_FRE=100000000`，除非 BD 时钟和文档同步更新。
+- 不要把仿真专用参数暴露成最终硬件依赖。
 
 ### 8. Review And Re-Package
 
-In `Package IP -> Review and Package`:
+1. 点击 `Run IP Checks` 或 `Check Integrity`。
+2. 审查所有 warning。
+3. 修复阻塞性的 interface、file group 或 memory map 问题。
+4. 点击 `Re-Package IP`。
+5. 关闭临时打包工程前，确认 `component.xml` 和 `xgui/` 已写入 `vivado/ip_repo/<ip>/`。
 
-1. Click `Run IP Checks` or `Check Integrity`.
-2. Review all warnings.
-3. Fix blocking interface, file group, or memory map issues.
-4. Click `Re-Package IP`.
-5. Close the temporary packaging project only after confirming
-   `component.xml` exists.
+## 可选 Tcl 骨架
 
-Warnings that affect AXI inference, missing files, missing top modules, or
-unassociated clocks are blocking for Phase 3.
-
-## Optional Tcl Skeleton
-
-Use the GUI flow for the first IP so the metadata is visible. After that, the
-following Tcl skeleton can help make repeated packaging less manual. Run it from
-inside a Vivado Tcl Console after creating a temporary RTL project and setting
-the correct top module.
-
-Replace `<ip>` and `<display_name>` before running.
+GUI 流程是当前推荐路径。需要脚本化时，使用类似骨架，但先在 GUI 中确认推断出的 bus interface 名称。
 
 ```tcl
-set ip_name <ip>
-set ip_root [file normalize "../../ip_repo/$ip_name"]
-
-ipx::package_project \
-  -root_dir $ip_root \
-  -vendor xilinx.com \
-  -library user \
-  -taxonomy /UserIP \
-  -import_files \
-  -force
-
-set core [ipx::current_core]
-set_property name $ip_name $core
-set_property display_name "<display_name>" $core
-set_property description "<display_name> AXI4-Lite custom IP" $core
-
-ipx::infer_bus_interfaces xilinx.com:interface:aximm_rtl:1.0 $core
-
-# Check the inferred bus interface name in the IP Packager GUI.
-# It is usually S00_AXI or s00_axi.
-ipx::associate_bus_interfaces -busif S00_AXI -clock s00_axi_aclk $core
-
-ipx::check_integrity $core
-ipx::save_core $core
+create_project <ip>_package vivado/project/<ip>_package -part xc7z020clg400-1
+add_files [glob rtl/<ip>/*.v]
+set_property top <top_module> [current_fileset]
+update_compile_order -fileset sources_1
+ipx::package_project -root_dir vivado/ip_repo/<ip> -vendor xilinx.com -library user -taxonomy /UserIP -import_files
+ipx::associate_bus_interfaces -busif s00_axi -clock s00_axi_aclk [ipx::current_core]
+ipx::associate_bus_interfaces -busif s00_axi -reset s00_axi_aresetn [ipx::current_core]
+ipx::save_core [ipx::current_core]
 ```
 
-If the inferred bus interface is not named `S00_AXI`, replace that argument with
-the name shown in `Ports and Interfaces`.
-
-After packaging, refresh any consumer project:
+在消费工程中刷新 IP catalog：
 
 ```tcl
-set_property ip_repo_paths [file normalize "../../ip_repo"] [current_project]
+set_property ip_repo_paths [file normalize vivado/ip_repo] [current_project]
 update_ip_catalog
 ```
 
-## Per-IP Packaging Notes
+## Per-IP 打包说明
 
 ### Humidifier
 
-Package:
-
-- `rtl/axi_humidifier/axi_humidifier_v1_0.v`
-- `rtl/axi_humidifier/axi_humidifier_v1_0_S00_AXI.v`
-- `rtl/axi_humidifier/humidifier_core.v`
-
-Checks:
-
-- `humidity_hw_valid` and `humidity_hw[7:0]` remain external input ports.
-- `humidifier_led` and `humidifier_leds[3:0]` remain external output ports.
-- `CLK_FREQ_HZ` default is `100000000`.
-- AXI address width is `5`.
-
-First integrated BD decision:
-
-- Use PS-controlled mode first.
-- Tie `humidity_hw_valid` to constant `0`.
-- Tie `humidity_hw[7:0]` to constant `0` unless direct PL wiring is being
-  tested.
-- Let PYNQ write `SW_HUM` after reading DHT11.
+- `humidity_hw_valid` 和 `humidity_hw[7:0]` 是可选硬件湿度输入；首个 PS-controlled build 可在 BD 中绑常量。
+- `humidifier_leds[3:0]` 是外部 LED 输出。
+- 不要把 DHT11 直接连入该 IP 作为第一版验收路径；当前路径是 PYNQ 读取 DHT11 后写 `SW_HUM`。
 
 ### TFT LCD SPI
 
-Package:
-
-- `rtl/tft_lcd_spi_axi/tft_lcd_spi_axi_v1_0.v`
-- `rtl/tft_lcd_spi_axi/tft_lcd_spi_axi_v1_0_S00_AXI.v`
-- `rtl/tft_lcd_spi_axi/spi_lcd_master.v`
-
-Do not package:
-
-- `rtl/tft_lcd_spi_axi/top_spi_lcd_test.v`
-
-Checks:
-
-- LCD external ports are `lcd_scl`, `lcd_sda`, `lcd_res`, `lcd_dc`,
-  `lcd_blk`.
-- AXI address width is `5`.
-- Runtime SPI divider remains controlled by the `CLKDIV` register.
-
-First integrated BD decision:
-
-- Keep PMODA reserved for TFT.
-- Do not reuse older JY901 PMODA constraints in the integrated build.
+- 顶层必须是 `tft_lcd_spi_axi_v1_0`。
+- 不要把 `top_spi_lcd_test.v` 打包为 synthesis top。
+- 外部端口为 `lcd_scl/lcd_sda/lcd_res/lcd_dc/lcd_blk`。
+- 当前 RTL 没有 `CS` 或 `MISO`，带 `CS` 的显示屏需要硬件保持有效或后续扩展。
 
 ### DHT11
 
-Package:
-
-- `rtl/dht11_axi/dht11_axi_v1_0.v`
-- `rtl/dht11_axi/dht11_axi_v1_0_S00_AXI.v`
-- `rtl/dht11_axi/dht11_onewire.v`
-
-Checks:
-
-- RTL top-level physical port is `dht11`.
-- The integrated XDC currently documents `dht11_0`; therefore the BD external
-  port must be named `dht11_0`, or the XDC must be updated in the same reviewed
-  scope.
-- AXI address width is `4`.
-- Do not include the Icarus-only `IOBUF` simulation stub.
-
-First integrated BD decision:
-
-- Expose the bidirectional DATA line to Arduino IO11 `R17`.
-- Ensure a 3.3 V pullup exists.
-- Do not claim DHT11 hardware behavior until board reads produce stable
-  temperature/humidity values at DHT11-safe intervals.
+- RTL 顶层端口为 `dht11` inout。
+- 当前集成 XDC 约束的 BD external port 名称为 `dht11_0`；打包后在 BD 中保持该外部名或同步更新 XDC。
+- `dht11_onewire.v` 使用 Vivado `IOBUF` primitive；Icarus smoke test 中用 stub。
 
 ### UART SpO2
 
-Package:
+- 保持默认 9600 baud 和 100 MHz clock 参数。
+- `irq` 可保留但第一版软件走 polling-first。
+- 默认 frame mode 为 5-byte；7-byte mode 需要先确认物理模块格式。
 
-- `rtl/axi_uart_spo2/axi_uart_spo2_v1_0.v`
-- `rtl/axi_uart_spo2/axi_uart_spo2_v1_0_S00_AXI.v`
-- `rtl/axi_uart_spo2/uart_rx.v`
-- `rtl/axi_uart_spo2/uart_tx.v`
-- `rtl/axi_uart_spo2/spo2_frame_parser.v`
+## 打包后检查
 
-Checks:
-
-- `C_BPS` default is `9600`.
-- `C_SYS_CLK_FRE` default is `100000000`.
-- AXI address width is `5`.
-- External ports are `uart_rxd`, `uart_txd`, and `irq`.
-
-First integrated BD decision:
-
-- Route `uart_txd` to PMODB `W14`.
-- Route `uart_rxd` to PMODB `Y14`.
-- Leave `irq` unconnected for the first polling-based PYNQ demo unless the BD
-  already has an interrupt integration plan.
-
-## Post-Package Checks
-
-Run these checks after each IP is packaged.
-
-From PowerShell:
+PowerShell 静态检查：
 
 ```powershell
 Test-Path vivado\ip_repo\<ip>\component.xml
 Get-ChildItem vivado\ip_repo\<ip>\xgui
 rg -n "<ip>|busInterface|memoryMap|addressBlock" vivado\ip_repo\<ip>
-git status --short
 ```
 
-From a Vivado consumer project Tcl Console:
+Vivado 检查：
 
 ```tcl
-set_property ip_repo_paths [file normalize "../../ip_repo"] [current_project]
+set_property ip_repo_paths [file normalize vivado/ip_repo] [current_project]
 update_ip_catalog
 ```
 
-Then check:
+验收点：
 
-1. The IP appears in the Vivado IP Catalog under User Repository.
-2. The IP can be added to a blank Block Design.
-3. The AXI interface can connect to AXI Interconnect or SmartConnect.
-4. `Validate Design` reports no missing clock/reset/interface connections after
-   minimal wiring.
-5. External ports match [wiring.md](wiring.md) and the integrated XDC naming.
+1. IP 出现在 Vivado IP Catalog 的 User Repository 下。
+2. IP 能加入空白 Block Design。
+3. AXI interface 能连接 AXI Interconnect 或 SmartConnect。
+4. 连接 clock/reset 和 address 后，`Validate Design` 不报告缺失 interface 连接。
+5. 外部端口与 [wiring.md](wiring.md) 和集成 XDC 命名一致。
 
-## Phase 3 Exit Criteria
+## Phase 3 退出条件
 
-Phase 3 is complete for an IP only when all of these are true:
+1. `component.xml` 和 `xgui/` 存在于 `vivado/ip_repo/<ip>/`。
+2. Vivado IP integrity check 没有阻塞错误。
+3. 共享 `vivado/ip_repo/` 路径能在独立工程中重新发现该 IP。
+4. BD 中可见 AXI4-Lite slave interface、clock、reset 和 memory map。
+5. 非 AXI 物理端口与计划集成接线一致。
+6. 进入 BD integration 前，已记录所有 IP-specific warning。
 
-1. `component.xml` and `xgui/` exist under `vivado/ip_repo/<ip>/`.
-2. Vivado IP integrity check has no blocking errors.
-3. The shared `vivado/ip_repo/` path rediscovers the IP in a separate project.
-4. AXI4-Lite slave interface, clock, reset, and memory map are visible in BD.
-5. Non-AXI physical ports match the planned integrated wiring.
-6. Any IP-specific warning is documented before entering BD integration.
-
-Phase 3 is complete for the migrated module set only when all four target IPs
-meet the criteria above.
-
-Passing Phase 3 means the IPs are packageable and BD-ready. It does not mean the
-final overlay, PYNQ drivers, or physical modules are verified.
-
-## Common Failures
+## 常见失败
 
 | Symptom | Likely Cause | Fix |
 |---|---|---|
-| AXI interface not inferred | Port naming or parameter metadata not recognized | Manually infer AXI4-Lite slave interface and associate `s00_axi_aclk` / `s00_axi_aresetn` |
-| IP appears but cannot connect to AXI interconnect | Interface inferred as wrong protocol or missing address map | Recheck `Ports and Interfaces` and `Addressing and Memory` |
-| DHT11 port constraint fails | BD external port name does not match XDC | Rename BD external port to `dht11_0` or update the integrated XDC in the same scope |
-| TFT package includes unexpected top | `top_spi_lcd_test.v` was included as source top | Remove it from packaging file groups and set `tft_lcd_spi_axi_v1_0` as top |
-| Humidifier input ports block validation | Optional PL humidity inputs are floating | Tie them to constants for the first PS-controlled build |
-| SpO2 timing wrong after integration | Clock parameter does not match AXI clock | Keep `C_SYS_CLK_FRE=100000000` for the planned 100 MHz clock or update both BD and docs |
-| Pin conflicts after BD export | Old single-module XDC mixed with integrated XDC | Use the integrated XDC only for the final overlay |
-| PYNQ driver cannot find IP by name | IP or BD cell name changed | Keep package names stable and document final BD instance names before driver binding |
+| AXI interface not inferred | 端口命名或参数 metadata 未被识别 | 手动推断 AXI4-Lite slave interface，并关联 `s00_axi_aclk` / `s00_axi_aresetn` |
+| IP appears but cannot connect to AXI interconnect | interface 被推断为错误协议或缺少 address map | 重新检查 `Ports and Interfaces` 与 `Addressing and Memory` |
+| DHT11 port constraint fails | BD external port 名称与 XDC 不匹配 | 将 BD external port 重命名为 `dht11_0`，或在同一范围更新集成 XDC |
+| TFT package includes unexpected top | `top_spi_lcd_test.v` 被作为 source top 包含 | 从 packaging file group 移除它，并把 `tft_lcd_spi_axi_v1_0` 设为 top |
+| Humidifier input ports block validation | 可选 PL humidity input 悬空 | 首个 PS-controlled build 中将它们绑到常量 |
+| SpO2 timing wrong after integration | clock 参数与 AXI clock 不匹配 | 计划 100 MHz clock 下保持 `C_SYS_CLK_FRE=100000000`，否则同步更新 BD 和文档 |
+| Pin conflicts after BD export | 旧单模块 XDC 与集成 XDC 混用 | 最终 overlay 只使用集成 XDC |
+| PYNQ driver cannot find IP by name | IP 或 BD cell name 改变 | 保持 package name 稳定，并在 driver binding 前记录最终 BD instance name |
 
-## Handoff To Phase 4
+## 移交 Phase 4
 
-After Phase 3, enter Block Design integration with these inputs:
+Phase 4 需要的产物：
 
-- Four reusable IP packages under `vivado/ip_repo/`.
-- Confirmed package names and BD-visible interface names.
-- Planned external ports and constraints from [wiring.md](wiring.md).
-- Register maps from [register_map.md](register_map.md).
-- Known Phase 2 limitations from [test_plan.md](test_plan.md).
-
-Do not start PYNQ driver acceptance until the integrated BD validates, the build
-exports matching `.bit` and `.hwh`, and the final BD instance names are known.
+- `vivado/ip_repo/` 下的可复用 IP package。
+- 每个 package 的静态检查记录。
+- 需要绑常量、导出外部端口或命名匹配的 Per-IP 说明。
+- 更新后的 [register_map.md](register_map.md)、[wiring.md](wiring.md) 和 [test_plan.md](test_plan.md)。

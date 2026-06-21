@@ -1,26 +1,24 @@
 # constraints
 
-Board-level XDC constraints for external PL ports live here.
+这里存放外部 PL 端口的板级 XDC 约束。
 
-## Index
+## 索引
 
-| File | Purpose |
+| 文件 | 用途 |
 |---|---|
-| [axi_i2c_jy901_package.xdc](axi_i2c_jy901_package.xdc) | Maps the packaged AXI/PYNQ I2C IP to PMODA `Y17` for `i2c_scl` and `Y16` for `i2c_sda`, both `LVCMOS33`, with optional weak internal pullups. |
-| [dht11_pynq_z1.xdc](dht11_pynq_z1.xdc) | Maps DHT11 `dht11_0` to Arduino IO11 `R17`, `LVCMOS33`, with pullup. |
-| [humidifier_leds_pynq_z1.xdc](humidifier_leds_pynq_z1.xdc) | Maps `humidifier_leds[3:0]` to PYNQ-Z1 board LEDs. |
-| [i2c_jy901_pynq_z1.xdc](i2c_jy901_pynq_z1.xdc) | Maps JY901 I2C `i2c_scl` to PYNQ-Z1 Arduino SCL `P16` and `i2c_sda` to Arduino SDA `P15`, both `LVCMOS33`. |
-| [integrated/sleep_monitor_pynq_z1.xdc](integrated/sleep_monitor_pynq_z1.xdc) | Planned integrated overlay pin allocation for TFT, JY901, UART SpO2, DHT11, Gree IR AC TX, and humidifier LEDs. |
-| [jy901_debug.xdc](jy901_debug.xdc) | Constraints for `jy901_hw_debug_top.v`: 125 MHz `clk`, `resetn` on SW0, `led[3:0]`, and JY901 I2C on PMODA `Y17/Y16`, all `LVCMOS33`. |
-| [spo2_pmodb_pynq_z1.xdc](spo2_pmodb_pynq_z1.xdc) | Maps UART SpO2 `uart_txd` to PMODB `W14` and `uart_rxd` to PMODB `Y14`. |
-| [tft_lcd_pynq_z1.xdc](tft_lcd_pynq_z1.xdc) | Maps TFT LCD `lcd_scl/lcd_sda/lcd_res/lcd_dc/lcd_blk` to PMODA. |
+| [axi_i2c_jy901_package.xdc](axi_i2c_jy901_package.xdc) | 将已打包 AXI/PYNQ I2C IP 映射到 PMODA：`i2c_scl` 为 `Y17`、`i2c_sda` 为 `Y16`，均为 `LVCMOS33`，可选弱内部 pullup。 |
+| [dht11_pynq_z1.xdc](dht11_pynq_z1.xdc) | 将 DHT11 `dht11_0` 映射到 Arduino IO11 `R17`，`LVCMOS33`，带 pullup。 |
+| [humidifier_leds_pynq_z1.xdc](humidifier_leds_pynq_z1.xdc) | 将 `humidifier_leds[3:0]` 映射到 PYNQ-Z1 板载 LED。 |
+| [i2c_jy901_pynq_z1.xdc](i2c_jy901_pynq_z1.xdc) | 将 JY901 I2C `i2c_scl` 映射到 PYNQ-Z1 Arduino SCL `P16`，`i2c_sda` 映射到 Arduino SDA `P15`，均为 `LVCMOS33`。 |
+| [integrated/sleep_monitor_pynq_z1.xdc](integrated/sleep_monitor_pynq_z1.xdc) | 计划中的集成 overlay 引脚分配，覆盖 TFT、JY901、UART SpO2、DHT11、Gree IR AC TX 和加湿器 LED。 |
+| [jy901_debug.xdc](jy901_debug.xdc) | `jy901_hw_debug_top.v` 的约束：125 MHz `clk`、SW0 上的 `resetn`、`led[3:0]`，以及位于 PMODA `Y17/Y16` 的 JY901 I2C，均为 `LVCMOS33`。 |
+| [spo2_pmodb_pynq_z1.xdc](spo2_pmodb_pynq_z1.xdc) | 将 UART SpO2 `uart_txd` 映射到 PMODB `W14`，`uart_rxd` 映射到 PMODB `Y14`。 |
+| [tft_lcd_pynq_z1.xdc](tft_lcd_pynq_z1.xdc) | 将 TFT LCD `lcd_scl/lcd_sda/lcd_res/lcd_dc/lcd_blk` 映射到 PMODA。 |
 
-Use only one pin-mapping XDC for a given top-level build. For the planned
-integrated overlay, use [integrated/sleep_monitor_pynq_z1.xdc](integrated/sleep_monitor_pynq_z1.xdc)
-and do not also apply conflicting single-module XDC files. For the existing
-single-module JY901 AXI/PYNQ overlay project, use `axi_i2c_jy901_package.xdc`
-and keep debug ILA XDC files disabled. `jy901_debug.xdc` is intended for the
-PL-only hardware debug top and includes optional internal weak pullups on
-SCL/SDA; external 3.3 V pullups are still recommended for real I2C operation.
+同一个顶层构建只能使用一份针对同一信号的 pin-mapping XDC。计划中的集成 overlay 使用
+[integrated/sleep_monitor_pynq_z1.xdc](integrated/sleep_monitor_pynq_z1.xdc)，不要再同时应用冲突的单模块 XDC。
+现有单模块 JY901 AXI/PYNQ overlay 工程使用 `axi_i2c_jy901_package.xdc`，并保持 debug ILA XDC 禁用。
+`jy901_debug.xdc` 用于 PL-only 硬件调试顶层，并在 SCL/SDA 上包含可选内部弱 pullup；
+真实 I2C 运行仍建议使用外部 3.3 V pullup。
 
-Keep pin assignments out of RTL. Confirm every external signal is compatible with 3.3 V PYNQ-Z1 I/O before adding constraints.
+引脚分配不要写进 RTL。新增约束前，确认每个外部信号都兼容 PYNQ-Z1 的 3.3 V I/O。

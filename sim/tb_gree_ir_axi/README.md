@@ -1,26 +1,24 @@
 # tb_gree_ir_axi
 
-Focused module regression for the TX-only Gree IR AC AXI wrapper.
+TX-only Gree IR AC AXI wrapper 的聚焦模块回归。
 
-## Scope
+## 范围
 
-This simulation validates the software-visible contract before Vivado IP
-packaging:
+该仿真在 Vivado IP 打包前验证软件可见契约：
 
-- reset defaults for `PRESET`, `CMD_LOW`, `CMD_HIGH`, and `STATUS`
-- the seven committed preset IDs and command-shadow register values
-- normal `CONTROL.start` to `STATUS.done` behavior
-- write-1-to-clear behavior for `STATUS.done` and `STATUS.error`
-- repeated start while busy latches `STATUS.error`
-- `CONTROL.soft_reset` clears active/latch status
+- `PRESET`、`CMD_LOW`、`CMD_HIGH` 和 `STATUS` 的 reset 默认值
+- 七个已提交 preset ID 和 command-shadow 寄存器值
+- 正常 `CONTROL.start` 到 `STATUS.done` 的行为
+- `STATUS.done` 和 `STATUS.error` 的 write-1-to-clear 行为
+- busy 期间重复 start 会 latch `STATUS.error`
+- `CONTROL.soft_reset` 会清除 active/latch status
 
-The testbench shortens the internal IR sample ROM entries through hierarchical
-simulation-only assignment so that the full 140-sample transmit FSM completes
-quickly. This does not modify synthesizable RTL or board timing.
+testbench 通过层次化的 simulation-only assignment 缩短内部 IR sample ROM entry，
+使完整 140-sample 发送 FSM 能快速完成。这不会修改可综合 RTL 或板级时序。
 
-## Run
+## 运行
 
-From the repository root:
+从仓库根目录执行：
 
 ```powershell
 iverilog -g2012 -o E:\tmp\tb_gree_ir_axi.vvp `
@@ -31,11 +29,10 @@ iverilog -g2012 -o E:\tmp\tb_gree_ir_axi.vvp `
 vvp E:\tmp\tb_gree_ir_axi.vvp
 ```
 
-Expected PASS marker:
+预期 PASS 标记：
 
 ```text
 tb_gree_ir_axi PASS
 ```
 
-This is not Vivado synthesis, packaged-IP validation, integrated overlay
-evidence, or board evidence.
+这不是 Vivado synthesis、packaged-IP validation、integrated overlay evidence 或 board evidence。

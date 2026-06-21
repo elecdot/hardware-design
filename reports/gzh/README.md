@@ -1,20 +1,18 @@
 # gzh PPT materials
 
-This directory contains source material for three PPT sections that should be
-inserted into the group final presentation:
+本目录包含可插入小组最终汇报的三段 PPT 源材料：
 
-1. I2C JY901 nine-axis sensor.
-2. PYNQ-side fusion and integration.
-3. PC Server-side integration service.
+1. I2C JY901 九轴传感器。
+2. PYNQ 侧融合与集成。
+3. PC Server 侧集成服务。
 
-Files:
+文件：
 
-| File | Purpose |
+| 文件 | 用途 |
 |---|---|
-| [ppt_three_sections.md](ppt_three_sections.md) | Direct-use slide text and speaker script for the three sections. |
-| [evidence_and_boundaries.md](evidence_and_boundaries.md) | Verification evidence, demo wording boundaries, and likely teacher questions. |
-| [latex/](latex/) | LaTeX/TikZ source diagrams intended for final PPT figures. |
-| [diagrams/](diagrams/) | Mermaid source diagrams kept as a lightweight backup/reference. |
+| [ppt_three_sections.md](ppt_three_sections.md) | 三个部分可直接使用的 slide 文本和讲稿。 |
+| [evidence_and_boundaries.md](evidence_and_boundaries.md) | 验证证据、demo 表述边界和可能的老师追问。 |
+| [latex/](latex/) | 用于最终 PPT 图的 LaTeX/TikZ 源图。 |
+| [diagrams/](diagrams/) | 作为轻量备份/参考保留的 Mermaid 源图。 |
 
-These files intentionally avoid a personal overview page and final summary page,
-because the material is meant to be inserted into the whole-group report flow.
+这些文件有意不包含个人 overview 页和最终 summary 页，因为它们用于插入全组汇报流程。

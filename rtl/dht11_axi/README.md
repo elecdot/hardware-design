@@ -1,24 +1,19 @@
 # dht11_axi
 
-AXI-Lite DHT11 one-wire temperature/humidity IP migrated from the teammate
-handoff package.
+从队友交接包迁移的 AXI-Lite DHT11 单总线温湿度 IP。
 
-## Files
+## 文件
 
-| File | Purpose |
+| 文件 | 用途 |
 |---|---|
-| [dht11_axi_v1_0.v](dht11_axi_v1_0.v) | AXI IP top wrapper with external `dht11` one-wire port. |
-| [dht11_axi_v1_0_S00_AXI.v](dht11_axi_v1_0_S00_AXI.v) | AXI4-Lite register wrapper. |
-| [dht11_onewire.v](dht11_onewire.v) | DHT11 one-wire timing core. |
+| [dht11_axi_v1_0.v](dht11_axi_v1_0.v) | 带外部 `dht11` 单总线端口的 AXI IP 顶层 wrapper。 |
+| [dht11_axi_v1_0_S00_AXI.v](dht11_axi_v1_0_S00_AXI.v) | AXI4-Lite 寄存器 wrapper。 |
+| [dht11_onewire.v](dht11_onewire.v) | DHT11 单总线时序核心。 |
 
-## Notes
+## 说明
 
-- Source was copied without RTL behavior changes.
-- The handoff package did not contain a complete standalone packaged
-  `dht11_axi` IP directory, so this IP should be repackaged from tracked RTL.
-- Integrated target pin is Arduino IO11 `R17`, documented in
-  [../../docs/wiring.md](../../docs/wiring.md).
-- The integrated XDC currently names the constrained external BD port
-  `dht11_0`; keep that BD external name or update the XDC in the same reviewed
-  scope.
-- Keep the bidirectional DATA line as a top-level inout and use a pullup.
+- 源码迁移时未修改 RTL 行为。
+- 交接包未包含完整的独立 `dht11_axi` 已打包 IP 目录，因此该 IP 应从已跟踪 RTL 重新打包。
+- 集成目标引脚为 Arduino IO11 `R17`，见 [../../docs/wiring.md](../../docs/wiring.md)。
+- 集成 XDC 当前约束的外部 BD 端口名为 `dht11_0`；要么保持该 BD 外部名称，要么在同一审查范围内更新 XDC。
+- DATA 双向线应保持为顶层 inout，并使用 pullup。

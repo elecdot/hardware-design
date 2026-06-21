@@ -1,28 +1,28 @@
 # pynq
 
-PYNQ board-side demo code, drivers, and notebooks live here.
+这里存放 PYNQ 板端 demo 代码、驱动和 notebook。
 
-## Index
+## 索引
 
-| Path | Purpose |
+| 路径 | 用途 |
 |---|---|
-| [dht11_demo/](dht11_demo/) | DHT11 direct-MMIO demo and driver migrated from handoff. |
-| [humidifier_demo/](humidifier_demo/) | Humidifier/LED AXI demo and driver migrated from handoff. |
-| [ir_ac_demo/](ir_ac_demo/) | TX-only Gree IR AC MMIO driver and board smoke CLI migrated from handoff. |
-| [jy901_demo/](jy901_demo/) | Minimal JY901 AXI I2C demo using bitstream download and direct MMIO on PYNQ-Z1. |
-| [sleep_demo/](sleep_demo/) | Integrated overlay demo skeleton that binds all migrated drivers, updates TFT, and drives humidifier registers from PS-side logic. |
-| [spo2_demo/](spo2_demo/) | UART SpO2 MMIO helper migrated from handoff. |
-| [tft_lcd_demo/](tft_lcd_demo/) | ST7789 TFT LCD AXI SPI display driver and demos migrated from handoff. |
+| [dht11_demo/](dht11_demo/) | 从交接包迁移的 DHT11 direct-MMIO demo 和驱动。 |
+| [humidifier_demo/](humidifier_demo/) | 从交接包迁移的加湿器/LED AXI demo 和驱动。 |
+| [ir_ac_demo/](ir_ac_demo/) | 从交接包迁移的 TX-only Gree IR AC MMIO 驱动和板级 smoke CLI。 |
+| [jy901_demo/](jy901_demo/) | 在 PYNQ-Z1 上下载 bitstream 并 direct-MMIO 的最小 JY901 AXI I2C demo。 |
+| [sleep_demo/](sleep_demo/) | 集成 overlay demo 骨架，绑定所有迁移驱动、更新 TFT，并由 PS 侧逻辑驱动加湿器寄存器。 |
+| [spo2_demo/](spo2_demo/) | 从交接包迁移的 UART SpO2 MMIO helper。 |
+| [tft_lcd_demo/](tft_lcd_demo/) | 从交接包迁移的 ST7789 TFT LCD AXI SPI 显示驱动和 demo。 |
 
-Current PYNQ-Z1 software environment:
+当前 PYNQ-Z1 软件环境：
 
-- Jupyter kernel: root with `/opt/python3.6/bin/python3.6`, including the PYNQ
-  Python package under `/opt/python3.6/lib/python3.6/site-packages`.
-- SSH CLI default `python3`: `/usr/bin/python3` version 3.4.3+, without the
-  complete PYNQ package environment used by Jupyter.
-- Legacy default `python`: Python 2.7.10. Do not use it for this demo path.
+- Jupyter kernel：root 下的 `/opt/python3.6/bin/python3.6`，包含位于
+  `/opt/python3.6/lib/python3.6/site-packages` 的 PYNQ Python package。
+- SSH CLI 默认 `python3`：`/usr/bin/python3`，版本 3.4.3+，没有 Jupyter 使用的完整
+  PYNQ package 环境。
+- 旧版默认 `python`：Python 2.7.10。本 demo 路径不要使用它。
 
-Run board-side CLI demos with the Jupyter-equivalent interpreter:
+用与 Jupyter 等价的解释器运行板端 CLI demo：
 
 ```bash
 sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6 demo_cli.py --duration 10

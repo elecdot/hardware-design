@@ -1,158 +1,89 @@
 # Software Integration Plan
 
-This document records the confirmed software-integration decisions and the
-first implemented PC/PYNQ integration pass.
+本文档记录 IR 硬件 demo 验证后的 PC/PYNQ 软件集成计划。当前第一版软件已经为课堂 demo 实现：
+四消息协议、PYNQ `board_client.py`、PC service/classifier/policy/storage/dashboard、pending-only 手动控制和 display-only desired-state panel。
 
-The IR hardware entry gate is satisfied. TX-only Gree IR AC integration is
-closed through `IR-5`, including real lab AC response from the integrated
-`system_v0_2` overlay. The software first pass is implemented for classroom
-demo use: PYNQ board client/orchestrator, PC service, classifier adapter,
-comfort policy, four-record storage, dashboard entry, manual control, and
-display-only desired-state panel.
+## 入口门槛
 
-## Entry Gate
+- [x] 当前集成本地板级 demo 对 JY901、DHT11、UART SpO2、TFT LCD 和加湿器保持稳定。
+- [x] TX-only Gree IR AC 已加入集成 Vivado overlay。
+- [x] 集成 overlay 将匹配 `.bit`、`.hwh` 和板端所需 metadata 导出到 `vivado/gen/`。
+- [x] PYNQ 能绑定或静态解析 IR TX IP 地址。
+- [x] 已从集成 overlay 发送安全 IR 命令，并观察到实验室 Gree AC 响应。
+- [x] PC/PYNQ 四消息协议第一版和 dashboard 入口已实现并自测。
 
-Status: satisfied as of 2026-06-12.
-
-- [x] The current integrated local board demo remains stable with JY901, DHT11,
-  UART SpO2, TFT, and humidifier.
-- [x] TX-only Gree IR AC is added to the integrated Vivado overlay.
-- [x] The integrated overlay exports matching `.bit`, `.hwh`, and board-needed
-  metadata into `vivado/gen/`.
-- [x] PYNQ can bind or statically resolve the IR TX IP address.
-- [x] Safe IR commands were sent from the integrated overlay and produced
-  acceptable board/AC evidence: `power_on`, `power_off`, and `temp_26`.
-
-Carry-forward hardware constraint for software integration:
-
-- The IR transmitter must be aimed at the lab Gree AC receiver and kept within
-  approximately 20 cm for reliable response. Software should report TX status
-  and command history, but it cannot infer successful AC reception from the
-  AXI `done` bit alone.
-
-## Confirmed Decisions
+## 已确认决策
 
 | Topic | Decision |
 |---|---|
-| PYNQ architecture | Build a top-level `SleepMonitorBoard` / `BoardOrchestrator` class instead of keeping final logic inside notebooks or a monolithic script. |
-| PC architecture | Refactor `pc_server/` as needed; current files are demo-quality and do not constrain the final architecture. |
-| Policy owner | PC policy owns automatic AC and humidifier decisions. |
-| PYNQ role | PYNQ validates, rate-limits, executes actuator commands, updates local display, and reports execution status. |
-| Classifier path | Current `sleep_classifier.py` loads `sleep_model.bin` and performs pure-Python DREAMT GRU inference. It should be wrapped by a classifier adapter; PYNQ hardware drivers must not depend on model internals. |
-| Protocol | Keep `sleep_result` as classifier output. Add `control_command` and `control_status` for actuator control. |
-| Command shape | `control_command` carries complete desired actuator targets, not one isolated action. |
-| Execution reporting | PYNQ must send `control_status` for accepted, skipped, and rejected commands. |
-| Humidifier control | Final automatic humidifier control belongs to PC policy; PYNQ local humidifier automation is fallback/bring-up only. |
-| IR protection | PYNQ enforces IR command validation, hardware minimum interval, and repeated-command cooldown. |
-| Dashboard control semantics | Manual dashboard controls use real device semantics and create pending one-shot `control_command` messages; they must not be encoded as fake `sleep_result` values. |
-| Message cadence | For each `sensor_data`, PC sends exactly two newline JSON messages in order: `sleep_result`, then `control_command`, including no-action commands. |
-| Manual scheduling | Dashboard manual clicks set `pending_manual_command`; the command is sent with the next `sensor_data`, not asynchronously from the HTTP handler. |
-| AC semantics | AC commands are one-shot IR pulses. `last_commanded_state` is a PC-side assumption for cooldown/display only, not real AC feedback. |
-| Humidifier semantics | Humidifier uses target-state semantics because PYNQ can write/read the local actuator IP. |
-| Desired-state | Dashboard may show display-only desired state derived from latest/pending commands and `control_status`; it must not implement automatic AC replay/reconciliation. |
-| Client count | First version supports one active PYNQ client only. |
-| Dependencies | Prefer Python standard library plus `openpyxl`; new PC-only dependencies are allowed only when they materially reduce complexity or improve reliability. PYNQ stays Python 3.6/PYNQ-library compatible. |
+| PYNQ architecture | 构建顶层 `SleepMonitorBoard` / `BoardOrchestrator` class，不把最终逻辑留在 notebook 或单体脚本中。 |
+| PC architecture | 可按需重构 `pc_server/`；当前文件是 demo-quality，不约束最终架构。 |
+| Policy owner | PC policy 拥有自动 AC 和加湿器决策。 |
+| PYNQ role | PYNQ 校验、限频、执行 actuator command，更新本地显示，并上报执行状态。 |
+| Classifier path | 当前 `sleep_classifier.py` 加载 `sleep_model.bin` 并执行纯 Python DREAMT GRU 推理；它应通过 classifier adapter 包装，PYNQ hardware driver 不依赖模型内部。 |
+| Protocol | `sleep_result` 保持为分类输出；新增 `control_command` 和 `control_status` 用于 actuator control。 |
+| Command shape | `control_command` 携带完整 desired actuator target，而不是单个孤立动作。 |
+| Execution reporting | PYNQ 必须对 accepted、skipped 和 rejected command 都发送 `control_status`。 |
+| Humidifier control | 最终自动加湿器控制属于 PC policy；PYNQ 本地加湿器自动化只用于 fallback/bring-up。 |
+| IR protection | PYNQ 执行 IR command validation、hardware minimum interval 和 repeated-command cooldown。 |
+| Dashboard control semantics | Dashboard 手动控制使用真实设备语义，创建 pending one-shot `control_command`，不得编码为 fake `sleep_result`。 |
+| Message cadence | 对每条 `sensor_data`，PC 严格按顺序发送两条 newline JSON：`sleep_result`，然后 `control_command`，包括 no-action command。 |
+| Manual scheduling | Dashboard manual click 设置 `pending_manual_command`；命令随下一条 `sensor_data` 发送，不从 HTTP handler 异步直发。 |
+| AC semantics | AC command 是 one-shot IR pulse；`last_commanded_state` 只是 PC 侧 cooldown/display 假设，不是真实 AC feedback。 |
+| Humidifier semantics | 加湿器使用 target-state 语义，因为 PYNQ 可以写/读本地 actuator IP。 |
+| Desired-state | Dashboard 可显示由 latest/pending command 和 `control_status` 推导的 display-only desired state；不得实现自动 AC replay/reconciliation。 |
+| Client count | 第一版只支持一个 active PYNQ client。 |
+| Dependencies | 优先使用 Python 标准库加 `openpyxl`；只有显著降低复杂度或提升可靠性时才引入新的 PC-only dependency。PYNQ 保持 Python 3.6/PYNQ-library 兼容。 |
 
-## Scope Boundary
+## 范围边界
 
-### Implemented First Pass
+### 已实现第一版
 
-- PYNQ top-level class wrapping existing sensor, display, humidifier, and IR
-  drivers.
-- Board-side socket client that sends `sensor_data`, receives
-  `control_command`, applies targets, and sends `control_status`.
-- PC service refactor around protocol handling, classifier adapter, comfort
-  policy, dashboard state, and storage.
-- Dashboard manual controls that emit real `control_command.targets`.
-- PC-side automatic policy combining sleep state, temperature, humidity, and
-  latest actuator state.
-- Logging of raw sensor data, classifier output, policy decision, and PYNQ
-  execution result as separate records.
+- PYNQ 侧 board orchestrator：生成 `sensor_data`，更新 display，执行/跳过 actuator target，并生成 `control_status`。
+- Board-side socket client：发送 `sensor_data`，接收 `sleep_result` 与 `control_command`，执行 target，并发送 `control_status`。
+- PC 侧 protocol、classifier adapter、comfort policy、state store、JSONL storage、service composition、socket loop 和 dashboard entry。
+- Dashboard 手动控制：生成真实 `control_command.targets`。
+- Display-only desired-state panel。
 
-### Out Of Scope For The First Software Integration Pass
+### 第一版不包含
 
-- Training or replacing the current `sleep_model.bin` classifier.
-- Optimizing dashboard UI beyond what is needed for acceptance.
-- Adding new IR commands beyond the seven verified Gree YB0F2 presets.
-- Adding IR RX to the final integrated overlay.
-- Treating PC socket/Excel/dashboard behavior as accepted without a real PYNQ
-  board-originated run.
-- Automatic desired-state replay/reconciliation for AC.
-- Multi-PYNQ client support.
-- Dashboard immediate-send control bypasses.
+- 自动 AC desired-state replay。
+- 真实 AC 状态反馈或 IR RX 闭环。
+- 多 PYNQ client 并发。
+- 复杂模型训练或在 PYNQ 上运行 classifier。
+- 将旧 Excel-only server 作为最终验收入口。
 
-## PYNQ Top-Level Class Plan
+## PYNQ 顶层设计
 
-Planned responsibility:
+目标对象：
 
 ```text
 SleepMonitorBoard / BoardOrchestrator
-  - load or receive an integrated overlay handle
-  - bind IPs by metadata or documented static fallback
-  - read JY901, DHT11, and SpO2
-  - maintain turnover counter
-  - update TFT dashboard
-  - apply humidifier target state
-  - apply IR AC target command
-  - enforce actuator validation and rate limits
+  - load overlay
+  - bind JY901, DHT11, SpO2, TFT, humidifier, IR AC drivers
+  - sample sensors
+  - update local display
+  - apply validated control_command targets
   - produce sensor_data and control_status dictionaries
 ```
 
-Likely first files:
-
-```text
-pynq/sleep_demo/board_orchestrator.py
-pynq/sleep_demo/board_client.py
-```
-
-`integrated_demo.py` can remain a local demo entry point. The mature socket
-client should reuse the orchestrator instead of duplicating MMIO and display
-logic.
-
-Suggested method boundary:
+典型调用：
 
 ```python
-board = SleepMonitorBoard(...)
 sample = board.read_sample()
-board.update_display(sample)
 status = board.apply_control_command(command)
 ```
 
-First-version PYNQ client behavior:
+socket client 要求：
 
-- Keep `integrated_demo.py` as the local hardware smoke/fallback entry point.
-- Add `board_orchestrator.py` for reusable hardware binding, sampling,
-  display updates, humidifier control, and IR execution.
-- Add `board_client.py` for socket transport only.
-- Send one `sensor_data` per sample.
-- Wait for the matching `sleep_result` and `control_command` for the same
-  `sample_id`.
-- Apply the command through `SleepMonitorBoard.apply_control_command()`.
-- Send one `control_status` for accepted, skipped, and rejected commands.
-- Print every received command and generated status to stdout.
-- Add only a small TFT status line for recent control status, for example
-  `AC: temp_26 sent` or `AC: skip cooldown`; do not build a local control UI.
+- 每个 sample 发送一个 `sensor_data`。
+- 等待同一 `sample_id` 的 `sleep_result` 和 `control_command`。
+- 通过 `SleepMonitorBoard.apply_control_command()` 应用命令。
+- 对 accepted、skipped 和 rejected command 都发送一个 `control_status`。
+- PC 不可达时每 3 秒重试连接。
+- 发送 `sensor_data` 后最多等待 2 秒接收两条 PC message。
 
-Network behavior:
-
-- PYNQ connects to the PC's real IPv4 address.
-- Connection failure retries every 3 seconds.
-- After sending `sensor_data`, wait up to 2 seconds for the two PC messages.
-- On timeout or malformed messages, skip control for that sample, keep local
-  display/sampling alive, and reconnect if the socket is broken.
-- Close the socket cleanly on Ctrl+C.
-
-PYNQ execution hard guards:
-
-```text
-IR_MIN_INTERVAL_S = 5
-IR_REPEAT_COOLDOWN_S = 60  # demo default
-```
-
-Same IR command inside repeat cooldown is skipped and reported. Any unknown
-target or unknown IR command is rejected and reported.
-
-First-version `control_status.status_code` values:
+第一版 `control_status.status_code`：
 
 | Code | Meaning |
 |---:|---|
@@ -161,61 +92,33 @@ First-version `control_status.status_code` values:
 | `2` | Skipped by guard, cooldown, idle, or no-action policy. |
 | `3` | Hardware execution error. |
 
-For IR AC, `sent=true` means PYNQ sent the IR waveform and the IP completed; it
-does not prove the air conditioner received the command.
+## PC Service 设计
 
-## PC Service Plan
-
-The current `pc_server/` files can be refactored. Final structure should keep
-these concerns separable:
+服务组成：
 
 ```text
-protocol codec
-socket service
-classifier adapter
-comfort policy
-dashboard state
-storage/logger
+protocol.py
+classifier_adapter.py
+comfort_policy.py
+state_store.py
+storage.py
+service.py
+socket_service.py
+dashboard_server.py
 ```
 
-Recommended first-version modules:
+数据流：
 
 ```text
-pc_server/protocol.py
-pc_server/classifier_adapter.py
-pc_server/comfort_policy.py
-pc_server/state_store.py
-pc_server/storage.py
-pc_server/service.py
-pc_server/dashboard_server.py
-pc_server/static/dashboard.html
-pc_server/static/dashboard.css
-pc_server/static/dashboard.js
+sensor_data -> validate -> classifier adapter -> sleep_result
+sensor_data + sleep_result + state -> comfort policy -> control_command
+control_status -> state + storage
 ```
 
-`dashboard_server.py` may remain the top-level runnable entry if it composes
-the service cleanly. It should not permanently own classifier, policy, socket,
-storage, and dashboard state as unrelated global logic.
-
-Legacy file policy:
-
-- `pc_server.py` is legacy/minimal smoke only and does not constrain the final
-  architecture.
-- `fake_pynq_client.py` should be rewritten as a new-protocol simulator that
-  sends `sensor_data`, receives `sleep_result` plus `control_command`, and
-  returns `control_status`.
-- `excel_utils.py` may remain an implementation detail behind `storage.py`.
-- `dashboard_server.py` is the final PC entry point, but its static HTML/CSS/JS
-  should be moved into `pc_server/static/`.
-
-PC service state should live in a lightweight `AppState` object rather than
-module-level globals. It should track one active client, latest records,
-pending manual command, last commanded state, histories, and snapshots for the
-dashboard. No database or event bus is needed for the first pass.
+`dashboard_server.py` 可以保持为顶层可运行入口，只要它组合真实 `SleepMonitorPcService`
+并使用与 `socket_service.py` 相同的四消息 socket flow。
 
 ## Protocol Lifecycle
-
-Final intended loop:
 
 ```text
 PYNQ -> PC: sensor_data
@@ -223,373 +126,179 @@ PC: classify sensor_data into sleep_result
 PC: policy builds control_command from sensor_data + sleep_result + state
 PC -> PYNQ: sleep_result
 PC -> PYNQ: control_command
-PYNQ: applies targets and hardware guards
+PYNQ: apply/skip/reject command
 PYNQ -> PC: control_status
 PC: logs/displays sensor_data, sleep_result, control_command, control_status
 ```
 
-For every `sensor_data`, PC must send exactly two response messages in this
-order: `sleep_result`, then `control_command`. A no-action decision is still a
-valid `control_command` with empty `targets` and a reason.
+每条 `sensor_data` 必须得到两条 PC response，顺序为 `sleep_result` 然后 `control_command`。
+no-action 也必须是合法 `control_command`，`targets` 为空并带 `reason`。
 
-`docs/protocol.md` owns the canonical message schemas.
+规范 message schema 由 [protocol.md](protocol.md) 维护。
 
-Planned `control_command` targets:
-
-```text
-ir_ac.command
-ir_ac.temperature_setpoint_c
-humidifier.enabled
-```
-
-First-version `ir_ac.command` values:
+计划 target：
 
 ```text
-power_on
-power_off
-temp_24
-temp_25
-temp_26
-temp_27
-temp_28
+targets.ir_ac.command
+targets.ir_ac.temperature_setpoint_c
+targets.humidifier.enabled
 ```
 
-Dashboard manual mode:
+手动控制：
 
-- `/api/control` validates the requested real device action and stores it as
-  `pending_manual_command`.
-- It does not send directly on the socket.
-- The next `sensor_data` turns the pending command into
-  `control_command(mode="manual", reason="dashboard_manual")`.
-- Manual commands are one-shot and clear after sending.
-- When manual mode is active and no command is pending, PC sends no-action
-  `control_command(reason="manual_idle")`.
+- Dashboard click 设置 pending command。
+- 下一条 `sensor_data` 将 pending command 转成 `control_command(mode="manual", reason="dashboard_manual")`。
+- 如果没有 pending command，manual path 输出 no-action `control_command(reason="manual_idle")`。
 
-## Automatic Comfort Policy
+## 自动舒适策略
 
-Inputs:
+策略输入：
 
-- `sleep_state_code`: `0` not asleep/awake, `1` light sleep, `2` deep sleep.
-- `state_valid`.
-- `temperature_c`.
-- `humidity_percent`.
-- Last commanded AC state and latest humidifier target/status.
-- Cooldown state.
-- Manual/auto mode.
+- `sensor_data`
+- `sleep_result`
+- 当前 PC-side state
+- 最近 `control_status`
 
-Sleep-state aggressiveness profile:
+睡眠状态影响策略强度：
 
 | Sleep state | Meaning | Aggressiveness | Behavior |
 |---:|---|---:|---|
-| `0` | Not asleep / awake | `1.0` | More active adjustment. |
-| `1` | Light sleep | `0.6` | Moderate adjustment. |
-| `2` | Deep sleep | `0.3` | Wider acceptance, less disturbance. |
+| `0` | Not asleep / awake | `1.0` | 更主动调整。 |
+| `1` | Light sleep | `0.6` | 中等调整。 |
+| `2` | Deep sleep | `0.3` | 更宽舒适区，减少打扰。 |
 
-First-version policy principles:
+首版规则：
 
-- Manual mode overrides automatic policy intent.
-- Invalid or missing sensor/classifier inputs produce a no-action
-  `control_command` with a reason.
-- Humidity target is roughly `40..60% RH`.
-- Low humidity prioritizes humidifier before AC changes.
-- High humidity suppresses humidifier.
-- AC setpoints stay in the verified `24..28 C` range.
-- Deep sleep widens acceptable environmental range and lengthens cooldowns.
-- Policy should output at most one coherent `control_command.targets` state per
-  decision cycle.
-- AC automation outputs one-shot commands only; it does not maintain or replay
-  an AC desired-state loop.
-- Humidifier automation outputs target state because it is a local actuator.
-- One `control_command` may contain both AC and humidifier targets, but the
-  policy should generate combined actions conservatively.
+1. `state_valid != 1` 或传感器数据缺失：no-action。
+2. Manual mode：发送 pending manual command，或 no-action `manual_idle`。
+3. 湿度低于 40%：`humidifier.enabled=true`。
+4. 湿度高于 60%：`humidifier.enabled=false`。
+5. 温度明显偏高：默认发送 AC `temp_26`，必要时使用 `temp_25` 或 `temp_24`。
+6. 温度明显偏低：发送 AC `temp_27` 或 `temp_28`。
+7. 处于舒适区：no-action。
 
-Temperature tolerance bands:
+建议温度舒适区：
 
 | Sleep state | Suggested comfortable band |
-|---:|---|
+|---|---|
 | `0` not asleep / awake | `24.5..27.0 C` |
 | `1` light sleep | `24.0..27.5 C` |
 | `2` deep sleep | `23.5..28.0 C` |
 
-First-version action priority:
-
-1. `state_valid != 1` or missing sensor data: no-action.
-2. Manual mode: emit pending manual command or no-action `manual_idle`.
-3. Humidity below 40%: `humidifier.enabled=true`.
-4. Humidity above 60%: `humidifier.enabled=false`.
-5. Temperature clearly high: send AC `temp_26` by default, using `temp_25` or
-   `temp_24` only for stronger high-temperature cases after cooldown checks.
-6. Temperature clearly low: send AC `temp_27` or `temp_28`.
-7. Comfortable band: no-action.
-
-Do not automatically send `power_off` in first-version policy; keep `power_off`
-as a manual command unless a later validation pass explicitly changes this.
-
-Cooldown defaults:
+IR cooldown：
 
 | Mode | Same IR command repeat | Any IR command minimum interval |
-|---|---:|---:|
+|---|---|---|
 | Demo | 30 to 60 s | 5 s |
 | Normal | 5 to 10 min | 5 s |
 
-## Storage And Dashboard Plan
+## Storage 和 Dashboard
 
-Raw and derived records should stay distinguishable:
+保留四类 record：
 
 | Record | Purpose |
 |---|---|
-| `sensor_data` | Raw board-originated measurements. |
-| `sleep_result` | PC classifier output. |
-| `control_command` | PC policy/manual desired actuator targets. |
-| `control_status` | PYNQ accepted/skipped/applied execution result. |
+| `sensor_data` | 原始板端 measurement。 |
+| `sleep_result` | PC classifier output。 |
+| `control_command` | PC policy/manual desired actuator target。 |
+| `control_status` | PYNQ accepted/skipped/applied execution result。 |
 
-Excel logging or dashboard history should not overwrite raw sensor data with
-classifier or policy outputs. This keeps later neural-network integration and
-report analysis clean.
-
-First-version persistent storage should contain four sheets or equivalent
-record streams:
-
-```text
-sensor_data
-sleep_result
-control_command
-control_status
-```
-
-Minimum extra storage fields:
+最小 control 字段：
 
 | Record | Fields |
 |---|---|
 | `control_command` | `timestamp`, `sample_id`, `mode`, `policy_id`, `targets_json`, `valid`, `reason` |
 | `control_status` | `timestamp`, `sample_id`, `accepted`, `applied_json`, `status_code`, `remark` |
 
-Dashboard labels must distinguish:
+Dashboard 应显示：
 
-- desired state: dashboard display concept, not automatically replayed in first pass;
-- last commanded state: PC inference from recent commands;
-- PYNQ execution status: `control_status`;
-- real AC state: unknown without IR RX or AC feedback.
+- live connection 状态；
+- 当前 sensor values；
+- 最新 `sleep_result`；
+- 最新 `control_command`；
+- PYNQ execution status: `control_status`；
+- pending manual command；
+- display-only desired-state summary。
 
-## Validation Plan
+## 验证计划
 
 ### SW-0: Protocol Contract
 
-- Finalize `docs/protocol.md` field tables for `control_command` and
-  `control_status`.
-- Add `pc_server/protocol.py`.
-- Add small PC-side encode/decode tests or fake message fixtures for all four
-  message types.
-
-Initial implementation:
-
-- `pc_server/protocol.py` provides newline JSON encode/decode, incremental
-  TCP message buffering, validation for `sensor_data`, `sleep_result`,
-  `control_command`, and `control_status`, plus no-action/rejected-status
-  helpers.
-- `pc_server/protocol_selftest.py` is a dependency-free smoke test for round
-  trips, split TCP chunks, no-action commands, and invalid command/status
-  rejection.
+- 完成 `docs/protocol.md` 中 `control_command` 和 `control_status` 字段表。
+- `pc_server/protocol.py` 覆盖 newline JSON、TCP buffering、四种 message validation、no-action 和 rejected-status encoding。
+- self-test：`python pc_server/protocol_selftest.py`。
 
 ### SW-1: PC Policy Unit Tests
 
-- Test policy outputs for representative sleep states and temperature/humidity
-  values.
-- Test invalid/null sensor behavior.
-- Test manual override.
-- Test cooldown behavior and no-action reasons.
-
-Initial implementation:
-
-- `pc_server/comfort_policy.py` implements the first-version pure policy with
-  no socket/dashboard/storage dependencies.
-- It emits validated `control_command` dictionaries.
-- It covers classifier warmup/no-action, humidity on/off, high-temperature AC
-  command, IR cooldown, manual pending command, manual idle, and missing sensor
-  data.
-- `pc_server/comfort_policy_selftest.py` is the dependency-free smoke test.
+- `comfort_policy.py` 输出经过 validation 的 `control_command` dictionary。
+- 覆盖 classifier invalid、湿度低/高、温度高/低、manual pending、cooldown 和 no-action。
+- self-test：`python pc_server/comfort_policy_selftest.py`。
 
 ### SW-1b: Classifier Adapter Boundary
 
-- Wrap `sleep_classifier.py` behind a stable adapter before wiring it into
-  socket service or dashboard logic.
-- Validate incoming `sensor_data` and outgoing `sleep_result` with the
-  canonical protocol module.
-- On classifier load/runtime/schema errors, return a valid
-  `sleep_result(state_valid=0)` with a clear remark instead of crashing the
-  service loop.
-
-Initial implementation:
-
-- `pc_server/classifier_adapter.py` provides `SleepClassifierAdapter` and
-  `classify_sensor_data()`.
-- The adapter lazy-loads the real `sleep_classifier.classify_sleep_state`
-  only when no test/fake classifier is injected.
-- `pc_server/classifier_adapter_selftest.py` covers valid output, minimal
-  output normalization, invalid classifier output, runtime exceptions, and
-  invalid input sensor packets.
+- adapter 校验输入 `sensor_data` 和输出 `sleep_result`。
+- classifier crash 时返回 `sleep_result(state_valid=0)` 并带清晰 remark。
+- JY901-only invalid sample 不应重置 HR/SpO2 主 warm-up。
+- self-test：`python pc_server/classifier_adapter_selftest.py` 和 `python pc_server/sleep_classifier_selftest.py`。
 
 ### SW-2: PC State And Storage
 
-- Add `AppState`.
-- Add four-record storage support.
-- Confirm dashboard snapshots include sensor, model result, command, status,
-  pending manual command, and last commanded state.
-
-Initial implementation:
-
-- `pc_server/state_store.py` provides a thread-safe `AppState` for one active
-  client, latest records, bounded histories, pending one-shot manual command,
-  control mode, and last-commanded actuator state.
-- `pc_server/storage.py` provides the first JSONL storage backend with one
-  validated append-only stream per protocol record type. This is an equivalent
-  first-version record stream; an Excel backend can still be added behind the
-  same boundary later.
-- `pc_server/state_storage_selftest.py` covers snapshot copy isolation, pending
-  manual command normalization, history bounding, control-state tracking, and
-  four-record JSONL validation.
+- `AppState` 管理 latest records、manual pending command、single-client state 和 control history。
+- JSONL storage 分别保存四类 record。
+- self-test：`python pc_server/state_storage_selftest.py`。
 
 ### SW-3a: Service Composition Skeleton
 
-- Add a socket-free PC service core before refactoring the large dashboard
-  prototype.
-- For one validated `sensor_data`, classify it, build exactly one
-  `sleep_result`, build exactly one `control_command`, update `AppState`, and
-  append the three records to storage.
-- Accept one returned `control_status` and record it in both storage and
-  `AppState`.
-- Keep socket accept/read/write and HTTP/SSE dashboard code outside this
-  module.
-
-Initial implementation:
-
-- `pc_server/service.py` provides `SleepMonitorPcService`.
-- It composes `SleepClassifierAdapter`, `comfort_policy`, `AppState`, and
-  optional four-record storage.
-- It consumes pending manual commands as one-shot commands only in manual mode.
-- Policy exceptions are converted into valid no-action
-  `control_command(reason="policy_error:<ExceptionType>")` messages.
-- `pc_server/service_selftest.py` covers automatic policy output, storage
-  writes, state snapshots, `control_status` recording, manual one-shot command,
-  manual idle, auto mode return, and policy-error fallback.
+- 对一条 validated `sensor_data`，生成一条 `sleep_result` 和一条 `control_command`，更新 state/storage。
+- 接收一条 `control_status` 并记录。
+- policy/classifier error 降级为 no-action 或 invalid result，不崩溃。
+- self-test：`python pc_server/service_selftest.py`。
 
 ### SW-3b: Minimal Socket Loop
 
-- Add the smallest TCP wrapper around `SleepMonitorPcService`.
-- Decode newline JSON with the canonical protocol buffer.
-- For every incoming `sensor_data`, send exactly two messages in order:
-  `sleep_result`, then `control_command`.
-- Record incoming `control_status`.
-- Keep this loop sequential and single-client for the first version. This
-  minimal service remains useful for socket debugging; dashboard HTTP/SSE
-  integration is covered by the dashboard entry bridge below.
-
-Initial implementation:
-
-- `pc_server/socket_service.py` provides `handle_client()` and a minimal
-  `serve_forever()` CLI.
-- The CLI persists four record streams through `JsonlRecordStorage`.
-- `pc_server/socket_service_selftest.py` runs a real localhost TCP loop on an
-  OS-assigned port and verifies the new protocol order plus storage/state
-  updates.
+- 对每条 incoming `sensor_data`，按顺序发送 `sleep_result` 和 `control_command`。
+- 记录 incoming `control_status`。
+- self-test：`python pc_server/socket_service_selftest.py`。
 
 ### SW-3: Dashboard Service Refactor
 
-- Keep `dashboard_server.py` as the PC entry point.
-- Split static HTML/CSS/JS into `pc_server/static/`.
-- Keep `/api/state`, `/events`, `/api/mode`, and `/api/control`.
-- Make `/api/control` pending-only; it must not directly send on the socket.
-
-Initial implementation:
-
-- `pc_server/dashboard_server.py` now composes `SleepMonitorPcService` for the
-  dashboard entry path.
-- Its socket handler uses the current four-message protocol:
-  `sensor_data -> sleep_result + control_command -> control_status`.
-- `/api/mode` and `/api/control` update service state; manual controls queue
-  real `control_command.targets` for AC and humidifier instead of encoding fake
-  sleep states.
-- `pc_server/dashboard_server_selftest.py` validates pending manual control,
-  dashboard entry socket flow, static asset serving, and `control_status` state
-  visibility.
-- Dashboard HTML/CSS/JS are split into `pc_server/static/dashboard.html`,
-  `dashboard.css`, and `dashboard.js`.
+- Dashboard 入口使用同一 service/socket flow。
+- Manual controls 生成真实 `control_command.targets`。
+- self-test：`python pc_server/dashboard_server_selftest.py`。
 
 ### SW-4: PC-Only Socket Simulation
 
-- Rewrite fake client for the new protocol.
-- Send `sensor_data`.
-- Receive `sleep_result` then `control_command`.
-- Return `control_status`.
-- Confirm storage/dashboard state records all four message types.
-
-Initial implementation:
-
-- `pc_server/fake_pynq_client.py` now speaks the four-message protocol against
-  `pc_server/socket_service.py`.
-- It validates message order and `sample_id`, then simulates successful PYNQ
-  handling of IR AC and humidifier targets by returning `control_status`.
-- `pc_server/fake_pynq_client_selftest.py` runs the fake client against a real
-  localhost socket service on a temporary port and confirms the PC records
-  `sensor_data`, `sleep_result`, `control_command`, and `control_status`.
+- fake PYNQ client 发送 `sensor_data`。
+- 接收 `sleep_result` 和 `control_command`。
+- 返回 `control_status`。
+- self-test：`python pc_server/fake_pynq_client_selftest.py`。
 
 ### SW-5: PYNQ Orchestrator Local Smoke
 
-- Run orchestrator without socket first.
-- Confirm it can produce `sensor_data`.
-- Confirm it can apply a synthetic humidifier target.
-- Confirm it can reject unknown IR commands.
-- Confirm IR rate-limit skip produces a valid `control_status`.
-- Confirm local TFT/stdout control-status summary is concise and nonblocking.
-
-Initial implementation:
-
-- `pynq/sleep_demo/board_orchestrator.py` provides `SleepMonitorBoard`.
-- It reuses the integrated demo's sensor read helpers for local sampling and
-  keeps socket transport out of the class.
-- It implements `apply_control_command()` for no-action, humidifier target
-  state, TX-only Gree IR AC command validation, IR minimum interval, repeated
-  command cooldown, rejected commands, and hardware-error reporting.
-- `pynq/sleep_demo/board_orchestrator_selftest.py` runs on the PC with fake
-  actuator drivers and validates generated `sensor_data`/`control_status`
-  dictionaries against the canonical PC protocol module.
+- 确认可生成 `sensor_data`。
+- 确认可执行 no-action、humidifier target 和 IR target。
+- 确认 IR rate-limit skip 生成合法 `control_status`。
+- self-test：`python pynq/sleep_demo/board_orchestrator_selftest.py`。
 
 ### SW-6: PYNQ Real Socket Client
 
-- Run the integrated board sensor loop.
-- PC receives board-originated `sensor_data`.
-- PC emits `sleep_result` and `control_command`.
-- PYNQ applies humidifier and/or IR AC target under safeguards.
-- PYNQ returns `control_status`.
-- PC dashboard/logs show the complete loop.
+验收目标：
+
+- PC 接收 board-originated `sensor_data`。
+- PC 发出 `sleep_result` 和 `control_command`。
+- PYNQ 执行或跳过命令。
+- PYNQ 返回 `control_status`。
+- PC 记录四类 message。
 
 ### SW-6a: Board Socket Client Skeleton
 
-- Add PYNQ-side socket transport around `SleepMonitorBoard`.
-- Keep the PYNQ runtime dependency-free beyond the standard library and local
-  demo drivers; do not import `pc_server/` on the board.
-- Send one `sensor_data`, wait for matching `sleep_result` and
-  `control_command`, apply the command, update display, and send one
-  `control_status`.
-- Validate message order and `sample_id` before executing commands.
+- `board_client.py` 发送一个 `sensor_data`，等待匹配 `sleep_result` 和 `control_command`，
+  应用命令、更新显示并发送一个 `control_status`。
+- 板端运行使用 `/opt/python3.6/bin/python3.6`。
 
-Initial implementation:
+## 本阶段剩余事项
 
-- `pynq/sleep_demo/board_client.py` provides the lightweight newline-JSON
-  codec, connected-session runner, reconnecting client loop, and CLI wrapper.
-- The CLI can build the real board through `integrated_demo.bind_drivers()` or
-  run `--dry-run` for transport bring-up.
-- `pynq/sleep_demo/board_client_selftest.py` runs a real localhost TCP loop
-  against `pc_server/socket_service.py` with a fake board object.
-
-## Open Items For This Phase
-
-- Board system time must be fixed before timestamp-sensitive logging evidence.
-- A final classroom evidence run should prefer `dashboard_server.py` plus real
-  PYNQ `board_client.py`; existing local self-tests and recorded runs validate
-  the protocol/service/dashboard paths but should not be oversold as new
-  hardware evidence.
-- IR AC reception still requires physical aiming and short distance; software
-  can report TX completion, not real AC state feedback.
-- Desired-state remains dashboard display state only. Do not add automatic AC
-  replay/reconciliation before the class demo.
+- 正式 demo 前修复 PYNQ 板端时间。
+- 如果实验室网络和板卡可用，重新运行一次 `dashboard_server.py` 加真实 `board_client.py` 会话。
+- 采集 dashboard 截图、PYNQ 输出和 JSONL evidence。
+- 仅在后续硬件具备可靠反馈时，考虑 desired-state reconciliation；课堂 demo 前不要添加 AC replay。

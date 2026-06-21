@@ -1,32 +1,26 @@
 # i2c_ip_test (legacy)
 
-Legacy Vivado project previously used to exercise the JY901/MPU9250 I2C custom
-IP.
+这是早期用于验证 JY901/MPU9250 I2C 自定义 IP 的 legacy Vivado 工程。
 
-This project mixes IP packaging, Block Design integration, PL-only debug logic,
-debug ILA constraints, and board-level overlay constraints in one `.xpr`. Keep
-it as historical reference only. Do not use it as the clean entry point for new
-IP packaging or PYNQ overlay bitstream builds. See [LEGACY.md](LEGACY.md) for
-the recommended split.
+该工程把 IP 打包、Block Design 集成、PL-only 调试逻辑、debug ILA 约束和板级 overlay 约束混在同一个 `.xpr` 中。
+仅把它保留为历史参考。不要把它作为新 IP 打包或 PYNQ overlay bitstream 构建的干净入口。
+推荐拆分方式见 [LEGACY.md](LEGACY.md)。
 
-## Entry Points
+## 入口
 
-| Path | Purpose |
+| 路径 | 用途 |
 |---|---|
-| [i2c_ip_test.xpr](i2c_ip_test.xpr) | Legacy Vivado project file; reference only. |
-| [LEGACY.md](LEGACY.md) | Rationale for legacy status and recommended future project split. |
-| [../../../rtl/i2c_mpu9250/](../../../rtl/i2c_mpu9250/) | RTL source for the IP under test. |
-| [../../../rtl/i2c_mpu9250/jy901_hw_debug_top.v](../../../rtl/i2c_mpu9250/jy901_hw_debug_top.v) | Optional PL-only top for direct JY901 hardware debug and ILA probing. |
-| [../../../sim/tb_i2c_mpu9250/](../../../sim/tb_i2c_mpu9250/) | Behavioral testbench source. |
-| [../../constraints/i2c_jy901_pynq_z1.xdc](../../constraints/i2c_jy901_pynq_z1.xdc) | PYNQ-Z1 I2C pin constraints. |
-| [../../constraints/axi_i2c_jy901_package.xdc](../../constraints/axi_i2c_jy901_package.xdc) | Active AXI/PYNQ overlay I2C constraints for PMODA `Y17/Y16`. |
-| [../../constraints/jy901_debug.xdc](../../constraints/jy901_debug.xdc) | Full debug-top constraints for `jy901_hw_debug_top.v`, including clock, reset, LEDs, and PMODA I2C. |
+| [i2c_ip_test.xpr](i2c_ip_test.xpr) | Legacy Vivado 工程文件；仅供参考。 |
+| [LEGACY.md](LEGACY.md) | legacy 状态原因和推荐的未来工程拆分。 |
+| [../../../rtl/i2c_mpu9250/](../../../rtl/i2c_mpu9250/) | 被测 IP 的 RTL 源码。 |
+| [../../../rtl/i2c_mpu9250/jy901_hw_debug_top.v](../../../rtl/i2c_mpu9250/jy901_hw_debug_top.v) | 用于直接 JY901 硬件调试和 ILA 探测的可选 PL-only 顶层。 |
+| [../../../sim/tb_i2c_mpu9250/](../../../sim/tb_i2c_mpu9250/) | 行为 testbench 源码。 |
+| [../../constraints/i2c_jy901_pynq_z1.xdc](../../constraints/i2c_jy901_pynq_z1.xdc) | PYNQ-Z1 I2C 引脚约束。 |
+| [../../constraints/axi_i2c_jy901_package.xdc](../../constraints/axi_i2c_jy901_package.xdc) | 当前 AXI/PYNQ overlay 的 PMODA `Y17/Y16` I2C 约束。 |
+| [../../constraints/jy901_debug.xdc](../../constraints/jy901_debug.xdc) | `jy901_hw_debug_top.v` 的完整 debug-top 约束，包括时钟、reset、LED 和 PMODA I2C。 |
 
-Only open [i2c_ip_test.xpr](i2c_ip_test.xpr) when you need to inspect or recover
-historical project state. For future work, keep the flows separate: package
-[../../../rtl/i2c_mpu9250/axi_i2c_jy901_v1_0.v](../../../rtl/i2c_mpu9250/axi_i2c_jy901_v1_0.v)
-into [../../ip_repo/](../../ip_repo/) without board/debug XDC files, build the
-PYNQ overlay from a separate Block Design project whose top is the BD wrapper,
-and reserve [../../../rtl/i2c_mpu9250/jy901_hw_debug_top.v](../../../rtl/i2c_mpu9250/jy901_hw_debug_top.v)
-with [../../constraints/jy901_debug.xdc](../../constraints/jy901_debug.xdc) for
-PL-only hardware bring-up.
+仅在需要检查或恢复历史工程状态时打开 [i2c_ip_test.xpr](i2c_ip_test.xpr)。
+后续工作应保持流程分离：将 [../../../rtl/i2c_mpu9250/axi_i2c_jy901_v1_0.v](../../../rtl/i2c_mpu9250/axi_i2c_jy901_v1_0.v)
+打包到 [../../ip_repo/](../../ip_repo/) 且不包含 board/debug XDC；在单独 Block Design 工程中构建 PYNQ overlay，
+顶层为 BD wrapper；将 [../../../rtl/i2c_mpu9250/jy901_hw_debug_top.v](../../../rtl/i2c_mpu9250/jy901_hw_debug_top.v)
+和 [../../constraints/jy901_debug.xdc](../../constraints/jy901_debug.xdc) 留给 PL-only 硬件 bring-up。

@@ -1,29 +1,27 @@
 # Integrated Board Demo Runbook
 
-This runbook describes how to deploy the integrated overlay and PYNQ runtime
-files to the PYNQ-Z1 board, then run the first layered board demo.
+本运行手册说明如何把集成 overlay 和 PYNQ runtime 文件部署到 PYNQ-Z1 板端，
+然后运行第一版分层板级 demo。
 
-Current integrated local artifacts:
+当前集成本地 artifact：
 
 - `vivado/gen/system_v0_2.bit`
 - `vivado/gen/system_v0_2.hwh`
 - `vivado/gen/system_v0_2.tcl`
 
-Both files must be copied to the board together with the same base name. Newer
-PYNQ images use the `.hwh` metadata to populate `Overlay.ip_dict`. Some older
-PYNQ images instead look for a same-basename `.tcl`; `integrated_demo.py`
-therefore falls back to the Phase4 static address map when
-`system_v0_2.tcl` is absent.
+这些文件必须以相同 basename 一起复制到板端。较新的 PYNQ 镜像使用 `.hwh` metadata
+填充 `Overlay.ip_dict`。部分较旧 PYNQ 镜像会寻找同 basename 的 `.tcl`；
+因此当 `system_v0_2.tcl` 缺失时，`integrated_demo.py` 会回退到 Phase4 静态地址映射。
 
-## Target Layout
+## 目标布局
 
-Use one dedicated directory on the board:
+板端使用一个专用目录：
 
 ```text
 /home/xilinx/jupyter_notebooks/sleep_monitor/
   system_v0_2.bit
   system_v0_2.hwh
-  system_v0_2.tcl        # optional, only if exported for old PYNQ metadata
+  system_v0_2.tcl        # 可选，仅在为旧 PYNQ metadata 导出时需要
   sleep_demo/
     integrated_demo.py
     display_ui.py
@@ -35,23 +33,19 @@ Use one dedicated directory on the board:
   ir_ac_demo/
 ```
 
-Deploy the contents of local `pynq/` into this target directory. Do not deploy
-only `pynq/sleep_demo/`, because `integrated_demo.py` imports sibling driver
-directories.
+把本地 `pynq/` 的内容部署到该目标目录。不要只部署 `pynq/sleep_demo/`，
+因为 `integrated_demo.py` 会导入同级 driver 目录。
 
-Do not deploy the whole repository to the board for the demo path. The Vivado
-project, handoff packs, reports, and generated run directories are unnecessary
-and slow to copy.
+demo 路径不要把整个仓库部署到板端。Vivado 工程、handoff 包、报告和生成的 run 目录并不需要，
+复制也会很慢。
 
-## Deployment
+## 部署
 
-Set the board address first. The hostname `pynq` works only if the PC can
-resolve it; otherwise replace it with the board IPv4 address.
+先设置板端地址。只有当 PC 能解析主机名时，`pynq` 才可用；否则替换为板子的 IPv4 地址。
 
-### Recommended: rsync
+### 推荐：rsync
 
-Use rsync when available from WSL, Git Bash, MSYS2, or another shell that has
-OpenSSH and rsync.
+当 WSL、Git Bash、MSYS2 或其他带 OpenSSH 和 rsync 的 shell 可用时，使用 rsync。
 
 ```bash
 BOARD=xilinx@pynq
@@ -71,10 +65,10 @@ rsync -av \
   "$BOARD:$DEST/"
 ```
 
-Use `--delete` only when `DEST` is dedicated to this demo. If you keep manual
-notes or captures in that directory, remove `--delete`.
+只有当 `DEST` 专用于本 demo 时才使用 `--delete`。如果该目录里保存了手工笔记或采集结果，
+移除 `--delete`。
 
-PowerShell with rsync uses the same idea:
+PowerShell 下使用 rsync 的思路相同：
 
 ```powershell
 $Board = "xilinx@pynq"
@@ -85,9 +79,9 @@ rsync -av --delete --exclude '__pycache__/' --exclude '*.pyc' --exclude '.ipynb_
 rsync -av .\vivado\gen\system_v0_2.bit .\vivado\gen\system_v0_2.hwh .\vivado\gen\system_v0_2.tcl "${Board}:${Dest}/"
 ```
 
-### Fallback: scp
+### 备用：scp
 
-Use this if rsync is unavailable:
+如果 rsync 不可用，使用该方式：
 
 ```powershell
 $Board = "xilinx@pynq"
@@ -98,16 +92,15 @@ scp -r .\pynq\* "${Board}:${Dest}/"
 scp .\vivado\gen\system_v0_2.bit .\vivado\gen\system_v0_2.hwh .\vivado\gen\system_v0_2.tcl "${Board}:${Dest}/"
 ```
 
-The scp path is less clean because it does not delete stale files and may copy
-local cache files.
+scp 路径不够干净，因为它不会删除 stale 文件，而且可能复制本地 cache 文件。
 
-## Board Wiring Preflight
+## 板端接线预检
 
-Power the board off before changing wires.
+更改接线前先关闭板子电源。
 
-Required integrated pin plan:
+必需的集成引脚计划：
 
-| Module | Signals |
+| 模块 | 信号 |
 |---|---|
 | TFT LCD | PMODA: `lcd_scl=Y18`, `lcd_sda=Y19`, `lcd_res=Y16`, `lcd_dc=Y17`, `lcd_blk=U18` |
 | JY901 | Arduino I2C: `i2c_scl=P16`, `i2c_sda=P15`, 3.3 V pullups |
@@ -116,29 +109,28 @@ Required integrated pin plan:
 | Humidifier | Board LEDs: `humidifier_leds[3:0]` |
 | Gree IR AC TX | Arduino `ck_io[0]`: `ir_pwm=T14` |
 
-Safety checks:
+安全检查：
 
-- All PL-connected signals must be 3.3 V logic.
-- Do not hot-plug modules while the board is powered.
-- Share ground between every module and the PYNQ-Z1.
-- Do not drive real loads from FPGA pins; board LEDs are only an actuator
-  indicator.
+- 所有连接到 PL 的信号都必须是 3.3 V logic。
+- 板子上电时不要热插拔模块。
+- 每个模块都必须与 PYNQ-Z1 共地。
+- 不要从 FPGA 引脚驱动真实负载；板载 LED 只是 actuator indicator。
 
-## Board Environment Check
+## 板端环境检查
 
-SSH into the board:
+SSH 登录板子：
 
 ```bash
 ssh xilinx@pynq
 ```
 
-Check the PYNQ Python environment:
+检查 PYNQ Python 环境：
 
 ```bash
 sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6 -c "import pynq; print(pynq.__version__)"
 ```
 
-Check deployed files:
+检查已部署文件：
 
 ```bash
 cd /home/xilinx/jupyter_notebooks/sleep_monitor
@@ -147,11 +139,10 @@ ls -lh system_v0_2.bit system_v0_2.hwh sleep_demo/integrated_demo.py
 
 ## Overlay Metadata Smoke
 
-Run this first. It programs the overlay, prints IP names and addresses, then
-exits. On newer PYNQ images this uses `Overlay.ip_dict` metadata from the
-exported handoff. On older images that either raise `FileNotFoundError` for
-`system_v0_2.tcl` or parse the Tcl into an empty `ip_dict`, the script prints a
-warning and uses the Phase4 static address map.
+先运行该步骤。它会烧录 overlay，打印 IP 名称和地址，然后退出。
+在较新的 PYNQ 镜像上，它使用导出 handoff 中的 `Overlay.ip_dict` metadata。
+在较旧镜像上，如果因 `system_v0_2.tcl` 抛出 `FileNotFoundError`，或 Tcl 被解析成空的 `ip_dict`，
+脚本会打印 warning 并使用 Phase4 静态地址映射。
 
 ```bash
 cd /home/xilinx/jupyter_notebooks/sleep_monitor/sleep_demo
@@ -160,9 +151,9 @@ sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6 integrated_demo.py \
   --list-ips
 ```
 
-Expected custom IP entries:
+预期 custom IP entry：
 
-| IP | Expected address |
+| IP | 预期地址 |
 |---|---:|
 | `axi_i2c_jy901_v1_0_0` | `0x40000000` |
 | `axi_humidifier_v1_0_0` | `0x40001000` |
@@ -171,31 +162,28 @@ Expected custom IP entries:
 | `axi_uart_spo2_v1_0_0` | `0x40004000` |
 | `gree_ir_axi_v1_0_0` | `0x40005000` |
 
-If the output includes this warning, it is acceptable for first board smoke:
+如果输出包含该 warning，首轮板级 smoke 可接受：
 
 ```text
 WARNING: Overlay metadata TCL is missing; falling back to the Phase4 static address map.
 ```
 
-This warning is also acceptable for first board smoke:
+该 warning 在首轮板级 smoke 中也可接受：
 
 ```text
 WARNING: Overlay metadata produced an empty ip_dict; falling back to the Phase4 static address map.
 ```
 
-To require Vivado/PYNQ metadata instead of the fallback, pass
-`--metadata-source overlay`. To force the static path during bring-up, pass
-`--metadata-source static`.
+如果要强制使用 Vivado/PYNQ metadata 而不是 fallback，传入 `--metadata-source overlay`。
+bring-up 期间如需强制静态路径，传入 `--metadata-source static`。
 
-If this step fails, do not continue to the full demo. Fix the bit/hwh pair,
-driver file deployment, or IP instance names first.
+如果这一步失败，不要继续完整 demo。先修复 bit/hwh 配对、driver 文件部署或 IP instance name。
 
-## Layered Smoke Order
+## 分层 Smoke 顺序
 
-### 1. Driver Bind And Sensor Loop Without Display
+### 1. 不启用显示的 Driver Bind 和 Sensor Loop
 
-Use this to confirm Python imports, overlay metadata, MMIO binding, and sensor
-polling do not crash before initializing the TFT.
+在初始化 TFT 前，用该步骤确认 Python import、overlay metadata、MMIO binding 和 sensor polling 不会崩溃。
 
 ```bash
 cd /home/xilinx/jupyter_notebooks/sleep_monitor/sleep_demo
@@ -209,16 +197,15 @@ sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6 integrated_demo.py \
   --no-humidifier
 ```
 
-Expected result:
+预期结果：
 
-- The program prints JSON-like sample lines.
-- JY901, DHT11, or SpO2 may report module-specific errors if hardware is not
-  connected or not responding.
-- The process should not crash due to missing IP metadata or imports.
+- 程序打印 JSON-like sample 行。
+- 如果硬件未连接或无响应，JY901、DHT11 或 SpO2 可能报告模块专用错误。
+- 进程不应因缺少 IP metadata 或 import 而崩溃。
 
 ### 2. Humidifier Register Smoke
 
-This keeps display off and exercises the PS-controlled humidifier path.
+该步骤保持显示关闭，并验证 PS-controlled 加湿器路径。
 
 ```bash
 sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6 integrated_demo.py \
@@ -228,14 +215,14 @@ sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6 integrated_demo.py \
   --no-display
 ```
 
-Expected result:
+预期结果：
 
-- Board LEDs reflect the humidifier IP status path.
-- `humidifier_on` appears in printed samples.
+- 板载 LED 反映加湿器 IP status path。
+- 打印 sample 中出现 `humidifier_on`。
 
 ### 3. Display Smoke
 
-Run only after the TFT is wired and powered correctly.
+仅在 TFT 正确接线并供电后运行。
 
 ```bash
 sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6 integrated_demo.py \
@@ -245,18 +232,16 @@ sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6 integrated_demo.py \
   --tft-clkdiv 50
 ```
 
-Expected result:
+预期结果：
 
-- TFT initializes and draws the dashboard.
-- Numeric/status regions update once per sample.
+- TFT 初始化并绘制 dashboard。
+- 数值/状态区域每个 sample 更新一次。
 
-If display initialization fails, rerun with `--no-display` to keep other module
-smoke tests moving.
+如果显示初始化失败，用 `--no-display` 重新运行，让其他模块 smoke test 继续推进。
 
 ### 4. Gree IR AC TX Smoke
 
-Run this only when the IR transmitter is wired, the lab Gree AC can receive
-the command, and sending `temp_26` is acceptable.
+仅当 IR 发射器已接线、实验室 Gree AC 能接收命令，并且发送 `temp_26` 可接受时运行。
 
 ```bash
 cd /home/xilinx/jupyter_notebooks/sleep_monitor/ir_ac_demo
@@ -267,18 +252,15 @@ sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6 demo_ir_ac.py \
   --timeout 15.0
 ```
 
-Expected result:
+预期结果：
 
-- The command prints `before` and `after` status dictionaries.
-- `after` should report `done: True`, `error: False`, `preset: 5`, and
-  `command: temp_26`.
-- Board validation on 2026-06-10 confirmed the lab Gree AC responded to
-  `power_on`, `power_off`, and `temp_26` from the integrated overlay.
-- In the lab setup, the IR transmitter needed to be within approximately 20 cm
-  of the AC receiver for reliable response.
+- 命令打印 `before` 和 `after` status dictionary。
+- `after` 应报告 `done: True`、`error: False`、`preset: 5` 和 `command: temp_26`。
+- 2026-06-10 的板级验证确认，实验室 Gree AC 会响应集成 overlay 发出的
+  `power_on`、`power_off` 和 `temp_26`。
+- 在实验室搭建中，IR 发射器需要距离 AC 接收头约 20 cm 以内才能可靠响应。
 
-For distance or aiming checks, keep the same command and repeat it for a
-bounded period:
+距离或对准检查时，保持同一命令并在有界时间内重复：
 
 ```bash
 sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6 demo_ir_ac.py \
@@ -290,12 +272,11 @@ sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6 demo_ir_ac.py \
   --timeout 15.0
 ```
 
-Move the transmitter closer to the AC receiver or adjust the angle during this
-run. Do not use an unbounded repeat loop for the lab demo.
+运行期间把发射器移近 AC 接收头或调整角度。实验室 demo 不要使用无界 repeat loop。
 
-### 5. Full Local Demo
+### 5. 完整本地 Demo
 
-Run after the previous layers are stable:
+前面各层稳定后运行：
 
 ```bash
 sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6 integrated_demo.py \
@@ -308,58 +289,57 @@ sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6 integrated_demo.py \
   --spo2-frame-len 5
 ```
 
-This is still a board-side local demo. PC socket/Excel integration remains a
-later layer.
+这仍是板端本地 demo。PC socket/Excel 集成是后续层。
 
-## Result Interpretation
+## 结果解释
 
-The printed sample uses the protocol fields documented in `docs/protocol.md`.
+打印的 sample 使用 `docs/protocol.md` 中定义的 protocol 字段。
 
-Important status bits from `integrated_demo.py`:
+`integrated_demo.py` 中的重要 status bit：
 
-| Bit | Meaning |
+| Bit | 含义 |
 |---:|---|
 | `0x01` | JY901 read/config path reported an exception |
 | `0x02` | DHT11 read path reported an exception |
 | `0x04` | SpO2 path reported sensor/frame/error condition |
 | `0x08` | Humidifier register path reported an exception |
 
-Useful fields:
+有用字段：
 
-- `jy901_status`: JY901 status summary.
-- `temperature_c`, `humidity_percent`: DHT11-derived environment values.
-- `heart_rate_bpm`, `spo2_percent`: UART SpO2 values when frames are received.
-- `turnover_flag`, `turnover_count`: local movement logic from JY901 roll/pitch.
-- `humidifier_on`: PS-controlled humidifier IP state.
+- `jy901_status`：JY901 status summary。
+- `temperature_c`、`humidity_percent`：DHT11 派生环境值。
+- `heart_rate_bpm`、`spo2_percent`：收到 frame 时的 UART SpO2 值。
+- `turnover_flag`、`turnover_count`：来自 JY901 roll/pitch 的本地体动逻辑。
+- `humidifier_on`：PS-controlled 加湿器 IP 状态。
 
-## Common Failures
+## 常见失败
 
-| Symptom | Likely cause | Fix |
+| 现象 | 可能原因 | 修复 |
 |---|---|---|
-| Missing `.hwh` error | `.bit` was copied without same-basename `.hwh` | Copy `system_v0_2.bit` and `system_v0_2.hwh` together |
-| Missing `.tcl` error from `pynq.pl._TCL` | Older PYNQ image expects TCL metadata | Update `integrated_demo.py`; default `--metadata-source auto` falls back to the Phase4 static address map |
-| `--metadata-source overlay` prints `(none)` or no IP entries | Tcl exists but this PYNQ parser did not extract IP metadata | Use default `auto` or explicit `static` for first board smoke; do not treat this as a hardware failure |
-| `Cannot find IP ...` | Wrong `.hwh`, stale overlay, or old default IP names | Run `--list-ips`; compare instance names with this runbook |
-| `ImportError` for driver modules | Only `sleep_demo/` was copied | Deploy local `pynq/` contents so sibling driver directories exist |
-| JY901 timeout/NACK | Wiring, pullups, address, or module power issue | Check `P16/P15`, 3.3 V pullups, GND, and `DEV_ADDR=0x50` |
-| TFT blank | Wiring, backlight, reset/DC pins, or SPI speed issue | Confirm PMODA wiring and retry with `--tft-clkdiv 50` |
-| DHT11 always zero | Sensor timing, pullup, or data pin issue | Use 1 to 2 second read interval and confirm `R17` DATA pullup |
-| SpO2 never updates | UART signal direction or frame mode issue | Start with default 5-byte mode; board test confirmed the module-side RX/TX labels may need crossed wiring on `W14/Y14` |
-| IR TX status is done but AC does not react | IR distance or aiming issue | Move the transmitter within approximately 20 cm of the AC receiver and adjust angle before changing RTL/software |
-| Board-side Python cannot import `pynq` | Wrong Python interpreter | Use `sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6` |
+| Missing `.hwh` error | 只复制了 `.bit`，没有同 basename `.hwh` | 同时复制 `system_v0_2.bit` 和 `system_v0_2.hwh` |
+| `pynq.pl._TCL` 报 Missing `.tcl` error | 较旧 PYNQ 镜像需要 TCL metadata | 更新 `integrated_demo.py`；默认 `--metadata-source auto` 会回退到 Phase4 静态地址映射 |
+| `--metadata-source overlay` 打印 `(none)` 或没有 IP entry | Tcl 存在，但该 PYNQ parser 未提取出 IP metadata | 首轮板级 smoke 使用默认 `auto` 或显式 `static`；不要把它当成硬件失败 |
+| `Cannot find IP ...` | `.hwh` 错误、overlay stale 或旧默认 IP 名称 | 运行 `--list-ips`；与本 runbook 中的 instance name 对比 |
+| driver module `ImportError` | 只复制了 `sleep_demo/` | 部署本地 `pynq/` 内容，确保同级 driver 目录存在 |
+| JY901 timeout/NACK | 接线、pullup、地址或模块供电问题 | 检查 `P16/P15`、3.3 V pullup、GND 和 `DEV_ADDR=0x50` |
+| TFT blank | 接线、背光、reset/DC 引脚或 SPI 速度问题 | 确认 PMODA 接线并用 `--tft-clkdiv 50` 重试 |
+| DHT11 always zero | 传感器时序、pullup 或 data pin 问题 | 使用 1 到 2 秒读数间隔，并确认 `R17` DATA pullup |
+| SpO2 never updates | UART 信号方向或 frame mode 问题 | 先用默认 5-byte mode；板测确认模块侧 RX/TX 标签可能需要在 `W14/Y14` 上交叉接线 |
+| IR TX status is done but AC does not react | IR 距离或对准问题 | 修改 RTL/software 前，先把发射器移到 AC 接收头约 20 cm 以内并调整角度 |
+| Board-side Python cannot import `pynq` | Python 解释器错误 | 使用 `sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6` |
 
-## When Updating Files
+## 更新文件时
 
-For Python-only changes:
+只改 Python 时：
 
 ```bash
 rsync -av --delete --exclude '__pycache__/' --exclude '*.pyc' pynq/ xilinx@pynq:/home/xilinx/jupyter_notebooks/sleep_monitor/
 ```
 
-For a regenerated overlay:
+重新生成 overlay 时：
 
 ```bash
 rsync -av vivado/gen/system_v0_2.bit vivado/gen/system_v0_2.hwh vivado/gen/system_v0_2.tcl xilinx@pynq:/home/xilinx/jupyter_notebooks/sleep_monitor/
 ```
 
-Use both commands when code and hardware artifacts changed.
+代码和硬件 artifact 都变化时，两个命令都运行。

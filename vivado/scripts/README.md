@@ -1,25 +1,22 @@
 # scripts
 
-Vivado Tcl automation, board presets, and reproducible project/build entry
-points live here.
+这里存放 Vivado Tcl 自动化、板卡 preset，以及可复现 project/build 入口。
 
-## Layout
+## 布局
 
-| Path | Purpose |
+| 路径 | 用途 |
 |---|---|
-| [presets/](presets/) | Board and processing-system presets used by Vivado projects. |
+| [presets/](presets/) | Vivado 工程使用的 board 和 processing-system preset。 |
 
-## Registered Scripts
+## 已登记脚本
 
-| Path | Purpose |
+| 路径 | 用途 |
 |---|---|
-| [presets/pynq_revC.tcl](presets/pynq_revC.tcl) | PYNQ-Z1 Rev C processing_system7 preset. |
+| [presets/pynq_revC.tcl](presets/pynq_revC.tcl) | PYNQ-Z1 Rev C `processing_system7` preset。 |
 
-## Rules
+## 规则
 
-- Track Tcl files that are required to recreate or configure a design.
-- Keep scripts path-relative to the repo when possible.
-- Document the target board, part, and Vivado version when a script depends on
-  them.
-- Do not commit generated journals, logs, run directories, cache output, or
-  machine-specific path dumps as source scripts.
+- 跟踪重建设计或配置设计所必需的 Tcl 文件。
+- 尽量让脚本路径相对于仓库。
+- 如果脚本依赖特定目标板、part 或 Vivado 版本，需要在文档中说明。
+- 不要把生成的 journal、log、run 目录、cache 输出或机器相关路径 dump 当作源脚本提交。

@@ -1,14 +1,14 @@
 # reports
 
-Course report inputs, selected-topic documents, and diagrams live here.
+这里存放课程报告输入材料、选题文档和图表。
 
-## Index
+## 索引
 
-| Path | Purpose |
+| 路径 | 用途 |
 |---|---|
-| [diagrams/](diagrams/) | Editable architecture and design diagrams. |
-| [final_defense_ppt_outline.md](final_defense_ppt_outline.md) | Final project defense PPT outline and 10-minute hardware demo script. |
-| [i2c_jy901_midterm_ip_check.md](i2c_jy901_midterm_ip_check.md) | Midterm personal IP check note for the I2C JY901 module. |
-| [DOCX files](.) | Course topic-selection or report documents. |
+| [diagrams/](diagrams/) | 可编辑的架构和设计图。 |
+| [final_defense_ppt_outline.md](final_defense_ppt_outline.md) | 最终答辩 PPT 大纲和 10 分钟硬件演示脚本。 |
+| [i2c_jy901_midterm_ip_check.md](i2c_jy901_midterm_ip_check.md) | I2C JY901 模块的期中个人 IP 检查说明。 |
+| [DOCX files](.) | 课程选题或报告文档。 |
 
-Keep report-only wording here. Engineering facts that drive implementation should be mirrored into [../docs/](../docs/).
+仅用于报告表达的内容放在这里。会影响实现的工程事实应同步到 [../docs/](../docs/)。

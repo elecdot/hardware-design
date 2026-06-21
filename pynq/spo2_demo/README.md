@@ -1,15 +1,14 @@
 # spo2_demo
 
-PYNQ-side UART SpO2 helper migrated from the teammate handoff package.
+从队友交接包迁移的 PYNQ 侧 UART SpO2 helper。
 
-## Files
+## 文件
 
-| File | Purpose |
+| 文件 | 用途 |
 |---|---|
-| [spo2_mmio.py](spo2_mmio.py) | MMIO helper for the UART SpO2 IP. |
+| [spo2_mmio.py](spo2_mmio.py) | UART SpO2 IP 的 MMIO helper。 |
 
-## Notes
+## 说明
 
-- `Spo2Sample` is implemented as a plain Python class so the helper stays
-  compatible with the recorded PYNQ Python 3.6 environment.
-- Integrated overlay target pins are PMODB `uart_txd=W14` and `uart_rxd=Y14`.
+- `Spo2Sample` 实现为普通 Python 类，使 helper 与已记录的 PYNQ Python 3.6 环境兼容。
+- 集成 overlay 目标引脚为 PMODB `uart_txd=W14` 和 `uart_rxd=Y14`。

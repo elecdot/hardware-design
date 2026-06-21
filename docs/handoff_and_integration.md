@@ -1,503 +1,226 @@
-# Handoff And Integration Plan
+# Handoff And Integration
 
-This document is the working plan for migrating teammate handoff packages from
-`handoff/` into the main repository and then integrating them into the PYNQ-Z1
-Vivado/PYNQ flow.
+本文档记录从队友交接包迁移模块到本仓库，并将它们集成进 Vivado/PYNQ 系统的计划和状态。
+目标是把零散交接材料收敛为可审查、可仿真、可打包、可上板的工程路径。
 
-The priority for this pass is not to change RTL behavior. The priority is to
-create a stable, reviewable migration path that protects the already working
-JY901 path, exposes integration blockers early, and makes every later hardware
-claim traceable to simulation, board evidence, or user-confirmed measurement.
+## 范围
 
-## Current Baseline
+迁移模块：
 
-Tracked mainline status:
+- UART SpO2 AXI IP
+- DHT11 AXI IP
+- TFT LCD SPI AXI IP
+- AXI Humidifier/LED IP
+- TX-only Gree IR AC AXI IP
+- PC socket/Excel demo 参考代码
 
-- `rtl/i2c_mpu9250/` is the only fully integrated source RTL subtree.
-- `sim/tb_i2c_mpu9250/` contains the current regression baseline for JY901.
-- `pynq/jy901_demo/` contains the smoke-tested direct-MMIO PYNQ demo.
-- `vivado/ip_repo/` currently holds the packaged JY901 IP metadata.
-- `handoff/` is intentionally ignored by Git through `handoff/.gitignore`.
+不直接采用的内容：
 
-The migration must treat `handoff/` as untracked input material. Copy only the
-selected source, docs, constraints, and small driver files into tracked repo
-locations. Do not treat generated Vivado cache/output directories as source.
+- 交接包中的临时工程输出、cache、run directory、机器路径和未验证生成物。
+- 与当前硬件范围无关的 IR RX capture，除非后续作为独立验证工具使用。
+- 旧 Excel-only PC server 作为最终验收入口。
 
-## Handoff Package Inventory
+## 迁移原则
 
-| Module | Handoff source | Expected tracked source target | Verification status from handoff |
-|---|---|---|---|
-| DHT11 | `handoff/DHT11_.../DHT11_.../` | `rtl/dht11_axi/`, `sim/tb_dht11_axi/`, `pynq/dht11_demo/`, `vivado/constraints/dht11_pynq_z1.xdc` | PYNQ single-module test plan and exported `.bit/.hwh`; no complete standalone `dht11_axi` packaged IP metadata was found. |
-| Humidifier | `handoff/humidifier_handoff_pack_20260601(1)/humidifier_handoff_pack_20260601/` | `rtl/axi_humidifier/`, `sim/tb_axi_humidifier/`, `pynq/humidifier_demo/`, optional LED XDC | Handoff records Vivado packaging integrity pass and two simulation PASS markers. |
-| TFT LCD | `handoff/tft_lcd_handoff_pack_20260601/tft_lcd_handoff_pack_20260601/` | `rtl/tft_lcd_spi_axi/`, `sim/tb_tft_lcd_spi_axi/`, `pynq/tft_lcd_demo/`, `vivado/constraints/tft_lcd_pynq_z1.xdc` | Testbenches include PASS markers; handoff notes say local machine lacked simulator tools. PYNQ/Jupyter code is reported as board-tested. |
-| UART SpO2 | `handoff/uart_spo2_pynq_handoff_20260601_portable/handoff_uart_spo2_pynq_20260601/` | `rtl/axi_uart_spo2/`, `sim/tb_axi_uart_spo2/`, `pynq/spo2_demo/`, `vivado/constraints/spo2_pmodb_pynq_z1.xdc` | PYNQ overlay artifacts and runtime helper exist; no module-level regression test was found in the handoff scan. |
-| Gree IR AC TX/RX | `handoff/gree_ir_txrx_hardware_package/` | First integration targets TX-only: `rtl/gree_ir_axi/`, `sim/tb_gree_ir_axi/`, `pynq/ir_ac_demo/`, integrated XDC `ir_pwm=T14`; RX remains standalone validation tooling. | IR-1 source migration skeleton, IR-2 focused module regression, IR-3 package static validation, IR-4 integrated overlay build, and IR-5 integrated board bring-up are complete. User-confirmed integrated overlay evidence: lab Gree AC responded to `power_on`, `power_off`, and `temp_26`; transmitter needed to be within approximately 20 cm of the AC receiver. Detailed plan: [ir_ac_integration_plan.md](ir_ac_integration_plan.md). |
-| PC socket/Excel demo | `handoff/sleep_socket_project/sleep_socket_project/` | `pc_server/`, optional `pynq/sleep_demo/` client, and [protocol.md](protocol.md) | Handoff records a working historical PC-side TCP newline-JSON server, fake client, Excel writer, and rule-based classifier demo; final software integration now uses the current model-backed classifier path. |
+1. 以 `rtl/`、`pynq/`、`pc_server/`、`docs/` 和 `sim/` 中的跟踪文件作为新权威源。
+2. 不在 Vivado 生成目录中手改源码。
+3. 迁移时先保持行为不变，再用小测试建立证据。
+4. 寄存器映射、接线、协议和端口命名发生变化时，同步更新文档。
+5. 不声称硬件功能通过，除非有仿真、板测或用户确认的真实测量。
 
-Target paths are planned names. Create or adjust local README files when the
-source is actually migrated.
+## 当前迁移状态
 
-## Migration Rules
+| 模块 | RTL | 仿真 | IP 打包 | PYNQ/PC | 集成状态 |
+|---|---|---|---|---|---|
+| JY901 I2C | 已实现 | 已有 JY901 sampler/top/timeout 仿真 | 已有 package/overlay 工程 | `pynq/jy901_demo/` | 集成板端 demo 通过 |
+| DHT11 | 已迁入 `rtl/dht11_axi/` | `tb_dht11_onewire_smoke PASS` | 已打包并集成 | `pynq/dht11_demo/` | 集成板端 demo 通过 |
+| UART SpO2 | 已迁入 `rtl/axi_uart_spo2/` | `tb_spo2_frame_parser PASS` | 已打包并集成 | `pynq/spo2_demo/` | 集成板端 demo 通过，RX/TX 需交叉 |
+| TFT LCD | 已迁入 `rtl/tft_lcd_spi_axi/` | `tb_spi_lcd_master PASS`、`tb_tft_lcd_spi_axi PASS` | 已打包并集成 | `pynq/tft_lcd_demo/` | 集成板端 demo 通过 |
+| Humidifier | 已迁入 `rtl/axi_humidifier/` | `tb_humidifier_core PASS`、`tb_axi_humidifier PASS` | 已打包并集成 | `pynq/humidifier_demo/` | PS-controlled 集成 demo 通过 |
+| Gree IR AC TX | 已迁入 `rtl/gree_ir_axi/` | `tb_gree_ir_axi PASS` | 已打包并集成 | `pynq/ir_ac_demo/` | `system_v0_2` 中板测通过，真实 AC 响应已确认 |
+| PC software | 旧 socket/Excel 作为参考 | PC self-tests | 不适用 | `pc_server/` | 四消息协议和 dashboard 第一版已实现 |
 
-1. Import one module at a time.
-2. Preserve source behavior on the first copy. Do formatting or cleanup only in
-   later commits or clearly separated patches.
-3. Prefer authoritative RTL under each package's `rtl/` or `src/` directories.
-   Avoid generated netlists, stubs, `.dcp`, `.xsa`, `.bit`, and `.hwh` as source.
-4. Add a local README for every new `rtl/`, `sim/`, and `pynq/` subtree.
-5. Keep canonical docs synchronized only after the tracked source exists:
-   `docs/register_map.md`, `docs/wiring.md`, and `docs/test_plan.md`.
-6. Keep every testbench emitting explicit PASS/FAIL console output.
-7. Keep PYNQ code compatible with the board's Python 3.6 runtime.
-8. Do not commit generated overlay artifacts unless they are intentionally kept
-   as release evidence and documented as matching `.bit/.hwh` pairs.
+## 目标仓库布局
 
-## Integrated Overlay Decisions
+| 路径 | 内容 |
+|---|---|
+| `rtl/<ip>/` | 权威 RTL 源码。 |
+| `sim/tb_<ip>/` | 模块级 testbench 和运行说明。 |
+| `pynq/<module>_demo/` | 板端 driver、helper 和 smoke CLI。 |
+| `pc_server/` | PC socket service、classifier adapter、policy、storage、dashboard。 |
+| `vivado/ip_repo/` | 可复用已打包 IP。 |
+| `vivado/project/` | Vivado 打包、overlay 和 debug 工程。 |
+| `vivado/constraints/` | 板级 XDC。 |
+| `docs/` | 协议、寄存器、接线、测试计划和集成记录。 |
 
-The final course-demo target is one complete Vivado overlay hardware platform,
-one matching `.hwh`, one PYNQ driver suite, and one demonstrable program built
-on that driver suite. Separate single-module overlays remain useful as fallback
-validation artifacts if the integrated platform or driver bring-up exposes a
-blocking issue.
+## 分阶段执行
 
-Accepted pin-allocation decisions for the integrated overlay:
+### Phase 1: Source Migration
 
-| Module | Integrated overlay pins | Notes |
-|---|---|---|
-| TFT LCD | Reserve full PMODA: `lcd_scl=Y18`, `lcd_sda=Y19`, `lcd_res=Y16`, `lcd_dc=Y17`, `lcd_blk=U18` | PMODA is dedicated to the display in the integrated build. |
-| JY901 | Arduino I2C: `i2c_scl=P16`, `i2c_sda=P15` | Uses the existing Arduino-header XDC variant. Keep the PMODA JY901 overlay as a single-module fallback only. |
-| UART SpO2 | PMODB pin 1/2: `uart_txd=W14`, `uart_rxd=Y14` | Pin source is the course teaching guide table: `PMODB_1/JB1_P/W14`, `PMODB_2/JB1_N/Y14`. Still verify physical connector orientation before wiring. |
-| DHT11 | Arduino IO11: `dht11_0=R17` | No conflict with the selected PMODA/PMODB plan. |
-| Humidifier | Board LEDs: `humidifier_leds[0]=R14`, `[1]=P14`, `[2]=N16`, `[3]=M14` | LED output simulates the actuator; do not drive a load directly from PL pins. |
-| Gree IR AC TX | Arduino `ck_io[0]`: `ir_pwm=T14` | TX-only first integration. Use an IR transmitter module or driver circuit; do not drive a bare IR LED directly from PL. |
+每个模块迁移：
 
-Accepted acceptance standard:
-
-- The final acceptance path is the integrated overlay plus the corresponding
-  driver suite and a demonstrable program.
-- Module-specific overlays and direct-MMIO scripts are validation tools, not
-  the final acceptance target unless integrated bring-up is blocked.
-- If integrated platform or driver work fails, record the blocking point and
-  validate the affected module with the smallest meaningful standalone path.
-
-Demo priority and current status:
-
-1. Board-side integrated overlay + PYNQ driver suite + demonstrable local
-   program is the accepted hardware/platform baseline.
-2. Add TX-only Gree IR AC into the integrated hardware/software path using
-   [ir_ac_integration_plan.md](ir_ac_integration_plan.md). This is complete
-   for the TX-only hardware scope.
-3. Add PC socket/Excel/dashboard flow from `handoff/sleep_socket_project/...`
-   now that the board-side integrated demo and IR TX path are stable. This is
-   the current next phase.
-4. If PC networking or Excel dependencies consume time, defer socket/Excel
-   validation rather than blocking the lower-risk board-side acceptance.
-
-## Integration Order
-
-### Phase 0: Freeze The Working Baseline
-
-- Record the current JY901 regression command and expected PASS output before
-  touching shared Vivado or Python integration files.
-- Do not change `rtl/i2c_mpu9250/` while importing other modules.
-- Keep the current JY901 PMODA overlay as a known-good single-module reference.
-- If a future integrated overlay moves JY901 pins, document that as a new
-  wiring variant instead of editing away the current proven wiring.
-
-### Phase 1: Source And Documentation Import
-
-- Copy selected RTL, simulation, constraints, and PYNQ drivers into planned
-  tracked locations.
-- Add module README files that identify top modules, external ports, clock
-  assumptions, reset polarity, register offsets, and known limitations.
-- Add module entries to `rtl/README.md`, `sim/README.md`, `pynq/README.md`, and
-  `vivado/constraints/README.md` as files are created.
-- Update this document after each module import with actual target paths.
+1. 将 RTL 放入 `rtl/<ip>/`。
+2. 将 testbench 放入 `sim/tb_<ip>/`。
+3. 将 PYNQ driver/demo 放入 `pynq/<module>_demo/`。
+4. 增加或更新本地 README。
+5. 把寄存器映射补入 [register_map.md](register_map.md)。
+6. 把接线和电压约束补入 [wiring.md](wiring.md)。
 
 ### Phase 2: Module Regression
 
-- Run existing JY901 simulation first to establish the baseline when tools are
-  available.
-- Run the imported module's smallest testbench before packaging or BD work.
-- For handoff testbenches without clear PASS/FAIL, add simple fatal checks and
-  final PASS output.
-- If a simulator is unavailable, document the exact command that should be run
-  and do not claim simulation pass.
+目标是为每个迁移模块提供至少一个可重复仿真或 smoke test：
+
+```text
+tb_humidifier_core PASS
+tb_axi_humidifier PASS
+tb_spi_lcd_master PASS
+tb_tft_lcd_spi_axi PASS
+tb_dht11_onewire_smoke PASS
+tb_spo2_frame_parser PASS
+tb_gree_ir_axi PASS
+```
+
+原则：
+
+- testbench 必须输出清晰 PASS/FAIL。
+- 对没有完整 AXI testbench 的模块，先补最小 parser/core smoke，再计划完整覆盖。
+- 不能用“源码已迁移”替代仿真或板测证据。
 
 ### Phase 3: IP Packaging
 
-- Package only from tracked `rtl/<ip_name>/` source.
-- DHT11 should be repackaged from RTL because the handoff package does not
-  contain a complete standalone `dht11_axi` packaged IP directory.
-- Humidifier, TFT LCD, and UART SpO2 packaged metadata can be used as references,
-  but source ownership should still point back to tracked RTL.
-- Run Vivado IP integrity checks and record warnings that affect integration.
+把可复用 IP 打包到 `vivado/ip_repo/`，详细流程见 [ip_packaging_manual.md](ip_packaging_manual.md)。
 
-Status on 2026-06-03:
+检查点：
 
-- Four migrated IP packages now exist under `vivado/ip_repo/`:
-  `axi_humidifier/`, `tft_lcd_spi_axi/`, `dht11_axi/`, and `axi_uart_spo2/`.
-- Local static validation confirmed `component.xml`, `xgui/`, copied `src/`
-  files, AXI4-Lite metadata, 4096-byte memory maps, expected parameters, and
-  expected external ports.
-- Packaged HDL copies match the authoritative RTL files under `rtl/`.
-- Vivado CLI is not available in the current shell `PATH`; therefore catalog
-  refresh and BD instantiation remain Phase 4 Vivado validation tasks.
+- `component.xml` 和 `xgui/` 存在。
+- AXI4-Lite interface、clock、reset 和 memory map 可见。
+- 外部物理端口未被误归类。
+- package 内不包含板级 XDC。
+- source ownership 可追溯到 `rtl/<ip>/`。
 
-Status on 2026-06-10:
+### Phase 4: Integrated Vivado Overlay
 
-- The TX-only Gree IR AC package exists under `vivado/ip_repo/ir_ac_axi/`.
-- Local static validation confirmed `component.xml`, `xgui/`, copied `src/`
-  files, AXI4-Lite metadata, a 4096-byte memory map, expected parameters, and
-  the external `ir_pwm` output.
-- Packaged HDL copies match the authoritative RTL files under
-  `rtl/gree_ir_axi/`.
-- Vivado CLI is not available in the current shell `PATH`; therefore catalog
-  refresh and BD instantiation remain IR-4 Vivado validation tasks.
+目标 overlay：`system_v0_2`。
 
-### Phase 4: Block Design Integration
+预期 IP address map：
 
-- Build the integrated overlay from the shared `vivado/ip_repo/`; this is the
-  primary final acceptance hardware platform.
-- Add one new AXI slave at a time and run BD validation after each addition.
-- Assign non-overlapping AXI address windows in Vivado Address Editor.
-- Export matching `.bit` and `.hwh` from the same build into `vivado/gen/`.
-- Use `.hwh`/`Overlay.ip_dict` for integrated PYNQ binding. Hard-coded
-  `0x43C00000` is acceptable only in single-module legacy demos. For older
-  PYNQ images that require same-basename `.tcl` metadata, the first integrated
-  board smoke may use the documented Phase4 static address map fallback.
-- Apply one integrated XDC set that matches the accepted pin-allocation table.
-  Do not apply the old JY901 PMODA XDC in the same integrated build.
+| IP instance | Base | Notes |
+|---|---:|---|
+| `axi_i2c_jy901_v1_0_0` | `0x4000_0000` | JY901 I2C |
+| `axi_humidifier_v1_0_0` | `0x4000_1000` | Humidifier/LED |
+| `tft_lcd_spi_axi_v1_0_0` | `0x4000_2000` | TFT LCD |
+| `dht11_axi_v1_0_0` | `0x4000_3000` | DHT11 |
+| `axi_uart_spo2_v1_0_0` | `0x4000_4000` | UART SpO2 |
+| `gree_ir_axi_v1_0_0` | `0x4000_5000` | Gree IR AC TX |
 
-Phase 4 entry plan:
+集成 XDC：
 
-1. Create or open the integrated overlay project and set `ip_repo_paths` to the
-   shared `vivado/ip_repo/`.
-2. Refresh the IP catalog and confirm these IPs are discoverable:
-   `axi_i2c_jy901_v1_0`, `axi_humidifier_v1_0`,
-   `tft_lcd_spi_axi_v1_0`, `dht11_axi_v1_0`,
-   `axi_uart_spo2_v1_0`, and `gree_ir_axi_v1_0`.
-   If Vivado still reports `i2c_scl/i2c_sda` occupying PMODA `Y17/Y16`, the
-   project is using stale JY901 IP output products or an old JY901 PMODA XDC.
-   Refresh the IP catalog, upgrade/regenerate the JY901 IP instance, and ensure
-   the root JY901 package does not include `jy901_debug*.xdc` in its synthesis
-   file set.
-3. Start from a minimal Zynq PS design with 100 MHz FCLK, AXI GP master,
-   Processor System Reset, and AXI Interconnect or SmartConnect.
-4. Add one AXI slave at a time, run `Validate Design`, and only then add the
-   next IP. Recommended order for the current IR-4 update: start from the
-   existing validated JY901, humidifier, TFT LCD, DHT11, and UART SpO2 design,
-   then add Gree IR TX as the next and only new AXI slave.
-5. For the first PS-controlled humidifier path, tie `humidity_hw_valid` low and
-   `humidity_hw[7:0]` to zero; expose `humidifier_leds[3:0]` only unless the
-   scalar `humidifier_led` is intentionally constrained.
-6. For DHT11, keep the IP port `dht11` but name the BD external port `dht11_0`
-   to match `vivado/constraints/integrated/sleep_monitor_pynq_z1.xdc`.
-7. For UART SpO2, expose `uart_rxd` and `uart_txd`; leave `irq` unconnected for
-   the polling-first demo unless interrupt wiring is intentionally added.
-8. Apply only `vivado/constraints/integrated/sleep_monitor_pynq_z1.xdc` for the
-   integrated build.
-9. After full BD validation, assign non-overlapping AXI address ranges and
-   record the final address table before PYNQ driver binding.
-10. Export matching `.bit` and `.hwh` from the same build into `vivado/gen/`.
+- TFT LCD：PMODA
+- JY901：Arduino `P16/P15`
+- UART SpO2：PMODB `W14/Y14`
+- DHT11：Arduino IO11 `R17`
+- Humidifier：板载 LED
+- Gree IR AC TX：Arduino `ck_io[0]` / `T14`
 
-Final address table:
+导出 artifact：
 
-| IP instance | Base | Range | End |
-|---|---:|---:|---:|
-| `axi_i2c_jy901_v1_0_0` | `0x4000_0000` | 4K | `0x4000_0FFF` |
-| `axi_humidifier_v1_0_0` | `0x4000_1000` | 4K | `0x4000_1FFF` |
-| `tft_lcd_spi_axi_v1_0_0` | `0x4000_2000` | 4K | `0x4000_2FFF` |
-| `dht11_axi_v1_0_0` | `0x4000_3000` | 4K | `0x4000_3FFF` |
-| `axi_uart_spo2_v1_0_0` | `0x4000_4000` | 4K | `0x4000_4FFF` |
-| `gree_ir_axi_v1_0_0` | `0x4000_5000` | 4K | `0x4000_5FFF` |
+```text
+vivado/gen/system_v0_2.bit
+vivado/gen/system_v0_2.hwh
+vivado/gen/system_v0_2.tcl
+```
 
-The `gree_ir_axi_v1_0_0` address is confirmed by
-`vivado/gen/system_v0_2.hwh` and `vivado/gen/system_v0_2.tcl`.
+### Phase 5: PYNQ Board Bring-Up
 
-### Phase 5: PYNQ Runtime Integration
+本地集成 smoke 入口：
 
-- Keep reusable drivers in `.py` modules, not only notebooks.
-- Provide one small CLI or notebook-style smoke demo per module during bring-up.
-- Add the final combined acceptance program only after individual module demos
-  work against the integrated overlay.
-- Prefer PS-side control for humidifier integration: PYNQ reads DHT11 humidity,
-  then writes humidifier AXI registers. Direct PL-to-PL DHT11 valid/humidity
-  wiring is optional later validation work.
-- Keep board-side scripts compatible with
-  `/opt/python3.6/bin/python3.6`; avoid dependencies that are unavailable in
-  the recorded board runtime.
+```bash
+sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6 integrated_demo.py \
+  --bitfile /home/xilinx/jupyter_notebooks/sleep_monitor/system_v0_2.bit \
+  --samples 30 \
+  --interval 1.0
+```
 
-Status on 2026-06-10:
+检查：
 
-- IR-4 BD/build evidence was sufficient to prepare PYNQ IR runtime smoke work:
-  six custom IP instances are present, address windows are assigned, routed DRC
-  has 0 violations, route status has 0 routing errors, timing is met, and
-  bitstream generation is logged as successful.
-- A matching local integrated artifact pair exists at
-  `vivado/gen/system_v0_2.bit` and `vivado/gen/system_v0_2.hwh`; copy both,
-  plus `system_v0_2.tcl` when using the old PYNQ metadata path, to the PYNQ
-  board before runtime smoke.
-- First PYNQ smoke preferred `Overlay(...).ip_dict` to bind these instance
-  names: `axi_i2c_jy901_v1_0_0`, `axi_humidifier_v1_0_0`,
-  `tft_lcd_spi_axi_v1_0_0`, `dht11_axi_v1_0_0`,
-  `axi_uart_spo2_v1_0_0`, and `gree_ir_axi_v1_0_0`. If the board image raises
-  a missing `system_v0_2.tcl` error before exposing `ip_dict`, or if a Tcl file exists
-  but parses into an empty `ip_dict`, use
-  `integrated_demo.py --metadata-source auto` or `static` for first smoke. Then
-  rerun with `--metadata-source overlay` after exporting compatible metadata.
+- PYNQ 能加载 bitstream。
+- 可通过 `.hwh` 或 static fallback 绑定 IP。
+- JY901、DHT11、SpO2、TFT、加湿器和 IR driver 不因 import 或地址问题崩溃。
+- TFT 能显示 dashboard。
+- 加湿器 LED/status 路径可被 PS 控制。
+- IR AC TX 能返回 `done=true/error=false`；真实 AC 响应需人工观察。
 
-Status on 2026-06-12:
+### Phase 6: PC/PYNQ Software Integration
 
-- Phase 5 is closed for the TX-only Gree IR AC path.
-- Integrated overlay evidence includes PYNQ TX status
-  `done=true/error=false` and user-confirmed lab Gree AC response to
-  `power_on`, `power_off`, and `temp_26`.
-- The IR transmitter required approximately 20 cm or less from the AC receiver
-  for reliable response in the lab.
-- The next active scope is software integration around the existing board
-  drivers, PC service/dashboard, classifier adapter, comfort policy,
-  `control_command`, and `control_status`.
+最终软件路径：
 
-Phase 5 first-pass order used for bring-up:
+```text
+PYNQ board_client.py -> PC dashboard_server.py
+```
 
-1. Add an integrated overlay artifact check that refuses to run unless both
-   `.bit` and `.hwh` exist and share the same base name.
-2. Add or update a board-side driver-binding helper that prints `ip_dict`
-   instance names and resolved physical addresses.
-3. Smoke JY901 first to protect the known-good I2C path on the new `P16/P15`
-   wiring.
-4. Smoke humidifier registers in PS-controlled mode without relying on DHT11.
-5. Smoke TFT initialization and one dashboard draw at conservative `CLKDIV`.
-6. Smoke DHT11 at 1 to 2 second read intervals.
-7. Smoke UART SpO2 in 5-byte/polling mode.
-8. Smoke Gree IR TX with one safe verified preset such as `temp_26`.
-9. Only after individual smoke checks, run the combined
-   `pynq/sleep_demo/integrated_demo.py` path.
+协议 cycle：
 
-### Phase 6: Software Integration
+```text
+sensor_data -> sleep_result -> control_command -> control_status
+```
 
-- Use the handoff architecture under `handoff/sleep_socket_project/...` as the
-  reference PC demo: TCP socket, newline-delimited JSON, Excel logging, and
-  `sleep_result` response.
-- Refactor PC files now that the board-side integrated demo and IR hardware
-  validation are stable enough to provide real sensor/control evidence.
-- Keep the PC protocol mirrored in [protocol.md](protocol.md).
-- On PYNQ, implement a real client that reuses the integrated driver suite and
-  sends `sensor_data` packets. Do not keep fake sensor generation in the final
-  board client.
-- Treat Windows firewall, PC IP address, and `openpyxl` installation as demo
-  environment prerequisites.
+详细计划和运行步骤见：
 
-## Main Integration Risks
+- [protocol.md](protocol.md)
+- [software_integration_plan.md](software_integration_plan.md)
+- [software_integration_runbook.md](software_integration_runbook.md)
 
-### Pin Conflicts
-
-Original handoff/default pin maps cannot all coexist, but the integrated
-overlay pin plan now resolves the known PMODA/PMODB conflicts:
-
-| Signal group | Pins currently used | Conflict |
-|---|---|---|
-| JY901 current PMODA overlay | `i2c_scl=Y17`, `i2c_sda=Y16` | Conflicts with TFT `lcd_dc=Y17` and `lcd_res=Y16`. |
-| TFT LCD | `lcd_scl=Y18`, `lcd_sda=Y19`, `lcd_res=Y16`, `lcd_dc=Y17`, `lcd_blk=U18` | Conflicts with JY901 PMODA pins and UART SpO2 `Y18/Y19`. |
-| UART SpO2 | `uart_txd=Y18`, `uart_rxd=Y19` | Conflicts with TFT `lcd_scl/lcd_sda`. |
-| DHT11 | `dht11_0=R17` | No conflict found in the current scan. |
-| Humidifier LEDs | `R14/P14/N16/M14` | Uses PYNQ-Z1 board LEDs; verify they are not already reserved by the top design. |
-
-Integrated plan:
-
-- PMODA is reserved for TFT LCD.
-- JY901 moves to Arduino `P16/P15`.
-- UART SpO2 moves to PMODB `W14/Y14`.
-- DHT11 remains on Arduino IO11 `R17`.
-- Humidifier remains on board LEDs unless the final demo needs a different
-  visible indicator.
-
-Remaining checks:
-
-- PMODB `W14/Y14` has been confirmed from the course teaching guide table; still
-  confirm connector orientation before wiring sensor `RX(IN)` and `TX(OUT)`.
-- Confirm all selected pins are accessible with the physical wiring layout.
-- Confirm every external signal uses `LVCMOS33`; do not connect 5 V logic to PL
-  pins.
-
-### AXI Address Collisions
-
-The handoff single-module overlays commonly use `0x43C00000`. In the integrated
-overlay, every AXI-Lite slave must receive a unique address range. Do not bake
-single-module addresses into shared drivers. Use one of these patterns:
-
-- `Overlay.ip_dict[ip_name]["phys_addr"]` for integrated overlays;
-- explicit `base_addr` only for direct-MMIO debug scripts;
-- a documented address table only after the Vivado BD has been validated.
-
-### Clock And Timing Assumptions
-
-- Current mainline assumes a 100 MHz AXI/system clock unless documented.
-- DHT11 timing depends on microsecond counters; confirm its clock parameter or
-  counter math before board testing.
-- TFT SPI speed is controlled by `CLKDIV`; preserve the driver's control-bit
-  shadowing so byte sends do not accidentally drop reset or backlight bits.
-- UART SpO2 assumes 9600 baud from a 100 MHz clock; confirm the divider if
-  FCLK changes.
-- Humidifier timing uses seconds derived from `CLK_FREQ_HZ`; confirm packaging
-  parameter values in Vivado.
-
-### Protocol And Data Semantics
-
-- DHT11 read intervals should stay at or above the sensor's practical update
-  period, usually around 1 to 2 seconds.
-- Humidifier `humidity_hw_valid` should be a one-cycle pulse. If DHT11 exposes
-  a level instead, add a pulse adapter or document the repeated-sample behavior.
-- Low-risk humidifier integration uses PS control first: read humidity in PYNQ,
-  then write `SW_HUM` or control registers. Direct hardware humidity wiring is a
-  later optimization, not the first acceptance path.
-- UART SpO2 defaults to the observed 5-byte frame mode. Enable 7-byte mode only
-  when the physical sensor output is confirmed to match that format.
-- The SpO2 module may use 5 V power, but UART signals connected to PL pins must
-  be verified as 3.3 V TTL.
-- JY901 remains 3.3 V I2C with open-drain SCL/SDA and valid pullups.
-- PC socket integration uses newline-delimited JSON. The PYNQ client must send
-  the PC's real IPv4 address, not `127.0.0.1`.
-
-### AXI And Driver Semantics
-
-- Preserve write-one-pulse bits such as `clear_counter`, `start`, and
-  `clear_done`; drivers should not hold pulse bits high.
-- Check every reset value from PYNQ before relying on a module in the combined
-  runtime.
-- For generated AXI template wrappers, verify AW/W handshake assumptions against
-  PYNQ MMIO and the selected interconnect.
-- Avoid exposing raw magic offsets in notebooks; wrap MMIO access in driver
-  classes with named constants.
-
-## Behavior Regression Strategy
-
-Minimum regression set before any integrated overlay claim:
-
-| Level | Required evidence |
-|---|---|
-| Source import | Tracked source paths exist, README files name top modules and external ports, and source files match selected handoff inputs except documented changes. |
-| Existing JY901 regression | Current JY901 simulations still produce the documented PASS output, or the missing-tool reason is recorded. |
-| Imported module simulation | Each imported testbench emits PASS/FAIL and covers at least reset/default behavior plus one useful active transaction. |
-| IP packaging | Vivado IP integrity check passes or has only documented non-blocking warnings. |
-| BD integration | Vivado validates the block design after each IP addition, and external ports match the selected XDC. |
-| PYNQ driver smoke | Driver can find the IP from `.hwh` or explicit base address, read a version/status/data register, and report errors clearly. |
-| Board smoke | Physical module wiring, voltage, and a successful sample/control action are recorded. |
-| Integrated acceptance program | One program running on the integrated overlay uses the shared driver suite to demonstrate the required sensor/display/control behavior. |
-
-Do not claim an integrated system pass until multiple IPs operate together on
-one exported overlay and the board-side code reads or controls them through the
-same runtime.
-
-The final acceptance program should, at minimum, show that the integrated driver
-suite can:
-
-- read JY901 sample/status without breaking the known I2C path;
-- read DHT11 temperature/humidity when the sensor is connected;
-- read UART SpO2 BPM/SpO2 frames in the confirmed frame mode;
-- update the TFT LCD through the AXI SPI display driver;
-- control or display humidifier state through PS-side AXI writes, preferably
-  using the DHT11 value read by the PYNQ driver.
-
-Software integration extension:
-
-- send a `sensor_data` newline-JSON packet to the PC server;
-- save data to Excel through the PC handoff server;
-- receive a `sleep_result` packet and show or print the returned state.
-
-## Module-Specific Notes
-
-### JY901
-
-- Integrated overlay uses Arduino `P16/P15`, not the current PMODA `Y17/Y16`
-  overlay pinout.
-- Keep the existing PMODA JY901 overlay/debug flow documented as fallback
-  evidence and wiring reference.
-- Re-run the JY901 PYNQ smoke test after moving to `P16/P15`; a successful
-  PMODA board test does not prove the Arduino-header wiring.
+## 交接包注意事项
 
 ### DHT11
 
-- Repackage from RTL rather than relying on generated module-reference metadata.
-- Confirm the top-level bidirectional DATA port remains an inout at the top
-  level and is constrained with `PULLUP true` or an external pullup.
-- Add or preserve a testbench that emits PASS/FAIL for a valid DHT11 frame.
-- The canonical data register is `{humidity_int, humidity_dec,
-  temperature_int, temperature_dec}`.
-
-### Humidifier
-
-- Preserve the corrected LED behavior from the handoff: LEDs mirror
-  `humidifier_on`.
-- Keep PS/software-humidity mode as the first integrated demo path.
-- In the low-risk integrated program, PYNQ reads DHT11 humidity and writes
-  humidifier `SW_HUM` or related control registers.
-- Directly connecting DHT11 humidity integer and a valid pulse in PL is optional
-  later validation work after the DHT11 output timing is confirmed.
-- Treat board LEDs as an actuator simulation, not a direct load driver.
-
-### TFT LCD
-
-- Preserve the driver's CTRL shadow register behavior.
-- Keep `CLKDIV=50` as the conservative first board-test value.
-- Use the current stable display style as the first integrated UI: initialize a
-  full `SLEEP MONITOR` dashboard once, then update only numeric/status regions.
-- First refresh target is 1 Hz local UI updates. After board smoke testing,
-  attempt up to 2 Hz for faster-changing values while keeping DHT11 on its
-  slower valid sample cadence.
-- Display priority: HR, SpO2, turnover count, temperature, humidity, JY901/data
-  status, humidifier state, and PC sleep result if socket is active.
-- Avoid full-screen redraw in the periodic loop; use full redraw only during
-  initialization or error recovery.
-- Current RTL has no CS or MISO. If the display has a CS pin, tie it low only
-  if the module documentation and wiring are confirmed.
-- A byte-at-a-time AXI path is slow but acceptable for stable classroom display;
-  do not add FIFO/DMA until the current path is stable.
+- DATA 是 bidirectional one-wire，需要 pullup。
+- 集成 XDC 期望外部 BD port 为 `dht11_0`。
+- Icarus 仿真使用 `IOBUF` stub，Vivado 综合使用 primitive。
 
 ### UART SpO2
 
-- `Spo2Sample` is kept as a plain class for the recorded Python 3.6 PYNQ
-  runtime.
-- Add a frame-parser simulation or UART byte-stream test before relying on the
-  driver in the combined runtime.
-- Keep both 5-byte and 7-byte modes documented; default to the observed 5-byte
-  mode.
-- Verify signal voltage before connecting to PL pins, especially if the module
-  is powered from 5 V.
-- Integrated overlay targets PMODB pin 1/2 as `uart_txd=W14` and
-  `uart_rxd=Y14`, based on the course teaching guide table. Board bring-up
-  confirmed the physical SpO2 module's RX/TX labels must be treated as crossed;
-  if BPM/SpO2 remain `NA`, swap the two UART signal wires before changing RTL.
-- 2026-06-09 integrated board run confirmed 5-byte/polling SpO2 updates in the
-  full local demo after correcting RX/TX orientation: observed BPM `86..87`,
-  SpO2 `99`, `checksum_ok=1`, and `status_code=0`.
+- 默认 9600 baud。
+- 板测确认模块侧 RX/TX 标注需要按交叉接线处理。
+- 默认先使用 5-byte frame mode，7-byte mode 需实物确认。
 
-### PC Socket/Excel Demo
+### TFT LCD
 
-- Handoff files define a candidate PC integration path:
-  `protocol_config.py`, `excel_utils.py`, `sleep_classifier.py`,
-  `pc_server.py`, and `fake_pynq_client.py`.
-- Protocol is TCP with one JSON object per line.
-- PC server listens on `0.0.0.0:9000`; local fake client uses `127.0.0.1`.
-- PYNQ must connect to the PC's real IPv4 address.
-- `openpyxl` is required on the PC side.
-- Do not open `sleep_monitor_data.xlsx` while the server is writing it.
-- Current `pc_server/sleep_classifier.py` loads `sleep_model.bin` and performs
-  pure-Python DREAMT GRU inference. The old rule-classifier idea remains only
-  historical handoff context.
+- 当前 RTL 没有 `CS` 或 `MISO`。
+- 如果显示屏带 `CS`，需要硬件拉到有效态或后续扩展 RTL。
+- 首版 UI 由 PYNQ 绘制完整 dashboard 后只更新数值区域。
 
-## Open Decisions
+### Humidifier
 
-- Final integrated AXI address map from Vivado Address Editor.
-- Whether UART SpO2 needs interrupt wiring or polling is sufficient.
-- Whether PC socket/Excel is included in the live classroom run or demonstrated
-  after the local overlay demo as a second-stage final-system feature.
+- 首版集成使用 PS-controlled path：PYNQ 读取 DHT11 湿度后写加湿器 AXI register。
+- 直接 PL DHT11-to-humidifier 接线是后续可选验证，不是当前课堂 demo 必需项。
 
-## Completion Criteria For This Migration Step
+### Gree IR AC
 
-- This plan is tracked in `docs/`.
-- Documentation indexes reference this plan.
-- No RTL behavior is changed by documentation-only edits.
-- Future source migration has explicit target paths, risk gates, and
-  regression requirements.
+- 首版为 TX-only。
+- 支持七个已验证 preset。
+- 真实 AC 响应与距离/角度强相关；实验室确认约 20 cm 内更可靠。
+- `sent=true` 不是 AC 状态反馈。
+
+## 验收边界
+
+可以声称：
+
+- 某模块有仿真通过：只有 testbench 输出 PASS 时。
+- 某模块有板级通过：只有实际板测或用户确认测量时。
+- `system_v0_2` 集成 overlay 可用于课堂 demo：已有匹配 bit/hwh/tcl、板端 demo 和 IR 真实响应证据。
+- PC/PYNQ software first pass 可用于课堂 demo：已有 self-tests、fake client 和真实 board socket evidence。
+
+不能声称：
+
+- 睡眠状态是临床诊断。
+- `sent=true` 等于空调真实状态改变。
+- 未运行真实 board client 时，PC-integrated operation 已完成。
+- 旧 handoff 工程输出是权威设计源。
+
+## 后续工作
+
+- 课堂正式采集前校正 PYNQ 系统时间。
+- 在实验室条件允许时重新运行 dashboard + real board client 完整闭环。
+- 为最终报告保存 dashboard 截图、PYNQ 输出和四类 JSONL。
+- 后续可考虑 IR RX 或执行器反馈，但课堂 demo 前不加入 AC replay。

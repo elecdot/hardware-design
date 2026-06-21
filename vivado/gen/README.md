@@ -1,12 +1,11 @@
 # vivado/gen
 
-Temporary Vivado export artifacts go here for local PYNQ overlay use.
+这里存放供本地 PYNQ overlay 使用的临时 Vivado 导出 artifact。
 
-Expected overlay artifacts:
+预期 overlay artifact：
 
-- `.bit` bitstream from the overlay implementation run.
-- Matching `.hwh` hardware handoff from the same Block Design build.
+- overlay implementation run 生成的 `.bit` bitstream。
+- 同一 Block Design 构建导出的匹配 `.hwh` hardware handoff。
 
-Build artifacts in this directory are ignored by Git. Copying a `.bit` here is
-useful for local testing, but do not claim an overlay is ready for PYNQ unless
-the matching `.hwh` is exported with it.
+本目录中的构建 artifact 被 Git 忽略。把 `.bit` 复制到这里便于本地测试，
+但除非同时导出了匹配的 `.hwh`，否则不要声称 overlay 已可用于 PYNQ。

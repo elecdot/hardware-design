@@ -1,48 +1,44 @@
 # Waveform Scripts
 
-This directory contains helper entry points for the I2C/JY901 behavioral
-simulation waveform workflow.
+本目录包含 I2C/JY901 行为仿真波形工作流的辅助入口。
 
-## GTKWave Config Generator
+## GTKWave 配置生成器
 
-`wave_config.py` generates parameterized GTKWave save files under
-`../build/waves/` by default. It expects VCD files under `../build/vcd/`,
-matching the parent `justfile` recipes.
+`wave_config.py` 默认在 `../build/waves/` 下生成参数化 GTKWave save file。
+它期望 VCD 文件位于 `../build/vcd/`，与父级 `justfile` recipe 匹配。
 
-The parent `justfile` uses uv by default and places the uv cache under
-`build/uv-cache`:
+父级 `justfile` 默认使用 uv，并把 uv cache 放在 `build/uv-cache` 下：
 
 ```powershell
 cd sim/tb_i2c_mpu9250
 just wave-config sampler quick
 ```
 
-No third-party Python packages are required, so plain Python is also valid:
+不需要第三方 Python package，因此普通 Python 也可使用：
 
 ```powershell
 cd sim/tb_i2c_mpu9250
 python scripts/wave_config.py --bench axi --view i2c --strict
 ```
 
-List available bench/view combinations:
+列出可用的 bench/view 组合：
 
 ```powershell
 python scripts/wave_config.py --list
 ```
 
-Generate every configured GTKWave save file:
+生成所有已配置的 GTKWave save file：
 
 ```powershell
 python scripts/wave_config.py --all --strict
 ```
 
-The generator validates requested signal names against an existing VCD when
-that VCD is present. Use `--no-validate` only when preparing a save file before
-running the simulation.
+当对应 VCD 已存在时，生成器会根据该 VCD 校验请求的信号名。
+仅在运行仿真前预先准备 save file 时使用 `--no-validate`。
 
-## just Entry Points
+## just 入口
 
-From `sim/tb_i2c_mpu9250/`:
+从 `sim/tb_i2c_mpu9250/` 执行：
 
 ```powershell
 just sim
@@ -53,14 +49,13 @@ just observe-list
 just observe-i2c-bus
 ```
 
-To override the Python runner from just:
+从 just 覆盖 Python runner：
 
 ```powershell
 just --set py_run python wave-config timeout errors
 ```
 
-Direct uv invocation should also keep its cache in `build/` on locked-down
-Windows environments:
+在受限 Windows 环境中，直接调用 uv 时也应把 cache 放到 `build/` 下：
 
 ```powershell
 $env:UV_CACHE_DIR = "build/uv-cache"

@@ -1,45 +1,40 @@
 # i2c_ip_test Legacy Status
 
-This Vivado project is retained as historical reference only.
+该 Vivado 工程仅作为历史参考保留。
 
-Do not use this project as the clean entry point for new IP packaging,
-Block Design integration, or PYNQ overlay bitstream builds. It has mixed several
-different Vivado workflows in one `.xpr`:
+不要把该工程作为新 IP 打包、Block Design 集成或 PYNQ overlay bitstream 构建的干净入口。
+它把多个不同 Vivado 工作流混在一个 `.xpr` 中：
 
-- custom AXI IP packaging files;
-- full `system_experimental` Block Design integration;
-- optional PL-only `jy901_hw_debug_top` bring-up logic;
-- debug ILA XDC files and board-level pin XDC files;
-- generated IP/output products from multiple experiments.
+- 自定义 AXI IP 打包文件；
+- 完整 `system_experimental` Block Design 集成；
+- 可选 PL-only `jy901_hw_debug_top` bring-up 逻辑；
+- debug ILA XDC 文件和板级 pin XDC 文件；
+- 多次实验生成的 IP/output 产物。
 
-That mixture makes Vivado state easy to corrupt. One common failure mode is
-setting `axi_i2c_jy901_v1_0` as the top module and then running implementation;
-all AXI-Lite ports become top-level FPGA IO, leading to IO placement errors such
-as `[Place 30-58] Number of unplaced IO Ports is greater than number of
-available pins`.
+这种混合状态很容易破坏 Vivado 工程。一个常见失败模式是把 `axi_i2c_jy901_v1_0`
+设为顶层模块后运行 implementation；所有 AXI-Lite 端口都会变成顶层 FPGA IO，
+导致 `[Place 30-58] Number of unplaced IO Ports is greater than number of available pins`
+这类 IO placement 错误。
 
-## Recommended Split
+## 推荐拆分
 
-Use separate Vivado entry points for future work:
+后续工作使用独立 Vivado 入口：
 
-1. **IP packaging project**
-   - Packages `axi_i2c_jy901_v1_0` into `vivado/ip_repo/`.
-   - Does not run full-board implementation or bitstream generation.
-   - Does not include board pin constraints or debug ILA XDC files inside the
-     packaged IP.
+1. **IP 打包工程**
+   - 将 `axi_i2c_jy901_v1_0` 打包到 `vivado/ip_repo/`。
+   - 不运行整板 implementation 或 bitstream 生成。
+   - 不把板级 pin 约束或 debug ILA XDC 文件包含在已打包 IP 内部。
 
-2. **AXI/PYNQ overlay project**
-   - Instantiates the packaged IP in a Zynq Block Design.
-   - Uses a BD wrapper, such as `system_experimental_wrapper`, as the top.
-   - Exposes only real external PL ports, currently `i2c_scl` and `i2c_sda`.
-   - Uses `vivado/constraints/axi_i2c_jy901_package.xdc` for PMODA `Y17/Y16`.
-   - Generates the `.bit` and `.hwh` files for PYNQ together.
+2. **AXI/PYNQ overlay 工程**
+   - 在 Zynq Block Design 中例化已打包 IP。
+   - 使用 BD wrapper，例如 `system_experimental_wrapper`，作为顶层。
+   - 只导出真实外部 PL 端口，目前为 `i2c_scl` 和 `i2c_sda`。
+   - 对 PMODA `Y17/Y16` 使用 `vivado/constraints/axi_i2c_jy901_package.xdc`。
+   - 同时生成 PYNQ 需要的 `.bit` 和 `.hwh` 文件。
 
-3. **Optional PL-only hardware debug project**
-   - Uses `jy901_hw_debug_top.v` and debug-specific constraints.
-   - May include ILA probes during bring-up.
-   - Stays separate from the packaged AXI IP and PYNQ overlay build.
+3. **可选 PL-only 硬件调试工程**
+   - 使用 `jy901_hw_debug_top.v` 和 debug 专用约束。
+   - bring-up 期间可以包含 ILA probe。
+   - 与已打包 AXI IP 和 PYNQ overlay 构建保持分离。
 
-Current files under this directory can still be inspected for reference, but
-new reproducible build flows should be documented as Tcl scripts or separate
-Vivado projects under `vivado/project/`.
+本目录下当前文件仍可用于参考，但新的可复现构建流程应记录为 Tcl 脚本，或放在 `vivado/project/` 下的独立 Vivado 工程中。

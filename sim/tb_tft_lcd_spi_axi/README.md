@@ -1,27 +1,26 @@
 # tb_tft_lcd_spi_axi
 
-Behavioral simulation material for the TFT LCD SPI AXI IP.
+TFT LCD SPI AXI IP 的行为仿真材料。
 
-## Files
+## 文件
 
-| File | Purpose |
+| 文件 | 用途 |
 |---|---|
-| [tb_spi_lcd_master.v](tb_spi_lcd_master.v) | SPI byte transmitter testbench. |
-| [tb_tft_lcd_spi_axi.v](tb_tft_lcd_spi_axi.v) | AXI wrapper testbench. |
+| [tb_spi_lcd_master.v](tb_spi_lcd_master.v) | SPI 字节发送器 testbench。 |
+| [tb_tft_lcd_spi_axi.v](tb_tft_lcd_spi_axi.v) | AXI wrapper testbench。 |
 
-Expected PASS markers:
+预期 PASS 标记：
 
 ```text
 tb_spi_lcd_master PASS
 tb_tft_lcd_spi_axi PASS
 ```
 
-The handoff package noted that local simulator tools were unavailable on the
-packaging machine. Re-run before claiming a simulation pass in this repo.
+交接包记录：打包机器上没有可用的本地仿真工具。在本仓库声称 simulation pass 前需要重新运行。
 
-## Run
+## 运行
 
-From this directory:
+在本目录下执行：
 
 ```powershell
 iverilog -g2012 -o build/tb_spi_lcd_master.vvp tb_spi_lcd_master.v ../../rtl/tft_lcd_spi_axi/spi_lcd_master.v

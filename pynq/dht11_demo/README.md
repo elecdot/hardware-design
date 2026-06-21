@@ -1,15 +1,13 @@
 # dht11_demo
 
-PYNQ-side DHT11 demo files migrated from the teammate handoff package.
+从队友交接包迁移的 PYNQ 侧 DHT11 demo 文件。
 
-## Files
+## 文件
 
-| File | Purpose |
+| 文件 | 用途 |
 |---|---|
-| [dht11_driver.py](dht11_driver.py) | Direct MMIO DHT11 driver. |
-| [dht11_test_read.py](dht11_test_read.py) | Simple read test script. |
+| [dht11_driver.py](dht11_driver.py) | Direct MMIO DHT11 驱动。 |
+| [dht11_test_read.py](dht11_test_read.py) | 简单读数测试脚本。 |
 
-The current driver defaults to the single-module handoff address
-`0x43C00000`. Integrated overlay code should bind the IP through `.hwh` /
-`Overlay.ip_dict` or pass the Vivado-assigned base address explicitly.
-
+当前驱动默认使用单模块交接地址 `0x43C00000`。集成 overlay 代码应通过 `.hwh` /
+`Overlay.ip_dict` 绑定 IP，或显式传入 Vivado 分配的 base address。

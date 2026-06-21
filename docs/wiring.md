@@ -1,84 +1,75 @@
 # Wiring
 
-Physical module wiring and voltage notes.
+物理模块接线和电压说明。
 
-## Planned Integrated Overlay Pin Allocation
+## 计划中的集成 Overlay 引脚分配
 
-These assignments are the target for the final integrated overlay. They are
-not board-verified until the matching integrated XDC, `.bit`, `.hwh`, and PYNQ
-driver smoke test evidence exist.
+这些分配是最终集成 overlay 的目标。只有当匹配的集成 XDC、`.bit`、`.hwh`
+和 PYNQ driver smoke test 证据存在时，才算完成板级验证。
 
-| Module | Signal | PYNQ-Z1 pin/header | Notes |
+| 模块 | 信号 | PYNQ-Z1 pin/header | 说明 |
 |---|---|---|---|
-| TFT LCD | `lcd_scl` | PMODA `Y18` | PMODA is reserved for TFT LCD in the integrated build. |
-| TFT LCD | `lcd_sda` | PMODA `Y19` | SPI MOSI, write-only display path. |
-| TFT LCD | `lcd_res` | PMODA `Y16` | Active-low display reset. |
-| TFT LCD | `lcd_dc` | PMODA `Y17` | `0` command, `1` data. |
-| TFT LCD | `lcd_blk` | PMODA `U18` | Backlight enable. |
-| JY901 | `i2c_scl` | Arduino SCL `P16` | Use 3.3 V pullups; do not use the PMODA JY901 XDC in the integrated build. |
-| JY901 | `i2c_sda` | Arduino SDA `P15` | Open-drain I2C data. |
-| UART SpO2 | `uart_txd` | PMODB pin 1, `W14` | Course teaching guide lists `PMODB_1/JB1_P/W14`; board test confirmed the external module's RX/TX labels must be treated as crossed. |
-| UART SpO2 | `uart_rxd` | PMODB pin 2, `Y14` | Course teaching guide lists `PMODB_2/JB1_N/Y14`; if BPM/SpO2 stay `NA`, swap the two UART signal wires before changing RTL. |
-| DHT11 | `dht11_0` | Arduino IO11 `R17` | Bidirectional one-wire DATA with pullup. |
-| Humidifier | `humidifier_leds[3:0]` | Board LEDs `R14/P14/N16/M14` | LED output simulates an actuator; do not drive loads directly. |
-| Gree IR AC TX | `ir_pwm` | Arduino `ck_io[0]`, `T14` | TX-only first integration. Use an IR transmitter module or driver circuit; do not drive a bare IR LED directly from PL. |
+| TFT LCD | `lcd_scl` | PMODA `Y18` | 集成构建中 PMODA 预留给 TFT LCD。 |
+| TFT LCD | `lcd_sda` | PMODA `Y19` | SPI MOSI，write-only display path。 |
+| TFT LCD | `lcd_res` | PMODA `Y16` | Active-low display reset。 |
+| TFT LCD | `lcd_dc` | PMODA `Y17` | `0` command，`1` data。 |
+| TFT LCD | `lcd_blk` | PMODA `U18` | Backlight enable。 |
+| JY901 | `i2c_scl` | Arduino SCL `P16` | 使用 3.3 V pullup；集成构建中不要使用 PMODA JY901 XDC。 |
+| JY901 | `i2c_sda` | Arduino SDA `P15` | Open-drain I2C data。 |
+| UART SpO2 | `uart_txd` | PMODB pin 1, `W14` | 课程教学指南列为 `PMODB_1/JB1_P/W14`；板测确认外部模块的 RX/TX 标签需要按交叉接线理解。 |
+| UART SpO2 | `uart_rxd` | PMODB pin 2, `Y14` | 课程教学指南列为 `PMODB_2/JB1_N/Y14`；如果 BPM/SpO2 一直为 `NA`，先交换两根 UART 信号线，再考虑修改 RTL。 |
+| DHT11 | `dht11_0` | Arduino IO11 `R17` | 带 pullup 的双向 one-wire DATA。 |
+| Humidifier | `humidifier_leds[3:0]` | Board LEDs `R14/P14/N16/M14` | LED 输出模拟 actuator；不要直接驱动负载。 |
+| Gree IR AC TX | `ir_pwm` | Arduino `ck_io[0]`, `T14` | 首次集成为 TX-only。使用 IR 发射模块或驱动电路；不要从 PL 直接驱动裸 IR LED。 |
 
-All PL-connected signals must be 3.3 V logic. If a module is powered from 5 V,
-verify that its FPGA-facing signal pins are still 3.3 V TTL or add level
-shifting.
+所有连接到 PL 的信号都必须是 3.3 V logic。如果模块由 5 V 供电，
+需要确认其面向 FPGA 的信号引脚仍为 3.3 V TTL，或增加 level shifting。
 
-UART links must share ground. For the SpO2 module used in the integrated board
-test, the working orientation was confirmed only after reversing the module-side
-RX/TX wiring relative to its labels.
+UART 链路必须共地。集成板测使用的 SpO2 模块，只有在相对模块标注反接 RX/TX 后才确认工作。
 
-IR transmitter modules must share ground with the PYNQ-Z1. If a transmitter is
-powered from an external supply, verify that its `IN/SIG` pin accepts 3.3 V
-logic before connecting `ir_pwm`.
+IR 发射模块必须与 PYNQ-Z1 共地。如果发射器由外部电源供电，连接 `ir_pwm` 前必须确认其 `IN/SIG` 引脚接受 3.3 V logic。
 
 ## Gree IR AC Transmitter
 
-First integrated target:
+首个集成目标：
 
-| IR transmitter | PYNQ-Z1 | Notes |
+| IR transmitter | PYNQ-Z1 | 说明 |
 |---|---|---|
-| VCC | 3V3 or external module supply | Confirm module input remains 3.3 V-compatible if powered externally. |
-| GND | GND | Shared ground is required. |
-| IN / SIG | Arduino `ck_io[0]`, `T14` | Driven by `ir_pwm` from `gree_ir_axi_v1_0`. |
+| VCC | 3V3 或外部模块电源 | 如果外部供电，确认模块输入仍兼容 3.3 V。 |
+| GND | GND | 必须共地。 |
+| IN / SIG | Arduino `ck_io[0]`, `T14` | 由 `gree_ir_axi_v1_0` 的 `ir_pwm` 驱动。 |
 
-The handoff package's standalone test confirmed the lab Gree AC responds to the
-seven Gree YB0F2 preset commands. Integrated overlay board smoke later
-confirmed real lab AC response to `power_on`, `power_off`, and `temp_26`.
+交接包的独立测试确认，实验室 Gree AC 会响应七个 Gree YB0F2 preset 命令。
+后续集成 overlay 板级 smoke 又确认，真实实验室 AC 会响应 `power_on`、`power_off` 和 `temp_26`。
 
-In the lab setup, the IR transmitter needed to be within approximately 20 cm of
-the AC receiver for reliable response. If the AXI status reports
-`done=true/error=false` but the AC does not react, first move the transmitter
-closer to the receiver and adjust the angle before changing RTL or software.
+在实验室搭建中，IR 发射器需要距离 AC 接收头约 20 cm 以内才能可靠响应。
+如果 AXI status 报告 `done=true/error=false` 但 AC 没有反应，先把发射器移近接收头并调整角度，
+再考虑修改 RTL 或软件。
 
 ## JY901 I2C Module
 
-Use 3.3 V wiring only with PYNQ-Z1 PL I/O.
+PYNQ-Z1 PL I/O 只使用 3.3 V 接线。
 
-### Current AXI/PYNQ Overlay And PL Debug Wiring
+### 当前 AXI/PYNQ Overlay 和 PL Debug 接线
 
-The current Vivado overlay/debug projects use PMODA pins:
+当前 Vivado overlay/debug 工程使用 PMODA 引脚：
 
-| JY901 | PYNQ-Z1 | Notes |
+| JY901 | PYNQ-Z1 | 说明 |
 |---|---|---|
-| VCC | 3V3 | Do not power this I2C connection from 5 V when SCL/SDA connect to PL pins. |
-| GND | GND | Shared ground is required. |
-| SCL | PMODA `Y17` | Add or confirm 4.7 k pullup to 3.3 V. |
-| SDA | PMODA `Y16` | Add or confirm 4.7 k pullup to 3.3 V. |
+| VCC | 3V3 | 当 SCL/SDA 连接到 PL 引脚时，不要用 5 V 为该 I2C 连接供电。 |
+| GND | GND | 必须共地。 |
+| SCL | PMODA `Y17` | 增加或确认 4.7 k pullup 到 3.3 V。 |
+| SDA | PMODA `Y16` | 增加或确认 4.7 k pullup 到 3.3 V。 |
 
-Constraint files:
+约束文件：
 
-- AXI/PYNQ overlay: [../vivado/constraints/axi_i2c_jy901_package.xdc](../vivado/constraints/axi_i2c_jy901_package.xdc).
-- PL-only debug top: [../vivado/constraints/jy901_debug.xdc](../vivado/constraints/jy901_debug.xdc).
+- AXI/PYNQ overlay：[../vivado/constraints/axi_i2c_jy901_package.xdc](../vivado/constraints/axi_i2c_jy901_package.xdc)。
+- PL-only debug top：[../vivado/constraints/jy901_debug.xdc](../vivado/constraints/jy901_debug.xdc)。
 
-### Older Arduino Header Mapping
+### 旧 Arduino Header 映射
 
 [../vivado/constraints/i2c_jy901_pynq_z1.xdc](../vivado/constraints/i2c_jy901_pynq_z1.xdc)
-maps `i2c_scl` to Arduino SCL `P16` and `i2c_sda` to Arduino SDA `P15`. Use it
-only for a build that intentionally targets the Arduino header, not together
-with the PMODA mapping above.
+将 `i2c_scl` 映射到 Arduino SCL `P16`，将 `i2c_sda` 映射到 Arduino SDA `P15`。
+只有在构建目标明确是 Arduino header 时才使用它，不要与上面的 PMODA 映射同时使用。
 
-Do not hot-plug the module while PYNQ-Z1 is powered.
+PYNQ-Z1 上电时不要热插拔该模块。

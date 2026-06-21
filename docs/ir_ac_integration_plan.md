@@ -1,178 +1,132 @@
 # IR AC Integration Plan
 
-This document records the plan and closure evidence for integrating the Gree
-IR air-conditioner module into the final sleep-monitor system.
+本文档记录 TX-only Gree IR AC 的集成决策、证据和执行阶段。当前硬件集成范围已经对
+`system_v0_2` overlay 关闭：源码迁移、模块回归、IP 打包、集成 BD、PYNQ 板端 smoke
+和真实实验室空调响应均已完成。
 
-Scope boundary:
+## 关闭状态摘要
 
-- Completed implementation scope: TX-only IR hardware platform integration and
-  board demo validation, through `IR-5`.
-- Next software scope: PC/PYNQ socket integration, dashboard refactor,
-  classifier/policy integration, and end-to-end control loop. Confirmed
-  software decisions are recorded in
-  [software_integration_plan.md](software_integration_plan.md).
-
-Closure status:
-
-- Date closed: 2026-06-12.
-- Board evidence date: 2026-06-10.
-- Accepted hardware scope: TX-only `gree_ir_axi_v1_0_0` in the integrated
-  `system_v0_2` overlay.
-- Accepted commands with real lab AC response: `power_on`, `power_off`, and
-  `temp_26`.
-- Known physical limitation: the IR transmitter needed to be within
-  approximately 20 cm of the AC receiver for reliable response in the lab.
-
-Acceptance matrix:
-
-| Phase | Required evidence | Result |
+| Phase | 必需证据 | 结果 |
 |---|---|---|
-| IR-0 standalone evidence | Teammate standalone test confirms lab Gree AC responds to the handoff command set | Complete |
-| IR-1 source migration | TX-only RTL, PYNQ helper, and local docs migrated into tracked repo paths | Complete |
-| IR-2 module regression | Icarus regression emits `tb_gree_ir_axi PASS` for preset/start/done/error behavior | Complete |
-| IR-3 IP packaging | `gree_ir_axi_v1_0` packaged under `vivado/ip_repo/ir_ac_axi/` with AXI metadata and `ir_pwm` | Complete |
-| IR-4 integrated overlay | `system_v0_2.bit/.hwh/.tcl` exported; address `0x40005000`; `ir_pwm=T14`; DRC/route/timing pass | Complete |
-| IR-5 board bring-up | PYNQ TX status is `done=true/error=false`; real AC responds to `power_on`, `power_off`, `temp_26` | Complete |
+| IR-0 standalone evidence | 队友独立测试确认实验室 Gree AC 响应交接命令集 | Complete |
+| IR-1 source migration | TX-only RTL、PYNQ helper 和本地文档迁入跟踪路径 | Complete |
+| IR-2 module regression | Icarus regression 对 preset/start/done/error 行为输出 `tb_gree_ir_axi PASS` | Complete |
+| IR-3 IP packaging | `gree_ir_axi_v1_0` 已打包到 `vivado/ip_repo/ir_ac_axi/`，包含 AXI metadata 和 `ir_pwm` | Complete |
+| IR-4 integrated overlay | 导出 `system_v0_2.bit/.hwh/.tcl`；地址 `0x40005000`；`ir_pwm=T14`；DRC/route/timing 通过 | Complete |
+| IR-5 board bring-up | PYNQ TX status 为 `done=true/error=false`；真实 AC 响应 `power_on`、`power_off`、`temp_26` | Complete |
 
-## Confirmed Decisions
+## 已确认决策
 
 | Topic | Decision |
 |---|---|
-| Scope | First integrated version is TX-only. `ir_capture_axi` remains a standalone validation tool. |
-| Pin | Use `ir_pwm` on Arduino `ck_io[0]`, package pin `T14`, from the handoff XDC. |
-| Command set | Only expose the seven verified Gree YB0F2 presets: `power_on`, `power_off`, `temp_24`, `temp_25`, `temp_26`, `temp_27`, `temp_28`. |
-| Standalone evidence | The teammate completed standalone module testing and confirmed the lab Gree AC responds. |
-| Control ownership | PC policy owns automatic AC and humidifier decisions. PYNQ validates and executes commands. |
-| PYNQ fallback | Local PYNQ humidifier automation remains only for bring-up/fallback, not the final automatic policy owner. |
-| Protocol | Add `control_command` from PC to PYNQ and `control_status` from PYNQ to PC. |
-| Soft architecture | Build a PYNQ top-level orchestrator class and a PC-side integration service/policy layer. |
+| Scope | 首个集成版本为 TX-only。`ir_capture_axi` 保留为独立验证工具。 |
+| Pin | 使用交接 XDC 中的 Arduino `ck_io[0]` / package pin `T14` 输出 `ir_pwm`。 |
+| Command set | 只暴露七个已验证 Gree YB0F2 preset：`power_on`、`power_off`、`temp_24`、`temp_25`、`temp_26`、`temp_27`、`temp_28`。 |
+| Standalone evidence | 队友已完成独立模块测试，并确认实验室 Gree AC 响应。 |
+| Control ownership | PC policy 拥有自动 AC 和加湿器决策；PYNQ 负责校验和执行命令。 |
+| PYNQ fallback | 本地 PYNQ 加湿器自动化只保留为 bring-up/fallback，不是最终自动策略 owner。 |
+| Protocol | 增加 PC 到 PYNQ 的 `control_command`，以及 PYNQ 到 PC 的 `control_status`。 |
+| Soft architecture | 构建 PYNQ 顶层 orchestrator class 和 PC 侧 integration service/policy layer。 |
 
-## Handoff Source Facts
+## 交接源码事实
 
-Source package:
+参考目录：
 
 ```text
 handoff/gree_ir_txrx_hardware_package/
 ```
 
-Relevant files:
+迁移到本仓库的 TX-only 源码：
 
 ```text
 synthesis/vivado/rtl/tx/gree_ir_core.v
 synthesis/vivado/rtl/tx/gree_ir_axi_v1_0.v
 synthesis/vivado/rtl/tx/gree_ir_axi_v1_0_S00_AXI.v
 synthesis/vivado/constraints/pynq_z1_ir_txrx.xdc
-pynq/ir_txrx.py
-pynq/gree_yb0f2_command_library_7.json
-docs/register_map.md
-docs/wiring.md
 ```
 
-Standalone TX register map from the handoff package:
+首版寄存器：
 
 | Offset | Name | Description |
 |---:|---|---|
-| `0x00` | `CONTROL` | bit0 `start`, bit1 `soft_reset`. |
-| `0x04` | `STATUS` | bit0 `busy`, bit1 `done`, bit2 `error`. |
-| `0x08` | `CMD_LOW` | Low 32 bits of selected compatibility command. |
-| `0x0C` | `CMD_HIGH` | High 32 bits of selected compatibility command. |
-| `0x10` | `PRESET` | 67-bit waveform preset selector. |
-| `0x14` | `DEBUG` | Core state and sample index. |
+| `0x00` | `CONTROL` | bit0 `start`，bit1 `soft_reset`。 |
+| `0x04` | `STATUS` | bit0 `busy`，bit1 `done`，bit2 `error`。 |
+| `0x08` | `CMD_LOW` | selected compatibility command 的低 32 bit。 |
+| `0x0C` | `CMD_HIGH` | selected compatibility command 的高 32 bit。 |
+| `0x10` | `PRESET` | 67-bit waveform preset selector。 |
+| `0x14` | `DEBUG` | core state 和 sample index。 |
 
-The TX RTL sends 67-bit Gree YB0F2 commands from preset ROM. It is not a
-general Gree protocol encoder, and raw arbitrary command transmission is not
-part of the first integrated scope.
+## 硬件安全
 
-## Hardware Safety
+- PYNQ-Z1 PL 引脚只接受 3.3 V logic。
+- 不要从 FPGA 引脚直接驱动裸 IR LED；使用 IR 发射模块或晶体管/MOSFET 驱动。
+- 模块必须与 PYNQ-Z1 共地。
+- 板子上电时不要热插拔 IR 模块。
+- 真实空调响应需要人工观察；`sent=true` 只表示发射完成。
 
-- All PYNQ-Z1 PL-facing IR module signals must be 3.3 V logic.
-- Do not drive a bare IR LED directly from an FPGA pin.
-- Use an IR transmitter module or a transistor/MOSFET driver for a bare IR LED.
-- If the IR transmitter has an external supply, connect its ground to PYNQ
-  ground and confirm the signal input is 3.3 V-compatible.
-- Do not hot-plug modules while the board is powered.
+## 集成硬件结果
 
-## Integrated Hardware Result
-
-Only the TX IP is included in the integrated Vivado overlay.
-
-Tracked sources:
+生成 artifact：
 
 ```text
-rtl/gree_ir_axi/
-  gree_ir_core.v
-  gree_ir_axi_v1_0.v
-  gree_ir_axi_v1_0_S00_AXI.v
+vivado/gen/system_v0_2.bit
+vivado/gen/system_v0_2.hwh
+vivado/gen/system_v0_2.tcl
 ```
 
-External port:
-
-```text
-ir_pwm
-```
-
-Integrated constraint:
-
-```tcl
-set_property -dict { PACKAGE_PIN T14 IOSTANDARD LVCMOS33 } [get_ports ir_pwm]
-```
-
-Integrated address:
+集成地址：
 
 | IP instance | Base | Range | Notes |
 |---|---:|---:|---|
-| `gree_ir_axi_v1_0_0` | `0x4000_5000` | 4K | Confirmed by `system_v0_2.hwh` and `system_v0_2.tcl`. |
+| `gree_ir_axi_v1_0_0` | `0x4000_5000` | 4K | 由 `system_v0_2.hwh` 和 `system_v0_2.tcl` 确认。 |
 
-The 4K range matches the existing integrated overlay style and is the address
-used by the PYNQ board smoke command.
+外部端口：
 
-## Protocol Plan
+```text
+ir_pwm -> Arduino ck_io[0] -> T14
+```
 
-Keep `sleep_result` as classification output only. Device actuation uses
-`control_command`.
+XDC 端口位置：
 
-PC to PYNQ:
+```tcl
+set_property PACKAGE_PIN T14 [get_ports ir_pwm]
+```
+
+## 协议计划
+
+`sleep_result` 保持为分类输出。设备执行使用 `control_command`。
+
+PC 到 PYNQ：
 
 ```json
 {
   "type": "control_command",
-  "timestamp": "2026-06-09 21:00:00",
   "sample_id": 123,
   "mode": "auto",
   "policy_id": "comfort_v1",
   "targets": {
-    "ir_ac": {
-      "enabled": true,
-      "command": "temp_26",
-      "temperature_setpoint_c": 26
-    },
-    "humidifier": {
-      "enabled": true
-    }
+    "ir_ac": {"command": "temp_26", "temperature_setpoint_c": 26},
+    "humidifier": {"enabled": true}
   },
   "valid": 1,
   "reason": "light_sleep_temp_high_humidity_low"
 }
 ```
 
-PYNQ to PC:
+PYNQ 到 PC：
 
 ```json
 {
   "type": "control_status",
-  "timestamp": "2026-06-09 21:00:01",
   "sample_id": 123,
   "accepted": 1,
   "applied": {
     "ir_ac": {
+      "requested": true,
       "command": "temp_26",
       "sent": true,
       "skipped": false,
-      "skip_reason": null
-    },
-    "humidifier": {
-      "enabled": true,
-      "applied": true
+      "error": null
     }
   },
   "status_code": 0,
@@ -180,205 +134,152 @@ PYNQ to PC:
 }
 ```
 
-Protocol rules:
+协议边界：
 
-- `sleep_result` remains PC classifier output.
-- `control_command.targets` describes the full desired actuator state for a
-  sample, not a single isolated action.
-- PYNQ must reject unknown targets and unknown IR commands.
-- PYNQ must send `control_status` for accepted, skipped, and rejected commands.
+- `sleep_result` 仍是 PC classifier output。
+- `control_command.targets` 描述一个 sample 的期望 actuator target。
+- PYNQ 必须对 accepted、skipped 和 rejected command 都发送 `control_status`。
+- AC command 是一次性 IR pulse，不等于真实 AC 状态反馈。
 
-## Automatic Policy Plan
+## 自动策略计划
 
-The PC policy combines:
-
-- sleep state classification: `0` awake/not asleep, `1` light sleep, `2` deep
-  sleep;
-- environment data: temperature and humidity;
-- latest known actuator state;
-- command cooldown state.
-
-Sleep-state aggressiveness profile:
+PC policy 负责自动舒适度策略。首版策略保持保守：
 
 | Sleep state | Meaning | Aggressiveness | Policy intent |
 |---:|---|---:|---|
-| `0` | Not asleep / awake | `1.0` | Narrow comfort band, faster correction. |
-| `1` | Light sleep | `0.6` | Moderate correction. |
-| `2` | Deep sleep | `0.3` | Wider acceptance band, avoid disturbance. |
+| `0` | Not asleep / awake | `1.0` | 较窄舒适区，较快修正。 |
+| `1` | Light sleep | `0.6` | 中等修正。 |
+| `2` | Deep sleep | `0.3` | 更宽容，避免打扰。 |
 
-First-version comfort policy:
+规则：
 
-- Humidity comfort target: roughly `40..60% RH`.
-- If humidity is clearly low, prefer humidifier control before AC changes.
-- If humidity is high, suppress humidifier.
-- Temperature setpoint should stay within the verified IR command set
-  `24..28 C`.
-- Deep sleep should avoid frequent or aggressive changes unless temperature or
-  humidity is clearly outside the comfort band.
-- Manual dashboard mode overrides automatic policy intent, but PYNQ hardware
-  safety limits still apply.
-- Invalid or missing sensor/classifier data should produce a no-action
-  `control_command` with an explanatory `reason`.
+- `state_valid != 1` 时输出 no-action `control_command` 并说明 `reason`。
+- 湿度偏低时请求加湿器打开，湿度偏高时请求关闭。
+- 温度明显偏高时可发送 `temp_26`、`temp_25` 或 `temp_24`。
+- 温度明显偏低时可发送 `temp_27` 或 `temp_28`。
+- IR command 必须有最小间隔和重复命令 cooldown。
 
-Cooldown recommendations:
+建议 cooldown：
 
 | Mode | Same IR command repeat | Any IR command minimum interval |
-|---|---:|---:|
+|---|---|---|
 | Demo | 30 to 60 s | 5 s |
 | Normal | 5 to 10 min | 5 s |
 
-PYNQ execution layer hard guards:
+## 软件架构移交
 
-- `IR_MIN_INTERVAL_S = 5`
-- `IR_REPEAT_COOLDOWN_S = 60` for demo defaults
-- Same IR command inside repeat cooldown is skipped and reported.
-- Different IR command inside the minimum hardware interval is skipped or
-  deferred and reported.
-
-## Software Architecture Handoff
-
-The confirmed software direction is summarized here only to keep the IR
-hardware plan aligned with the final system. The executable software plan is
-[software_integration_plan.md](software_integration_plan.md).
-
-PYNQ side:
+PYNQ 侧：
 
 ```text
 SleepMonitorBoard / BoardOrchestrator
-  - binds integrated overlay IPs
-  - reads JY901, DHT11, SpO2
-  - updates TFT
-  - applies humidifier target state
-  - applies IR AC command through gree_ir_axi
-  - enforces actuator validation and rate limits
+  - bind integrated overlay IPs
+  - read sensors
+  - update TFT
+  - validate/rate-limit actuator commands
+  - execute humidifier target and IR one-shot command
   - builds control_status
 ```
 
-PC side:
+PC 侧：
 
 ```text
-PcIntegrationService
-  - socket server
-  - classifier adapter, later replaceable by neural network output
-  - comfort policy engine
-  - dashboard state
-  - storage/logger
+SleepMonitorPcService
+  - validates sensor_data
+  - runs classifier adapter
+  - runs comfort policy
+  - stores four record streams
+  - updates dashboard state
 ```
 
-`pc_server/` currently contains demo-quality code. It may be refactored to make
-the final software integration stable. The final design should preserve the
-protocol contract first, then adapt `dashboard_server.py`, `pc_server.py`, and
-Excel logging around that contract.
+`pc_server/` 中的旧 demo-quality 文件可以重构；它们不是最终架构约束。
 
-## IR Hardware Execution Plan
+## 硬件执行记录
 
 ### IR-0: Standalone Evidence Capture
 
-- Record the teammate-provided standalone test result in `docs/test_plan.md`.
-- Preserve the distinction between standalone AC response and integrated overlay
-  response.
-- Minimum evidence: lab Gree AC responds to at least one preset command.
-- Preferred evidence: `power_on`, one temperature command such as `temp_26`,
-  and `power_off` all respond.
+队友独立测试确认实验室 Gree AC 会响应交接命令集。该证据作为迁移入口，但不替代本仓库集成验证。
 
 ### IR-1: Source Migration Skeleton
 
-Status: complete.
+迁移产物：
 
-- Copy TX-only RTL into `rtl/gree_ir_axi/`.
-- Copy or adapt the PYNQ TX driver into `pynq/ir_ac_demo/`.
-- Do not migrate RX RTL into the first integrated source path.
-- Add local README files for the new RTL and PYNQ subtrees.
-- Update `rtl/README.md`, `pynq/README.md`, `docs/wiring.md`, and
-  `docs/register_map.md`.
+- [../rtl/gree_ir_axi/](../rtl/gree_ir_axi/)
+- [../pynq/ir_ac_demo/](../pynq/ir_ac_demo/)
+- [register_map.md](register_map.md)
+- [wiring.md](wiring.md)
+- [test_plan.md](test_plan.md)
 
 ### IR-2: Module Regression
 
-Status: complete.
+本地证据：2026-06-10 使用 Icarus Verilog 运行，输出 `tb_gree_ir_axi PASS`。
 
-- Add a focused simulation for TX preset selection and done/error behavior.
-- Test at least one preset and ideally all seven preset IDs.
-- Testbench output must include explicit PASS/FAIL.
-- This does not claim real AC behavior; it only validates RTL behavior.
-- Local evidence: `tb_gree_ir_axi PASS` with Icarus Verilog on 2026-06-10.
+覆盖行为：
+
+- reset 默认值；
+- 七个 preset shadow；
+- `start` 到 `done`；
+- done/error clear；
+- busy 期间重复 start 触发 error；
+- soft reset。
 
 ### IR-3: IP Packaging
 
-Status: complete.
+`gree_ir_axi_v1_0` 已打包到 `vivado/ip_repo/ir_ac_axi/`。静态验证内容包括：
 
-- Package `gree_ir_axi_v1_0` from tracked `rtl/gree_ir_axi/`.
-- Keep RX package out of the first integrated IP repo unless intentionally
-  needed for validation.
-- Validate AXI4-Lite metadata, external port `ir_pwm`, parameters, and source
-  file sets.
-- Local static validation on 2026-06-10 confirmed package output under
-  `vivado/ip_repo/ir_ac_axi/`, matching packaged HDL hashes, 4K AXI memory map,
-  `ir_pwm` output, and default timing parameters.
+- `component.xml`、`xgui/` 和 `src/` 存在；
+- packaged HDL SHA256 与 `rtl/gree_ir_axi/` 匹配；
+- AXI4-Lite metadata、4096-byte memory map、parameter default 正确；
+- 外部 `ir_pwm` 存在；
+- IP package 内不嵌入板级 pin constraint。
 
 ### IR-4: Integrated Vivado Overlay
 
-Status: complete.
+IR IP 已加入集成 Block Design：
 
-- Add `gree_ir_axi_v1_0_0` as the next AXI slave.
-- Address is `0x4000_5000` with a 4K range in the exported `system_v0_2.hwh`.
-- Expose `ir_pwm` and constrain it to `T14`.
-- Repo-side XDC preparation is in
-  `vivado/constraints/integrated/sleep_monitor_pynq_z1.xdc`; the BD external
-  port must be named exactly `ir_pwm` for that constraint to match.
-- Run BD validation, synthesis, implementation, DRC, route status, timing, and
-  bitstream generation.
-- Exported matching `system_v0_2.bit`, `system_v0_2.hwh`, and
-  `system_v0_2.tcl` into `vivado/gen/`.
-- Known methodology warnings are recorded in [test_plan.md](test_plan.md);
-  they did not block board smoke but should guide debugging if IR TX behaves
-  unexpectedly.
+- instance：`gree_ir_axi_v1_0_0`
+- address：`0x4000_5000`，range 4K
+- AXI port：连接到 `ps7_0_axi_periph/M05_AXI`
+- clock/reset：连接到 `processing_system7_0/FCLK_CLK0` 和 `rst_ps7_0_50M/peripheral_aresetn`
+- external port：`ir_pwm`
+- pin：`T14`
+- 导出 artifact：`system_v0_2.bit`、`system_v0_2.hwh`、`system_v0_2.tcl`
+
+路由 DRC、route status、timing summary 和 bitstream 输出均已记录为通过。
 
 ### IR-5: PYNQ Board Bring-Up
 
-Status: complete.
+板端命令：
 
-- Integrated static metadata fallback is prepared with
-  `gree_ir_axi_v1_0_0 @ 0x4000_5000` and validated on the board.
-- TX-only board smoke sent verified presets from the integrated overlay.
-- TX status was recorded with `done=true`, `error=false` for `temp_26`.
-- User confirmed the lab Gree AC responded to `power_on`, `power_off`, and
-  `temp_26` from the integrated overlay.
+```bash
+demo_ir_ac.py --bitfile /home/xilinx/jupyter_notebooks/sleep_monitor/system_v0_2.bit --base-addr 0x40005000 --command temp_26 --timeout 15.0
+```
 
-Board evidence captured on 2026-06-10:
+结果：
 
-- Command:
-  `demo_ir_ac.py --bitfile /home/xilinx/jupyter_notebooks/sleep_monitor/system_v0_2.bit --base-addr 0x40005000 --command temp_26 --timeout 15.0`
-- Result after TX:
-  `busy=false`, `done=true`, `error=false`, `preset=5`,
-  `command=temp_26`, `raw_status=2`.
-- Operator-confirmed real AC response: `power_on`, `power_off`, and `temp_26`.
-- Important physical limitation: the IR transmitter needed to be within
-  approximately 20 cm of the AC receiver for reliable response in the lab.
+- PYNQ status 显示 `done=true`、`error=false`。
+- `power_on`、`power_off` 和 `temp_26` 均让实验室 Gree AC 响应。
+- 可靠响应需要 IR 发射器距离 AC 接收头约 20 cm 以内并对准。
 
-## Software Integration Handoff
+## 软件集成移交
 
-With `IR-5` complete, continue with
-[software_integration_plan.md](software_integration_plan.md). Target final flow:
+最终软件闭环：
 
 ```text
-PYNQ reads sensors
+PYNQ sends sensor_data
 PC receives sensor_data
 PC classifier emits sleep_result
 PC policy emits control_command
-PYNQ applies humidifier and/or IR AC target
+PYNQ executes/skips/rejects command
 PYNQ sends control_status
-PC dashboard/logs show the full loop
+PC stores and displays all four records
 ```
 
-## Hardware Closure
+后续实现以 [software_integration_plan.md](software_integration_plan.md) 和
+[software_integration_runbook.md](software_integration_runbook.md) 为准。
 
-No open item remains for the TX-only IR AC hardware-integration scope. Do not
-add IR RX or arbitrary raw Gree encoding to this closed scope; treat those as
-new feature requests with their own validation plan.
+## 已知限制
 
-Software items now move to [software_integration_plan.md](software_integration_plan.md):
-
-- `control_command` and `control_status` are planned but not implemented.
-- The PYNQ top-level orchestrator class is planned but not implemented.
-- PC policy defaults need implementation and test fixtures.
-- Board system time must be corrected before timestamp-sensitive PC logging.
+- 首版 IR AC 是 TX-only，没有 RX capture 或真实 AC 状态反馈。
+- `sent=true` 不能单独证明真实空调响应。
+- Dashboard desired-state panel 只能显示推导状态，不得自动重放 AC desired state。
+- 课堂 demo 前不要添加 AC replay；只保留手动一次性 pending command 和保守自动策略。

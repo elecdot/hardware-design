@@ -1,19 +1,18 @@
 # tft_lcd_demo
 
-PYNQ-side TFT LCD demo files migrated from the teammate handoff package.
+从队友交接包迁移的 PYNQ 侧 TFT LCD demo 文件。
 
-## Files
+## 文件
 
-| File | Purpose |
+| 文件 | 用途 |
 |---|---|
-| [tft_lcd.py](tft_lcd.py) | Reusable ST7789 AXI SPI display driver. |
-| [demo_color_bars.py](demo_color_bars.py) | Simple color-bar demo. |
-| [jupyter_tft_display_working.py](jupyter_tft_display_working.py) | Handoff's board-tested display UI/reference script. |
+| [tft_lcd.py](tft_lcd.py) | 可复用的 ST7789 AXI SPI 显示驱动。 |
+| [demo_color_bars.py](demo_color_bars.py) | 简单色条 demo。 |
+| [jupyter_tft_display_working.py](jupyter_tft_display_working.py) | 交接包中已板测的显示 UI/参考脚本。 |
 
-First integrated display target:
+首个集成显示目标：
 
-- keep `CLKDIV=50`;
-- draw the full `SLEEP MONITOR` dashboard once;
-- update only numeric/status regions in the loop;
-- start at 1 Hz and try up to 2 Hz after board smoke testing.
-
+- 保持 `CLKDIV=50`；
+- 先绘制完整 `SLEEP MONITOR` dashboard；
+- 循环中只更新数值/状态区域；
+- 从 1 Hz 开始，板级 smoke test 后再尝试提升到 2 Hz。

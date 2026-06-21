@@ -1,11 +1,10 @@
 # Protocol
 
-PYNQ-to-PC socket payload format for the PC logging/classification path. This
-path is now the current software-integration scope after the integrated
-`system_v0_2` board demo and TX-only IR AC validation. Use this
-newline-delimited JSON protocol for the first end-to-end PC/PYNQ integration.
+PC logging/classification 路径使用的 PYNQ 到 PC socket payload 格式。
+在集成 `system_v0_2` 板级 demo 和 TX-only IR AC 验证后，该路径是当前软件集成范围。
+首个端到端 PC/PYNQ 集成使用这个 newline-delimited JSON 协议。
 
-Reference handoff:
+参考交接包：
 
 ```text
 handoff/sleep_socket_project/sleep_socket_project/
@@ -13,21 +12,17 @@ handoff/sleep_socket_project/sleep_socket_project/
 
 ## Transport
 
-- TCP socket.
-- PC server listens on `0.0.0.0:9000`.
-- PYNQ client must connect to the PC's real IPv4 address, not `127.0.0.1`.
-- Each message is one JSON object encoded as UTF-8 and terminated by `\n`.
-- The newline terminator is required so the receiver can split TCP byte streams
-  into complete messages.
-- First version supports one active PYNQ client. A second client should be
-  rejected or closed clearly.
-- For each `sensor_data`, PC sends exactly two response messages in order:
-  `sleep_result`, then `control_command`.
-- PYNQ sends one `control_status` after handling each `control_command`.
-- A no-action policy decision is still sent as a `control_command` with empty
-  `targets` and a clear `reason`.
+- TCP socket。
+- PC server 监听 `0.0.0.0:9000`。
+- PYNQ client 必须连接 PC 的真实 IPv4 地址，而不是 `127.0.0.1`。
+- 每条 message 是一个 UTF-8 编码 JSON object，并以 `\n` 结尾。
+- 必须包含 newline terminator，这样接收端才能把 TCP byte stream 分割成完整 message。
+- 第一版支持一个 active PYNQ client。第二个 client 应被明确拒绝或关闭。
+- 对每条 `sensor_data`，PC 按顺序发送两个 response message：`sleep_result`，然后 `control_command`。
+- PYNQ 在处理每个 `control_command` 后发送一个 `control_status`。
+- no-action policy decision 仍以 `control_command` 发送，`targets` 为空，并带清晰 `reason`。
 
-First-version cycle:
+第一版 cycle：
 
 ```text
 PYNQ -> PC: sensor_data
@@ -38,7 +33,7 @@ PYNQ -> PC: control_status
 
 ## PYNQ To PC: sensor_data
 
-The board-side client sends `sensor_data` packets.
+板端 client 发送 `sensor_data` packet。
 
 ```json
 {
@@ -74,44 +69,42 @@ The board-side client sends `sensor_data` packets.
 }
 ```
 
-Minimum first-version fields:
+第一版最小字段：
 
 | Field | Meaning |
 |---|---|
-| `type` | Must be `sensor_data`. |
-| `timestamp` | Board-side or client-side timestamp string. |
-| `sample_id` | Monotonic sample number. |
-| `heart_rate_bpm` | Heart rate from UART SpO2; use `null` if unavailable. |
-| `spo2_percent` | SpO2 from UART SpO2; use `null` if unavailable. |
-| `accel_x`, `accel_y`, `accel_z` | JY901 acceleration values, preferably scaled in g. |
-| `gyro_x`, `gyro_y`, `gyro_z` | Optional JY901 gyro values; may be `null`. |
-| `mag_x`, `mag_y`, `mag_z` | Optional JY901 magnetometer values; may be `null`. |
-| `turnover_flag` | `1` when the current sample indicates a turnover event, otherwise `0`. |
-| `turnover_count` | Cumulative turnover count. |
-| `temperature_c` | DHT11 or available temperature in degrees C. |
-| `humidity_percent` | DHT11 humidity in percent RH. |
-| `data_valid` | `1` when the packet is usable for PC classification. First-version classifier usability is based on valid HR/SpO2; a JY901-only failure should not force this to `0`. |
-| `imu_valid` | Optional quality flag: `1` when the current sample contains a fresh JY901/IMU read. |
-| `imu_stale` | Optional quality flag: `1` when IMU values were carried forward from a recent previous read after a retry failure. |
-| `spo2_valid` | Optional quality flag: `1` when HR/SpO2 fields are present and checksum/sensor flags are acceptable. |
-| `env_valid` | Optional quality flag: `1` when temperature/humidity fields are current or from the DHT11 cache. |
-| `status_code` | Board-side status code; `0` means no known error for the packet. |
-| `checksum_ok` | `1` when parsed sensor payloads passed their own checks. |
-| `jy901_status` | Optional JY901 status label such as `OK`, `ERR`, or `STALE`. |
-| `jy901_attempts` | Optional number of JY901 read attempts made for this sample. |
-| `jy901_stale_s` | Optional age in seconds of reused IMU data when `imu_stale=1`; otherwise `null`. |
-| `remark` | Short debug/status text. |
+| `type` | 必须为 `sensor_data`。 |
+| `timestamp` | 板端或 client 侧 timestamp string。 |
+| `sample_id` | 单调递增 sample number。 |
+| `heart_rate_bpm` | 来自 UART SpO2 的心率；不可用时使用 `null`。 |
+| `spo2_percent` | 来自 UART SpO2 的 SpO2；不可用时使用 `null`。 |
+| `accel_x`, `accel_y`, `accel_z` | JY901 加速度值，推荐缩放为 g。 |
+| `gyro_x`, `gyro_y`, `gyro_z` | 可选 JY901 gyro 值；可为 `null`。 |
+| `mag_x`, `mag_y`, `mag_z` | 可选 JY901 magnetometer 值；可为 `null`。 |
+| `turnover_flag` | 当前 sample 表示一次翻身事件时为 `1`，否则为 `0`。 |
+| `turnover_count` | 累计翻身次数。 |
+| `temperature_c` | DHT11 或可用温度，单位摄氏度。 |
+| `humidity_percent` | DHT11 湿度，单位 percent RH。 |
+| `data_valid` | packet 可用于 PC classification 时为 `1`。第一版 classifier usability 基于有效 HR/SpO2；仅 JY901 失败不应强制置 `0`。 |
+| `imu_valid` | 可选 quality flag：当前 sample 包含新鲜 JY901/IMU read 时为 `1`。 |
+| `imu_stale` | 可选 quality flag：retry 失败后复用最近 IMU 值时为 `1`。 |
+| `spo2_valid` | 可选 quality flag：HR/SpO2 字段存在且 checksum/sensor flag 可接受时为 `1`。 |
+| `env_valid` | 可选 quality flag：温湿度字段为当前值或来自 DHT11 cache 时为 `1`。 |
+| `status_code` | 板端 status code；`0` 表示该 packet 无已知错误。 |
+| `checksum_ok` | 已解析 sensor payload 通过自身检查时为 `1`。 |
+| `jy901_status` | 可选 JY901 status label，例如 `OK`、`ERR` 或 `STALE`。 |
+| `jy901_attempts` | 可选字段，本 sample 进行的 JY901 read attempt 数。 |
+| `jy901_stale_s` | 可选字段，`imu_stale=1` 时复用 IMU 数据的年龄，单位秒；否则为 `null`。 |
+| `remark` | 简短 debug/status 文本。 |
 
-The board may still set JY901-related bits in `status_code` and preserve
-`remark="jy901:..."` for observability while keeping `data_valid=1` if HR/SpO2
-are valid. PC warm-up and automatic policy must not reset only because the
-JY901 module had a transient read failure.
+为了可观察性，板端仍可在 `status_code` 中设置 JY901 相关 bit，并保留 `remark="jy901:..."`；
+只要 HR/SpO2 有效，就可以保持 `data_valid=1`。PC warm-up 和自动策略不应只因为 JY901
+模块瞬时读取失败而重置。
 
 ## PC To PYNQ: sleep_result
 
-The PC server sends one `sleep_result` packet after receiving each
-`sensor_data` packet. This message is classification output only; it must not
-encode device-control actions.
+PC server 在收到每条 `sensor_data` 后发送一条 `sleep_result` packet。
+该 message 只表示分类输出，不得编码设备控制动作。
 
 ```json
 {
@@ -126,21 +119,20 @@ encode device-control actions.
 
 | Field | Meaning |
 |---|---|
-| `type` | Must be `sleep_result`. |
-| `timestamp` | PC-side result timestamp. |
-| `sample_id` | Echoes the input sample ID. |
-| `sleep_state_code` | `0` awake/not asleep, `1` light sleep, `2` deep sleep. |
-| `state_valid` | `1` when the PC classifier result is valid. |
-| `remark` | Classifier/debug status text. |
+| `type` | 必须为 `sleep_result`。 |
+| `timestamp` | PC 侧 result timestamp。 |
+| `sample_id` | 回显 input sample ID。 |
+| `sleep_state_code` | `0` awake/not asleep，`1` light sleep，`2` deep sleep。 |
+| `state_valid` | PC classifier result 有效时为 `1`。 |
+| `remark` | Classifier/debug status text。 |
 
-If `state_valid != 1`, automatic policy must not change AC or humidifier state.
-PC still sends a no-action `control_command` after this `sleep_result`.
+如果 `state_valid != 1`，自动策略不得改变 AC 或加湿器状态。
+PC 仍会在该 `sleep_result` 之后发送 no-action `control_command`。
 
 ## PC To PYNQ: control_command
 
-Device actuation uses a separate message from `sleep_result`. The PC policy
-owns automatic AC and humidifier decisions; PYNQ validates and executes the
-desired actuator targets.
+设备执行使用独立于 `sleep_result` 的 message。PC policy 负责自动 AC 和加湿器决策；
+PYNQ 校验并执行期望 actuator target。
 
 ```json
 {
@@ -163,7 +155,7 @@ desired actuator targets.
 }
 ```
 
-No-action example:
+No-action 示例：
 
 ```json
 {
@@ -178,47 +170,43 @@ No-action example:
 }
 ```
 
-Field rules:
+字段规则：
 
 | Field | Meaning |
 |---|---|
-| `type` | Must be `control_command`. |
-| `timestamp` | PC-side command timestamp. |
-| `sample_id` | Matches the triggering `sensor_data` sample. |
-| `mode` | `auto` or `manual`. |
-| `policy_id` | Policy/version identifier, for example `comfort_v1`. |
-| `targets` | Object containing zero or more actuator targets. Empty means no action. |
-| `valid` | `1` when the PC command schema is valid. |
-| `reason` | Short policy/manual reason. Required for no-action and useful for logs. |
+| `type` | 必须为 `control_command`。 |
+| `timestamp` | PC 侧 command timestamp。 |
+| `sample_id` | 匹配触发该命令的 `sensor_data` sample。 |
+| `mode` | `auto` 或 `manual`。 |
+| `policy_id` | Policy/version identifier，例如 `comfort_v1`。 |
+| `targets` | 包含零个或多个 actuator target 的 object。空 object 表示 no action。 |
+| `valid` | PC command schema 有效时为 `1`。 |
+| `reason` | 简短 policy/manual reason。no-action 必须提供，也便于日志记录。 |
 
-Target semantics:
+Target 语义：
 
 | Target | Fields | Semantics |
 |---|---|---|
-| `ir_ac` | `command`, optional `temperature_setpoint_c` | One-shot IR pulse command. It does not prove or represent real AC state. |
-| `humidifier` | `enabled` | Target state for the local board-controlled humidifier/LED actuator. |
+| `ir_ac` | `command`，可选 `temperature_setpoint_c` | 一次性 IR pulse command。不证明也不代表真实 AC 状态。 |
+| `humidifier` | `enabled` | 本地板端控制 humidifier/LED actuator 的 target state。 |
 
-First-version `ir_ac.command` values are limited to:
+第一版 `ir_ac.command` 值限制为：
 
 ```text
 power_on, power_off, temp_24, temp_25, temp_26, temp_27, temp_28
 ```
 
-Manual dashboard controls:
+Dashboard 手动控制：
 
-- Dashboard manual buttons use real device semantics.
-- `/api/control` stores a pending manual command; it does not send directly on
-  the socket.
-- The next `sensor_data` causes PC to send
-  `control_command(mode="manual", reason="dashboard_manual")`.
-- Manual AC commands are one-shot and clear after being sent.
-- Desired-state is reserved for future UI work. First version must not
-  automatically replay desired-state commands.
+- Dashboard manual button 使用真实设备语义。
+- `/api/control` 存储 pending manual command；它不直接向 socket 发送。
+- 下一条 `sensor_data` 触发 PC 发送 `control_command(mode="manual", reason="dashboard_manual")`。
+- Manual AC command 是 one-shot，发送后清除。
+- Desired-state 保留给未来 UI 工作。第一版不得自动重放 desired-state command。
 
 ## PYNQ To PC: control_status
 
-PYNQ replies with the actual execution result for accepted, skipped, and
-rejected actuator commands.
+PYNQ 对已接受、跳过和拒绝的 actuator command 返回实际执行结果。
 
 ```json
 {
@@ -255,76 +243,68 @@ rejected actuator commands.
 }
 ```
 
-Field rules:
+字段规则：
 
 | Field | Meaning |
 |---|---|
-| `type` | Must be `control_status`. |
-| `timestamp` | PYNQ-side status timestamp. |
-| `sample_id` | Matches the triggering `control_command`. |
-| `accepted` | `1` if schema and targets were accepted for handling; `0` if rejected. |
-| `applied` | Per-target execution details. |
-| `status_code` | Structured status code. |
-| `remark` | Short execution/debug reason. |
+| `type` | 必须为 `control_status`。 |
+| `timestamp` | PYNQ 侧 status timestamp。 |
+| `sample_id` | 匹配触发的 `control_command`。 |
+| `accepted` | schema 和 target 被接受处理时为 `1`；拒绝时为 `0`。 |
+| `applied` | 每个 target 的执行细节。 |
+| `status_code` | 结构化 status code。 |
+| `remark` | 简短 execution/debug reason。 |
 
-`status_code` values:
+`status_code` 值：
 
 | Code | Meaning |
 |---:|---|
-| `0` | No error. |
-| `1` | Rejected invalid command or schema. |
-| `2` | Skipped by guard, cooldown, idle, or no-action policy. |
-| `3` | Hardware execution error. |
+| `0` | 无错误。 |
+| `1` | 拒绝 invalid command 或 schema。 |
+| `2` | 因 guard、cooldown、idle 或 no-action policy 被跳过。 |
+| `3` | 硬件执行错误。 |
 
-For IR AC, `sent=true` means PYNQ sent the IR waveform and the IP completed; it
-does not prove the lab AC received the command. The lab setup required the IR
-transmitter to be within approximately 20 cm of the AC receiver for reliable
-response. PC-side IR cooldown should be consumed by confirmed `sent=true`
-status, not merely by issuing a `control_command`; skips such as
-`ir_ac_missing` remain retryable after the normal policy checks.
+对 IR AC 来说，`sent=true` 表示 PYNQ 已发送 IR waveform 且 IP 完成；
+它不证明实验室 AC 收到了命令。实验室搭建需要 IR 发射器距离 AC 接收头约 20 cm 以内才能可靠响应。
+PC 侧 IR cooldown 应由确认的 `sent=true` status 消耗，而不是仅由发出 `control_command` 消耗；
+`ir_ac_missing` 等 skip 在正常 policy check 后仍可重试。
 
-The complete IR AC integration plan is in
-[ir_ac_integration_plan.md](ir_ac_integration_plan.md).
+完整 IR AC 集成计划见 [ir_ac_integration_plan.md](ir_ac_integration_plan.md)。
 
 ## PC-Side Storage
 
-First-version storage should preserve raw and derived records separately. Excel
-or equivalent persistent storage should contain at least four record streams:
+第一版存储应分别保留 raw record 和 derived record。Excel 或等价持久化存储至少包含四类 record stream：
 
 | Sheet | Purpose |
 |---|---|
-| `sensor_data` | Raw board-side packets. |
-| `sleep_result` | PC classification results. |
-| `control_command` | PC policy/manual desired actuator targets for a sample. |
-| `control_status` | PYNQ accepted/skipped/applied execution result. |
+| `sensor_data` | 原始板端 packet。 |
+| `sleep_result` | PC classification result。 |
+| `control_command` | PC policy/manual 为某个 sample 给出的期望 actuator target。 |
+| `control_status` | PYNQ accepted/skipped/applied execution result。 |
 
-Minimum control storage fields:
+最小 control storage 字段：
 
 | Sheet | Fields |
 |---|---|
 | `control_command` | `timestamp`, `sample_id`, `mode`, `policy_id`, `targets_json`, `valid`, `reason` |
 | `control_status` | `timestamp`, `sample_id`, `accepted`, `applied_json`, `status_code`, `remark` |
 
-PC dependency:
+PC dependency：
 
 ```bash
 pip install openpyxl
 ```
 
-Do not keep the Excel file open while the server writes to it.
+server 写入时不要打开 Excel 文件。
 
 ## Validation Steps
 
-1. Validate `pc_server/protocol.py` encode/decode for all four message types.
-2. Run the PC dashboard/service with a fake PYNQ client that sends
-   `sensor_data`, receives `sleep_result` plus `control_command`, and returns
-   `control_status`.
-3. Confirm storage/dashboard state records all four message types.
-4. Replace the fake client with a PYNQ client that sends synthetic data to the
-   PC's real IPv4 address.
-5. Replace synthetic PYNQ values with values read from the integrated driver
-   suite.
+1. 校验 `pc_server/protocol.py` 对四种 message type 的 encode/decode。
+2. 使用 fake PYNQ client 运行 PC dashboard/service：发送 `sensor_data`，
+   接收 `sleep_result` 加 `control_command`，再返回 `control_status`。
+3. 确认 storage/dashboard state 记录所有四种 message type。
+4. 将 fake client 替换为 PYNQ client，向 PC 真实 IPv4 地址发送 synthetic data。
+5. 将 synthetic PYNQ 值替换为从集成 driver suite 读取的真实值。
 
-Do not claim PC-integrated operation until a real PYNQ client connects to the
-PC server and the PC records at least one board-originated packet plus the
-matching `sleep_result`, `control_command`, and `control_status`.
+在真实 PYNQ client 连接 PC server，且 PC 至少记录一条 board-originated packet
+以及匹配的 `sleep_result`、`control_command` 和 `control_status` 之前，不要声称 PC-integrated operation 已完成。

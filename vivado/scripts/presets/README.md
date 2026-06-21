@@ -1,12 +1,11 @@
 # presets
 
-Reusable Vivado board and processing-system presets live here.
+这里存放可复用的 Vivado board 和 processing-system preset。
 
-## Registered Presets
+## 已登记 preset
 
-| Path | Purpose |
+| 路径 | 用途 |
 |---|---|
-| [pynq_revC.tcl](pynq_revC.tcl) | PYNQ-Z1 Rev C `processing_system7` preset used for Zynq PS configuration. |
+| [pynq_revC.tcl](pynq_revC.tcl) | 用于 Zynq PS 配置的 PYNQ-Z1 Rev C `processing_system7` preset。 |
 
-Preset Tcl files should be committed when they affect project reproducibility.
-Remove or parameterize local absolute paths before committing.
+当 preset Tcl 文件影响工程可复现性时，应将其提交。提交前移除本地绝对路径，或将其参数化。

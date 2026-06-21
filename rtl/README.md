@@ -1,16 +1,16 @@
 # rtl
 
-Synthesizable RTL for custom PL-side protocol IP lives here.
+这里存放 PL 侧自定义协议 IP 的可综合 RTL。
 
-## Index
+## 索引
 
-| Path | Purpose |
+| 路径 | 用途 |
 |---|---|
-| [axi_humidifier/](axi_humidifier/) | AXI-Lite humidifier/LED indicator controller migrated from handoff. |
-| [axi_uart_spo2/](axi_uart_spo2/) | AXI-Lite UART SpO2/heart-rate receiver migrated from handoff. |
-| [dht11_axi/](dht11_axi/) | AXI-Lite DHT11 one-wire temperature/humidity IP migrated from handoff. |
-| [gree_ir_axi/](gree_ir_axi/) | TX-only AXI-Lite Gree IR AC transmitter migrated from handoff. |
-| [i2c_mpu9250/](i2c_mpu9250/) | AXI-Lite I2C master IP for JY901/MPU9250 motion data sampling. |
-| [tft_lcd_spi_axi/](tft_lcd_spi_axi/) | AXI-Lite SPI byte transmitter for ST7789 TFT LCD migrated from handoff. |
+| [axi_humidifier/](axi_humidifier/) | 从交接包迁移的 AXI-Lite 加湿器/LED 指示控制器。 |
+| [axi_uart_spo2/](axi_uart_spo2/) | 从交接包迁移的 AXI-Lite UART SpO2/心率接收器。 |
+| [dht11_axi/](dht11_axi/) | 从交接包迁移的 AXI-Lite DHT11 单总线温湿度 IP。 |
+| [gree_ir_axi/](gree_ir_axi/) | 从交接包迁移的 TX-only AXI-Lite Gree IR AC 发射器。 |
+| [i2c_mpu9250/](i2c_mpu9250/) | 用于 JY901/MPU9250 运动数据采样的 AXI-Lite I2C master IP。 |
+| [tft_lcd_spi_axi/](tft_lcd_spi_axi/) | 从交接包迁移的 ST7789 TFT LCD AXI-Lite SPI 字节发送器。 |
 
-Add one subdirectory per custom IP. Keep protocol cores, AXI wrappers, and shared helper logic separated when practical.
+每个自定义 IP 使用一个子目录。可行时，将协议核心、AXI wrapper 和共享辅助逻辑分开维护。

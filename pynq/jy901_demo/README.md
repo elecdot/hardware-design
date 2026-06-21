@@ -1,8 +1,8 @@
 # jy901_demo
 
-Minimal PYNQ-Z1 demo for the JY901 AXI I2C bitstream.
+JY901 AXI I2C bitstream 的最小 PYNQ-Z1 demo。
 
-This first demo intentionally uses the smoke-tested path:
+首个 demo 有意使用已 smoke-tested 的路径：
 
 ```python
 from pynq import Bitstream, MMIO
@@ -10,65 +10,63 @@ Bitstream(bitfile).download()
 ip = MMIO(0x43C00000, 0x10000)
 ```
 
-It does not depend on `.hwh` overlay metadata.
+它不依赖 `.hwh` overlay metadata。
 
-## Target Runtime
+## 目标运行时
 
-Board environment recorded during bring-up:
+bring-up 期间记录的板端环境：
 
-- Jupyter kernel: root with `/opt/python3.6/bin/python3.6`.
-- Jupyter PYNQ package path:
-  `/opt/python3.6/lib/python3.6/site-packages/pynq`.
-- SSH CLI default `python3`: `/usr/bin/python3`, version 3.4.3+, without the
-  complete Jupyter/PYNQ package environment.
-- SSH CLI default `python`: legacy Python 2.7.10, not the demo target.
-- Kernel: `Linux pynq 4.6.0-xilinx ... armv7l`.
+- Jupyter kernel：root，使用 `/opt/python3.6/bin/python3.6`。
+- Jupyter PYNQ package 路径：
+  `/opt/python3.6/lib/python3.6/site-packages/pynq`。
+- SSH CLI 默认 `python3`：`/usr/bin/python3`，版本 3.4.3+，没有完整 Jupyter/PYNQ package 环境。
+- SSH CLI 默认 `python`：legacy Python 2.7.10，不是 demo 目标。
+- Kernel：`Linux pynq 4.6.0-xilinx ... armv7l`。
 
-Keep demo code Python 3.6 compatible. Avoid Python 3.7+ syntax or APIs.
+demo 代码保持 Python 3.6 兼容。避免使用 Python 3.7+ 语法或 API。
 
-## Files
+## 文件
 
-| File | Purpose |
+| 文件 | 用途 |
 |---|---|
-| [smoke.ipynb](smoke.ipynb) | Original manual smoke test notebook. |
-| [smoke_demo.py](smoke_demo.py) | Jupytext-style py:percent notebook source for a short oneshot demo. |
-| [jy901_driver.py](jy901_driver.py) | Python 3.6-compatible bitstream/MMIO driver helpers. |
-| [demo_cli.py](demo_cli.py) | Main automatic polling demo for classroom presentation. |
+| [smoke.ipynb](smoke.ipynb) | 原始手动 smoke test notebook。 |
+| [smoke_demo.py](smoke_demo.py) | 短 oneshot demo 的 Jupytext-style py:percent notebook 源文件。 |
+| [jy901_driver.py](jy901_driver.py) | Python 3.6 兼容的 bitstream/MMIO 驱动 helper。 |
+| [demo_cli.py](demo_cli.py) | 课堂展示用的主自动轮询 demo。 |
 
-## Run CLI Demo
+## 运行 CLI Demo
 
-Copy this directory to the PYNQ board next to the bitstream, then run:
+把本目录复制到 PYNQ 板端 bitstream 旁边，然后运行：
 
 ```bash
 cd /home/xilinx/jupyter_notebooks/jy901_test/jy901_demo
 sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6 demo_cli.py --duration 10
 ```
 
-Defaults:
+默认值：
 
-- bitstream: `/home/xilinx/jupyter_notebooks/jy901_test/jy901_axi_package.bit`
-- base address: `0x43C00000`
-- address range: `0x10000`
-- I2C divider: `500`
+- bitstream：`/home/xilinx/jupyter_notebooks/jy901_test/jy901_axi_package.bit`
+- base address：`0x43C00000`
+- address range：`0x10000`
+- I2C divider：`500`
 
-Optional JSONL capture:
+可选 JSONL 采集：
 
 ```bash
 sudo env -u PYTHONPATH /opt/python3.6/bin/python3.6 demo_cli.py --duration 30 --interval 0.5 --jsonl jy901_demo_run.jsonl
 ```
 
-Expected pass evidence:
+预期通过证据：
 
-- `VERSION` prints `0x4A593101 PASS`;
-- initial oneshot increments `SAMPLE_CNT`;
-- table rows continue printing without `ACK_ERR` or `TIMEOUT`;
-- moving or rotating the JY901 changes acceleration and roll/pitch/yaw values.
+- `VERSION` 打印 `0x4A593101 PASS`；
+- 初始 oneshot 使 `SAMPLE_CNT` 增加；
+- 表格行持续打印，且没有 `ACK_ERR` 或 `TIMEOUT`；
+- 移动或旋转 JY901 会改变加速度和 roll/pitch/yaw 值。
 
-## Readable Data Conversion
+## 可读数据换算
 
-`jy901_driver.py` exposes `scale_raw(raw)`, `readable_measurements(raw)`, and
-`JY901DemoDriver.read_readable()` so the CLI, notebook, and JSONL output use
-the same conversion rules.
+`jy901_driver.py` 暴露 `scale_raw(raw)`、`readable_measurements(raw)` 和
+`JY901DemoDriver.read_readable()`，让 CLI、notebook 和 JSONL 输出使用相同换算规则。
 
 | JY901 register | Field | Raw interpretation | Converted unit |
 |---:|---|---|---|
@@ -86,35 +84,30 @@ the same conversion rules.
 | `0x3F` | Yaw | `raw / 32768 * 180` | deg |
 | `0x40` | TEMP | `raw / 100` | C |
 
-## Run Notebook-Style Demo
+## 运行 Notebook 风格 Demo
 
-`smoke_demo.py` is a py:percent notebook source. It can be opened as a script or
-converted/synced with Jupytext on a development machine. Jupytext is not
-required on the PYNQ board.
+`smoke_demo.py` 是 py:percent notebook 源文件。它可以作为脚本打开，
+也可以在开发机上用 Jupytext 转换/同步。PYNQ 板端不需要 Jupytext。
 
-The notebook path is intentionally short:
+notebook 路径有意保持简短：
 
-1. download bitstream;
-2. create direct MMIO driver;
-3. check `VERSION` and `STATUS`;
-4. run one oneshot read;
-5. display raw and scaled values.
+1. 下载 bitstream；
+2. 创建 direct MMIO driver；
+3. 检查 `VERSION` 和 `STATUS`；
+4. 运行一次 oneshot read；
+5. 显示 raw 和 scaled 值。
 
-## Known Failure Hints
+## 已知失败提示
 
-- `VERSION` mismatch: confirm `BASE_ADDR=0x43C00000` still matches Vivado Address Editor.
-- `ACK_ERR` / `ERROR_CODE=0x01`: the JY901 did not ACK the write-address byte.
-  Confirm module power, PMODA `Y17/Y16`, 3.3 V pullups, Dupont jumper contact,
-  and `DEV_ADDR=0x50`.
-- `TIMEOUT`: confirm I2C lines are not stuck low and the bitstream matches the RTL/register map.
-- all-zero sensor payload: treat the sample as invalid, not as motion. This is
-  usually a sign of an interrupted transaction, stale/cleared sample registers,
-  or unstable sensor wiring before a visible ACK error.
-- `scl_in=0` and `sda_in=0` at idle: check pullups, pin mapping, and IOBUF tri-state behavior.
+- `VERSION` 不匹配：确认 `BASE_ADDR=0x43C00000` 仍与 Vivado Address Editor 一致。
+- `ACK_ERR` / `ERROR_CODE=0x01`：JY901 没有 ACK write-address byte。
+  确认模块供电、PMODA `Y17/Y16`、3.3 V pullup、杜邦线接触以及 `DEV_ADDR=0x50`。
+- `TIMEOUT`：确认 I2C 线没有被拉低卡死，且 bitstream 与 RTL/寄存器映射匹配。
+- 传感器 payload 全零：把该 sample 视为无效，不要当作静止。
+  这通常说明 transaction 被中断、sample 寄存器为 stale/cleared，或出现可见 ACK error 前传感器接线不稳定。
+- idle 时 `scl_in=0` 且 `sda_in=0`：检查 pullup、pin mapping 和 IOBUF 三态行为。
 
-## Limitations
+## 限制
 
-This v1 demo does not implement PC socket transfer, trained sleep-stage
-prediction, clinical inference, `.hwh` auto discovery, display output, or CSV
-dashboards. It demonstrates the minimal chain from bitstream download to AXI
-register access and JY901 sample reads.
+该 v1 demo 不实现 PC socket 传输、训练好的睡眠阶段预测、临床推断、`.hwh` 自动发现、显示输出或 CSV dashboard。
+它演示的是从 bitstream 下载到 AXI 寄存器访问和 JY901 sample read 的最小链路。
