@@ -8,6 +8,7 @@
 - `fig3-3-jy901-i2c-burst-read.svg`
 - `fig3-1-jy901-single-module-path.svg`
 - `fig3-5-jy901-pynq-driver-flow.svg`
+- `fig3-8-jy901-ila-debug-top.svg`
 - `fig3-11-pynq-software-integration.svg`
 - `fig3-12-pc-service-module-design.svg`
 - `fig4-2-system-architecture.svg`
@@ -23,9 +24,8 @@
 - `fig3-4-vivado-jy901-ip-symbol.png`
 - `fig3-6-jy901-simulation-pass.png`
 - `fig3-7-jy901-i2c-waveform.png`
-- `fig3-8-jy901-single-module-cli-pass.png`
-- `fig3-9-integrated-jy901-json-fields.png`
-- `fig3-10-final-demo-turnover-pass.png`
+- `fig3-9-jy901-ila-debug-capture.png`
+- `fig3-10-jy901-single-module-cli-pass.png`
 - `fig4-1-final-system-photo.png`
 - `fig4-3-vivado-block-design.png`
 - `fig4-4-final-wiring-photo.png`
