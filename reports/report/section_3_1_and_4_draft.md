@@ -17,7 +17,7 @@ JY901 九轴模块
     -> 翻身检测、TFT 显示、PC socket 上传
 ```
 
-![图3-1 I2C JY901 单模块完整路径图：JY901、I2C 自定义 IP、AXI4-Lite、PYNQ MMIO 驱动、单模块测试和翻身检测接口](assert/fig3-1-jy901-single-module-path.svg)
+![图3-1 I2C JY901 单模块完整链路图：JY901、I2C 自定义 IP、AXI4-Lite、PYNQ MMIO 驱动、单模块测试和翻身检测接口](assert/fig3-1-jy901-single-module-path.svg)
 
 ### 3.1.1 IP 设计
 
@@ -285,7 +285,7 @@ PASS: I2C master timeout path completed
 
 #### （2）单模块 PYNQ 上板测试
 
-单模块测试使用 PYNQ 命令行测试程序完成。测试路径为：下载独立 JY901 bitstream，创建 direct MMIO，检查 `VERSION`，启动一次 oneshot，随后周期性读取并打印 scaled 数据。该路径不依赖硬件描述自动解析，适合快速排查 I2C 地址、上拉、线序和 AXI 寄存器问题。
+单模块测试使用 PYNQ 命令行测试程序完成。测试流程为：下载独立 JY901 bitstream，创建 direct MMIO，检查 `VERSION`，启动一次 oneshot，随后周期性读取并打印 scaled 数据。该流程不依赖硬件描述自动解析，适合快速排查 I2C 地址、上拉、线序和 AXI 寄存器问题。
 
 通过标准为：
 
@@ -316,6 +316,212 @@ PASS: I2C master timeout path completed
 ![图3-9 集成系统中 JY901 字段的 JSON 输出截图：jy901_status、imu_valid、accel、gyro 和 turnover 字段](assert/fig3-9-integrated-jy901-json-fields.png)
 
 ![图3-10 最终演示翻身计数验证截图：旋转 JY901 前后 turnover_flag 置位且 turnover_count 增加](assert/fig3-10-final-demo-turnover-pass.png)
+
+## 3.2 PYNQ 板端软件集成设计（撰写人：待填）
+
+PYNQ 板端软件是 PL 自定义 IP 和 PC 端服务之间的中间层。它不负责复杂模型推理，而是负责加载硬件平台、绑定各个 AXI4-Lite IP、周期性读取传感器、刷新本地 TFT 显示、执行经过校验的控制命令，并把每一轮采样结果组织为规范的 `sensor_data` 消息。这样划分后，PL 侧保持时序接口稳定，PC 侧集中处理分类、策略和可视化，板端软件则承担实时采样与设备执行的职责。
+
+![图3-11 PYNQ 板端软件集成结构图：Overlay 加载、驱动绑定、采样、TFT 更新、socket 通信和命令执行](assert/fig3-11-pynq-software-integration.svg)
+
+### 3.2.1 Overlay 加载与驱动绑定
+
+板端程序启动后首先加载最终集成 overlay，并读取与 bitstream 匹配的硬件描述，用于定位各个 IP 的 AXI 基地址和地址范围。考虑到部分旧版 PYNQ 运行环境可能无法自动解析硬件描述，软件保留静态地址表作为兼容方案。静态地址表只用于运行时绑定，不改变硬件地址规划；最终报告和系统集成仍以 Vivado 导出的地址映射为准。
+
+驱动绑定时，每个 IP 被包装为职责单一的软件对象或函数接口。PYNQ 主循环只调用这些接口，不直接在业务逻辑中散落寄存器偏移量，便于调试和后续替换模块。
+
+| 驱动对象 | 绑定内容 | 板端职责 |
+|---|---|---|
+| JY901 驱动 | I2C-JY901 AXI IP | 触发 oneshot，读取姿态原始值，换算加速度、角速度、磁场和 roll/pitch/yaw |
+| DHT11 驱动 | DHT11 AXI IP | 读取温度、湿度和数据有效状态 |
+| SpO2 驱动 | UART SpO2 AXI IP | 解析心率、血氧、帧状态和校验标志 |
+| TFT 驱动 | TFT LCD SPI AXI IP | 初始化屏幕，按固定区域刷新数值 |
+| 加湿器驱动 | Humidifier AXI IP | 写入目标状态，读取当前控制结果 |
+| IR 空调驱动 | Gree IR AC AXI IP | 写入 preset，触发红外波形发送，读取 done/error 状态 |
+
+板端驱动绑定完成后，软件会检查关键 IP 是否存在。最终演示要求 JY901、DHT11、SpO2、TFT、加湿器和 IR 空调 IP 均完成绑定；仅在 bring-up 或隔离调试时允许跳过个别模块。
+
+### 3.2.2 采样流程与数据质量标志
+
+板端软件以约 1 s 为默认周期执行采样。每一轮采样生成一个递增的 `sample_id`，并读取 JY901、DHT11、SpO2 等传感器。采样结果统一写入 `sensor_data` 字典，随后用于 TFT 显示、PC 上传和本地控制状态关联。
+
+采样流程如下：
+
+```text
+生成 sample_id 和 timestamp
+ -> 读取 JY901，更新姿态和翻身计数
+ -> 读取 DHT11，更新温湿度
+ -> 读取 UART SpO2，更新心率和血氧
+ -> 合并质量标志和状态文本
+ -> 刷新 TFT 显示
+ -> 输出 sensor_data
+```
+
+JY901 读取采用“短暂重试 + 最近有效值缓存”的策略。若某一轮 I2C 读取瞬时失败，板端会进行有限次数重试；若仍失败但最近有效 IMU 数据未超时，则复用最近值并标记 `imu_stale=1`。这样做可以避免一次 IMU 瞬态故障导致整个 PC 分类 warm-up 被重置。心率和血氧链路仍由 `spo2_valid`、`data_valid` 等标志独立表达。
+
+`sensor_data` 的主要字段分组如下。
+
+| 字段组 | 代表字段 | 设计说明 |
+|---|---|---|
+| 采样标识 | `type`、`sample_id`、`timestamp` | 保证 PC 端能把四类消息按同一采样周期对齐 |
+| 生理数据 | `heart_rate_bpm`、`spo2_percent`、`spo2_valid` | 来源于 UART SpO2 模块，是睡眠分类的主要输入 |
+| 姿态数据 | `accel_x/y/z`、`gyro_x/y/z`、`mag_x/y/z` | 来源于 JY901，用于体动分析和状态展示 |
+| 翻身数据 | `turnover_flag`、`turnover_count` | 由板端基于 roll/pitch 变化阈值计算 |
+| 环境数据 | `temperature_c`、`humidity_percent`、`env_valid` | 来源于 DHT11，也用于 PC 舒适度策略 |
+| 质量标志 | `data_valid`、`imu_valid`、`imu_stale`、`checksum_ok`、`status_code` | 区分“可分类样本”和“局部传感器异常” |
+| 调试状态 | `jy901_status`、`jy901_attempts`、`remark` | 便于端到端测试时定位单个模块问题 |
+
+### 3.2.3 本地显示与执行器控制
+
+板端 TFT 显示用于课堂演示和脱离 PC 时的基本观察。软件采用固定区域局部刷新方式，避免每秒全屏重绘造成明显闪烁。显示内容包括心率、血氧、翻身次数、温湿度、当前睡眠状态摘要和最近一次控制状态。PC 端仍是完整 dashboard，本地 TFT 只保留关键运行值。
+
+执行器控制由 PC 端下发 `control_command` 后在 PYNQ 侧执行。板端只接受经过协议校验的目标，且不会把 `sleep_result` 直接解释成硬件动作。当前支持两类执行器：
+
+1. 加湿器目标状态：`humidifier.enabled=true/false`，板端写入加湿器 IP 并读取执行后的状态。
+2. IR 空调一次性命令：`ir_ac.command`，板端把命令映射为已验证的 preset，并触发红外发送。
+
+IR 空调控制额外加入两类保护。第一类是最小发送间隔，避免连续红外波形过密；第二类是重复命令冷却，避免 dashboard 或自动策略在短时间内重复发送同一空调命令。由于红外链路没有真实状态反馈，`sent=true` 只表示 PYNQ 已完成红外波形发送，不代表空调一定接收成功。最终实物验证仍需要观察空调响应。
+
+板端执行结果统一组织为 `control_status`。
+
+| `status_code` | 含义 | 典型原因 |
+|---:|---|---|
+| `0` | 正常处理 | 命令被接受并执行，或合法 no-action |
+| `1` | 拒绝 | 命令 schema 无效、target 非法或 sample 不匹配 |
+| `2` | 跳过 | no-action、IR cooldown、缺少硬件或当前不适合执行 |
+| `3` | 硬件错误 | IP 返回 error、发送超时或执行器驱动异常 |
+
+### 3.2.4 Socket 客户端通信设计
+
+板端 socket 客户端连接 PC 的真实 IPv4 地址和固定端口，传输格式为换行分隔 JSON。每个采样周期中，板端先发送一条 `sensor_data`，然后等待 PC 端按顺序返回 `sleep_result` 和 `control_command`。只有两条消息的 `sample_id` 与当前采样匹配时，板端才执行控制命令；如果超时、消息格式错误或 sample 不匹配，则本轮跳过控制，并继续下一轮采样。
+
+通信状态机可概括为：
+
+```text
+CONNECT
+ -> SEND sensor_data
+ -> WAIT sleep_result
+ -> WAIT control_command
+ -> APPLY 或 SKIP command
+ -> SEND control_status
+ -> NEXT SAMPLE
+```
+
+当 PC 服务不可达或连接断开时，板端客户端按固定间隔重试连接，而不是退出整个采样程序。这样在课堂演示中可以先启动 PYNQ 或先启动 PC，系统最终都能进入稳定闭环。程序停止时会关闭 socket，并保留最后的终端输出作为演示证据。
+
+### 3.2.5 板端软件测试设计
+
+PYNQ 板端软件测试分为可在 PC 环境运行的逻辑自测和真实 PYNQ 板级测试两类。逻辑自测使用 fake driver 或 localhost socket，验证采样字典形状、JY901 重试策略、no-action 命令、加湿器 target、IR cooldown、命令拒绝路径和 socket loopback，不作为真实硬件证据。真实板级测试则需要加载最终 overlay，读取实际传感器，刷新 TFT，并与 PC 服务完成四消息闭环。
+
+该划分的好处是：协议和控制逻辑可以在没有板卡时快速回归；真实硬件测试则集中验证驱动绑定、外设接线、传感器读数和执行器响应。第四章系统测试部分给出最终板级和端到端验收结果。
+
+## 3.3 PC 端服务与可视化设计（撰写人：待填）
+
+PC 端服务负责接收 PYNQ 上传的结构化采样数据，执行睡眠状态分类，依据舒适度策略生成设备控制命令，保存四类运行记录，并向 dashboard 提供实时可视化。PC 端不直接访问硬件寄存器，也不绕过主 socket loop 直接控制设备；所有自动或手动控制都必须通过 `control_command` 下发，再由 PYNQ 返回 `control_status`。
+
+![图3-12 PC 端服务模块设计图：协议校验、服务编排、分类器适配、舒适度策略、状态管理、JSONL 存储和 dashboard](assert/fig3-12-pc-service-module-design.svg)
+
+### 3.3.1 模块划分
+
+PC 端服务采用分层组合方式，各模块职责如下。
+
+| 模块 | 输入 | 输出 | 设计职责 |
+|---|---|---|---|
+| 协议模块 | socket 字节流或消息字典 | 校验后的四类消息 | 处理 newline JSON 编解码、字段检查、消息类型检查和错误报告 |
+| 分类器适配模块 | `sensor_data` | `sleep_result` | 包装睡眠分类模型，保证输出 schema 稳定，异常时返回 invalid result |
+| 睡眠分类模型 | 心率、血氧、体动、历史窗口 | 睡眠状态编号 | 基于轻量 DREAMT GRU 推理，输出清醒、浅睡或深睡状态 |
+| 舒适度策略模块 | `sensor_data`、`sleep_result`、运行状态 | `control_command` | 根据温湿度、睡眠状态、手动命令和 cooldown 生成执行器目标 |
+| 状态管理模块 | 四类消息和 UI 操作 | 最新状态快照 | 维护 active client、latest records、pending manual command、控制历史和显示用目标状态 |
+| 持久化存储模块 | 四类规范消息 | JSONL 记录流 | 分别保存原始采样、分类结果、控制命令和执行状态 |
+| Socket 服务模块 | PYNQ TCP 连接 | 双向四消息闭环 | 对每条 `sensor_data` 返回 `sleep_result` 和 `control_command`，并接收 `control_status` |
+| Dashboard 模块 | 状态快照和用户操作 | Web 页面与手动命令 | 展示实时数据、分类、控制状态和手动控制入口 |
+
+这种划分避免把协议、模型、策略、存储和 UI 混在一个大循环中。即使分类模型失败或策略生成 no-action，socket 服务仍能按协议返回合法消息，保证 PYNQ 客户端不会因为 PC 内部异常而卡死。
+
+### 3.3.2 协议层与服务主循环
+
+PC 服务监听固定 TCP 端口，第一版只支持一个 active PYNQ client。传输层使用 UTF-8 newline JSON，每条消息以 `\n` 结束，解决 TCP 字节流没有天然消息边界的问题。协议层会校验四种消息：
+
+1. `sensor_data`：PYNQ 上传的原始采样。
+2. `sleep_result`：PC 输出的睡眠分类结果。
+3. `control_command`：PC 输出的设备控制目标。
+4. `control_status`：PYNQ 回传的执行结果。
+
+每一轮服务主循环严格遵守以下顺序：
+
+```text
+接收 sensor_data
+ -> 协议校验并记录原始采样
+ -> 调用分类器适配模块生成 sleep_result
+ -> 调用舒适度策略模块生成 control_command
+ -> 依次发送 sleep_result 和 control_command
+ -> 接收 PYNQ 回传的 control_status
+ -> 更新状态并写入存储
+```
+
+即使自动策略决定不动作，PC 端也发送合法的 no-action `control_command`，其中 `targets` 为空并给出 `reason`。这样 PYNQ 端无需依赖“没有收到命令”这种隐式状态判断，协议时序更稳定。
+
+### 3.3.3 睡眠分类适配设计
+
+睡眠分类模块的输入来自 `sensor_data`，主要包括心率、血氧、体动强度、时间序列历史和数据有效标志。分类器适配层负责把板端数据转换为模型需要的稳定输入，并把模型输出转换为统一的 `sleep_result` 消息。
+
+`sleep_result` 的核心字段包括：
+
+| 字段 | 含义 |
+|---|---|
+| `type` | 固定为 `sleep_result` |
+| `sample_id` | 回显对应输入采样 |
+| `sleep_state_code` | `0` 表示清醒或未入睡，`1` 表示浅睡，`2` 表示深睡 |
+| `state_valid` | 分类结果是否有效 |
+| `remark` | 模型置信度、warm-up 或异常说明 |
+
+适配层的关键设计是“模型异常不破坏协议”。当输入字段不足、模型尚未 warm-up 或分类函数异常时，PC 端返回 `state_valid=0` 的 `sleep_result`，并在后续策略中生成 no-action `control_command`。此外，JY901 单独瞬态失败不应强制心率/血氧主链路失效，避免体动模块偶发错误导致分类历史被不必要清空。
+
+### 3.3.4 舒适度策略设计
+
+舒适度策略模块根据 `sensor_data`、`sleep_result` 和当前运行状态生成 `control_command`。策略输出只表达期望执行器目标，不直接控制硬件。第一版策略包含自动模式和手动模式。
+
+自动模式规则如下：
+
+1. 如果 `state_valid != 1` 或关键传感器数据缺失，则输出 no-action。
+2. 湿度低于约 40% RH 时，生成 `humidifier.enabled=true`。
+3. 湿度高于约 60% RH 时，生成 `humidifier.enabled=false`。
+4. 温度高于当前睡眠状态对应舒适区时，生成 `temp_26`、`temp_25` 或 `temp_24` 等空调命令。
+5. 温度低于舒适区时，生成 `temp_27` 或 `temp_28` 等空调命令。
+6. 处于舒适区或受 cooldown 限制时，输出 no-action 并说明原因。
+
+不同睡眠状态使用不同策略强度。清醒或未入睡时可以更主动调整；浅睡时适中；深睡时舒适区更宽，以减少红外空调和加湿器动作对睡眠的干扰。
+
+手动模式由 dashboard 设置 pending command，但不会从 HTTP 请求处理流程直接写 socket。下一条 `sensor_data` 到达时，PC 服务把 pending command 转换成合法的 `control_command(mode="manual")` 下发。空调命令是 one-shot 红外动作，发送后清除；加湿器命令是目标状态，可持续显示在 dashboard 上。
+
+### 3.3.5 状态管理、存储与 Dashboard
+
+状态管理模块维护服务运行时的最新状态，包括 active client、最近一轮 `sensor_data`、`sleep_result`、`control_command`、`control_status`、pending manual command、控制历史和 display-only desired-state。该状态用于 dashboard 刷新，也用于舒适度策略判断 IR cooldown 和手动命令是否已经消费。
+
+持久化存储采用四类 JSONL 记录流：
+
+| 记录流 | 内容 | 作用 |
+|---|---|---|
+| `sensor_data` | 原始板端采样 | 保留未处理输入，便于复现实验 |
+| `sleep_result` | 分类输出 | 记录模型对每个 sample 的判断 |
+| `control_command` | PC 下发的控制目标 | 记录自动策略或手动控制的决策 |
+| `control_status` | PYNQ 回传执行结果 | 记录命令是否 accepted、skipped、sent 或 error |
+
+四类记录分开保存，可以避免把原始传感器数据、模型输出、控制决策和执行结果混在同一结构中。后续做图表、问题定位或报告截图时，可以按同一 `sample_id` 关联四类消息。
+
+Dashboard 展示内容包括连接状态、实时心率/血氧/体动/温湿度、睡眠状态、最新控制命令、PYNQ 执行状态、控制历史、pending manual command 和显示用目标状态。Dashboard 的手动按钮只创建下一轮待发送命令，不直接绕过 socket 主循环，因此最终演示中的控制路径和日志记录路径保持一致。
+
+### 3.3.6 PC 端软件测试设计
+
+PC 端软件测试采用自底向上的方式覆盖主要模块：
+
+1. 协议测试：校验四种消息的编码、解码、字段缺失、非法 target、no-action 和 rejected-status。
+2. 分类器适配测试：校验有效分类、模型异常降级、输入无效和 JY901-only 失败不破坏 HR/SpO2 主链路。
+3. 舒适度策略测试：覆盖分类无效、湿度低/高、温度高/低、手动 pending、IR cooldown 和 no-action。
+4. 状态与存储测试：验证 latest records、pending manual command、控制历史和四类 JSONL 写入。
+5. 服务组合测试：对一条 `sensor_data` 生成 `sleep_result` 和 `control_command`，并记录 `control_status`。
+6. Socket 与 dashboard 测试：使用模拟板端客户端完成四消息 loopback，验证 dashboard 页面和静态资源可加载。
+
+这些 PC-only 测试证明协议、分类、策略、状态、存储和 dashboard 逻辑可以独立运行；真实板端 socket 测试和端到端验收结果在第四章说明。
 
 ---
 
@@ -495,7 +701,7 @@ PC/PYNQ 软件闭环按以下层次测试：
 3. PC-only socket smoke：fake PYNQ client 发送 `sensor_data`，PC 返回 `sleep_result` 和 `control_command`，fake client 返回 `control_status`。
 4. 真实 PYNQ socket 运行：PYNQ 发送板端 `sensor_data`，PC 保存四类 JSONL 记录，dashboard 显示最新传感器、分类、控制命令和执行状态。
 
-软件集成测试包括一次 90-sample 真实 PYNQ socket 运行，生成了匹配的 `sensor_data`、`sleep_result`、`control_command`、`control_status` 流；另有 dashboard 加模拟板端客户端的 smoke 测试完成 10 个四消息周期，并验证页面和静态资源可正常加载。最终演示采用 PC 端 dashboard 服务和真实 PYNQ 板端客户端的完整路径，已经完成端到端验收；报告材料中应放入 PC dashboard、PYNQ stdout 和 JSONL 记录文件截图。
+软件集成测试包括一次 90-sample 真实 PYNQ socket 运行，生成了匹配的 `sensor_data`、`sleep_result`、`control_command`、`control_status` 流；另有 dashboard 加模拟板端客户端的 smoke 测试完成 10 个四消息周期，并验证页面和静态资源可正常加载。最终演示采用 PC 端 dashboard 服务和真实 PYNQ 板端客户端的完整闭环，已经完成端到端验收；对应证据材料包括 PC dashboard、PYNQ stdout 和 JSONL 记录文件截图。
 
 ![图4-15 PC dashboard 页面截图：实时传感器数据、睡眠状态、控制命令、执行状态和 desired-state 区域](assert/fig4-15-pc-dashboard-final-demo.png)
 
@@ -505,7 +711,7 @@ PC/PYNQ 软件闭环按以下层次测试：
 
 系统功能与测试结果可汇总如下。
 
-| 功能 | 实现路径 | 测试结果 | 证据建议 |
+| 功能 | 实现方式 | 测试结果 | 证据材料 |
 |---|---|---|---|
 | 体动/姿态采集 | JY901 I2C IP + PYNQ MMIO | 已有仿真和板级采样证据，姿态数据可读 | JY901 单模块输出或集成输出截图 |
 | 温湿度采集 | DHT11 AXI IP | 集成 smoke 中可读温湿度 | PYNQ 输出截图 |

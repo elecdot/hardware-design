@@ -1,6 +1,6 @@
 # Report Image Asset Checklist
 
-本目录存放 `../section_3_1_and_4_draft.md` 引用的图片。
+本目录存放报告正文引用的图片。
 
 ## 已存在
 
@@ -8,13 +8,15 @@
 - `fig3-3-jy901-i2c-burst-read.svg`
 - `fig3-1-jy901-single-module-path.svg`
 - `fig3-5-jy901-pynq-driver-flow.svg`
+- `fig3-11-pynq-software-integration.svg`
+- `fig3-12-pc-service-module-design.svg`
 - `fig4-2-system-architecture.svg`
 - `fig4-5-pc-pynq-four-message-flow.svg`
 - `fig4-6-pc-server-pipeline.svg`
 - `fig4-7-board-client-sequence.svg`
 - `fig4-8-system-test-layered-flow.svg`
 
-这些文件从 `reports/gzh/diagrams/` 复制而来。
+其中部分文件复用了既有展示材料，新增的软件结构图为报告正文补充图。
 
 ## 仍需补充
 
